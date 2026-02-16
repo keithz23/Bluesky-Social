@@ -1,0 +1,27 @@
+export const VALIDATION_RULES = {
+  // User
+  USERNAME_MIN_LENGTH: 3,
+  USERNAME_MAX_LENGTH: 30,
+  PASSWORD_MIN_LENGTH: 8,
+  PASSWORD_MAX_LENGTH: 128,
+  BIO_MAX_LENGTH: 500,
+
+  // Post
+  POST_CONTENT_MIN_LENGTH: 1,
+  POST_CONTENT_MAX_LENGTH: 5000,
+
+  // Comment
+  COMMENT_MIN_LENGTH: 1,
+  COMMENT_MAX_LENGTH: 1000,
+
+  // Group
+  GROUP_NAME_MIN_LENGTH: 3,
+  GROUP_NAME_MAX_LENGTH: 100,
+  GROUP_DESCRIPTION_MAX_LENGTH: 1000,
+
+  // File Upload
+  MAX_IMAGE_SIZE: 5 * 1024 * 1024, // 5MB
+  MAX_VIDEO_SIZE: 100 * 1024 * 1024, // 100MB
+  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  ALLOWED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/ogg'],
+};
