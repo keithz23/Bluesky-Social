@@ -51,7 +51,7 @@ export class AuthController {
 
   // ============= PUBLIC ROUTES =============
   @Public()
-  @Post('signup')
+  @Post('register')
   @Throttle({ default: { ttl: 3600, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({
@@ -65,7 +65,7 @@ export class AuthController {
   }
 
   @Public()
-  @Post('signin')
+  @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 900, limit: 5 } })
   @ApiOperation({ summary: 'Login with username/email and password' })
@@ -185,7 +185,7 @@ export class AuthController {
 
   // ============= PROTECTED ROUTES =============
 
-  @Post('signout')
+  @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from current session' })
