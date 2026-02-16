@@ -1,10 +1,10 @@
 export interface RegisterData {
   email: string;
   password: string;
-  dateOfBirth: Date;
+  dateOfBirth: string;
 }
 
 export interface LoginCredentials {
-  identifier: string;
+  account: string;
   password: string;
 }

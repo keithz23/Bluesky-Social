@@ -1,19 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { AtSign, Calendar, LockKeyhole } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
+import { useAuth } from "@/app/hooks/use-auth";
+import { Spinner } from "@/components/ui/spinner";
+import { useRouter } from "next/navigation";
 
 // --- SCHEMAS ---
 
 // Schema Step 1: Account Info
 const step1Schema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password cannot exceed 128 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain uppercase, lowercase, number and special character",
+    ),
+
   dateOfBirth: z.string().refine((date) => {
     const age = new Date().getFullYear() - new Date(date).getFullYear();
     return age >= 13;
@@ -34,6 +46,8 @@ type Step2Values = z.infer<typeof step2Schema>;
 
 export default function RegisterFlow() {
   const [step, setStep] = useState(1);
+  const router = useRouter();
+  const { signupMutation, isRegistering } = useAuth();
   const [formData, setFormData] = useState<Partial<Step1Values & Step2Values>>(
     {},
   );
@@ -44,9 +58,18 @@ export default function RegisterFlow() {
   };
 
   const onStep2Submit = (data: Step2Values) => {
-    const finalData = { ...formData, ...data };
-    console.log("Final Registration Data:", finalData);
-    alert("Registration Complete! Check console.");
+    const finalData = { ...formData, ...data } as Step1Values & Step2Values;
+    signupMutation.mutate(
+      { registerDto: finalData },
+      {
+        onSuccess: () => {
+          router.push("/login");
+        },
+        onError: (error) => {
+          console.error("Signup error:", error);
+        },
+      },
+    );
   };
 
   return (
@@ -59,7 +82,11 @@ export default function RegisterFlow() {
       )}
 
       {step === 2 && (
-        <Step2Form onBack={() => setStep(1)} onSubmit={onStep2Submit} />
+        <Step2Form
+          onBack={() => setStep(1)}
+          onSubmit={onStep2Submit}
+          isRegistering={isRegistering}
+        />
       )}
     </div>
   );
@@ -191,9 +218,11 @@ function Step1Form({
 function Step2Form({
   onBack,
   onSubmit,
+  isRegistering,
 }: {
   onBack: () => void;
   onSubmit: (data: Step2Values) => void;
+  isRegistering: boolean;
 }) {
   const {
     register,
@@ -252,8 +281,15 @@ function Step2Form({
         <button
           type="submit"
           className="px-8 py-2.5 rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition shadow-sm cursor-pointer"
+          disabled={isRegistering}
         >
-          Next
+          {isRegistering ? (
+            <div className="flex items-center gap-x-3">
+              <Spinner /> Processing
+            </div>
+          ) : (
+            "Next"
+          )}
         </button>
       </div>
     </form>

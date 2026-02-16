@@ -79,12 +79,12 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthResponseDto> {
-    const { identifier, password } = loginDto;
+    const { account, password } = loginDto;
 
     // Find user by email or username
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: identifier }, { username: identifier }],
+        OR: [{ email: account }, { username: account }],
       },
     });
 
