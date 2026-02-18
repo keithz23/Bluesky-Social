@@ -8,7 +8,7 @@ export class LoginDto {
   })
   @IsString()
   @IsNotEmpty()
-  identifier: string; // Can be username or email
+  account: string; // Can be username or email
 
   @ApiProperty({ example: 'StrongPass123!' })
   @IsString()

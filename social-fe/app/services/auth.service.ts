@@ -17,4 +17,8 @@ export const AuthService = {
   refresh: () => {
     return axiosInstance.post(API_ENDPOINT.AUTH.REFRESH);
   },
+
+  me: () => {
+    return axiosInstance.get(API_ENDPOINT.AUTH.ME);
+  },
 };

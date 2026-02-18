@@ -80,7 +80,10 @@ axiosInstance.interceptors.response.use(
 
         // Redirect to login
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          const currentPath = window.location.pathname;
+          if (currentPath !== "/login" && currentPath !== "/signup") {
+            window.location.href = "/login";
+          }
         }
 
         return Promise.reject(refreshError);

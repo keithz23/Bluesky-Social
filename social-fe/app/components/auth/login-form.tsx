@@ -6,6 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
+import { useAuth } from "@/app/hooks/use-auth";
+import { Spinner } from "@/components/ui/spinner";
+import { useRouter } from "next/navigation";
 
 // 1. Define Zod Schema
 const loginSchema = z.object({
@@ -18,6 +21,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   // 2. Initialize Hook Form
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -29,10 +33,20 @@ export default function LoginForm() {
       password: "",
     },
   });
+  const { loginMutation, isLoggingIn } = useAuth();
 
   const onSubmit = (data: LoginFormValues) => {
-    console.log("Login Data:", data);
-    alert("Login submitted! Check console.");
+    loginMutation.mutate(
+      { loginDto: data },
+      {
+        onSuccess: () => {
+          router.push("/");
+        },
+        onError: (error) => {
+          console.error("Login error:", error);
+        },
+      },
+    );
   };
 
   return (
@@ -133,8 +147,15 @@ export default function LoginForm() {
         <button
           type="submit"
           className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-sm cursor-pointer"
+          disabled={isLoggingIn}
         >
-          Next
+          {isLoggingIn ? (
+            <div className="flex items-center gap-x-3">
+              <Spinner /> Processing
+            </div>
+          ) : (
+            "Next"
+          )}
         </button>
       </div>
     </form>

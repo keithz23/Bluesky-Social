@@ -1,8 +1,96 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <body>
-    <p>Hi {{name}},</p>
-    <p>Click to verify your email:</p>
-    <p><a href="{{verifyUrl}}">{{verifyUrl}}</a></p>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f3f4f6;
+      padding: 40px 20px;
+      margin: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .logo {
+      color: #0085ff;
+      font-size: 24px;
+      font-weight: 900;
+      margin-bottom: 24px;
+      letter-spacing: -0.5px;
+    }
+    h1 {
+      color: #111827;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #4b5563;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .btn-container {
+      margin: 32px 0;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0085ff;
+      color: #ffffff;
+      font-weight: bold;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 9999px;
+      font-size: 16px;
+    }
+    .fallback {
+      font-size: 14px;
+      color: #6b7280;
+      word-break: break-all;
+      background-color: #f9fafb;
+      padding: 16px;
+      border-radius: 8px;
+    }
+    .fallback a {
+      color: #0085ff;
+      text-decoration: none;
+    }
+    .footer {
+      margin-top: 32px;
+      font-size: 14px;
+      color: #9ca3af;
+      border-top: 1px solid #f3f4f6;
+      padding-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">Bluesky</div>
+    
+    <h1>Welcome, {{name}}!</h1>
+    
+    <p>Thanks for joining us. To finish creating your account and start exploring your feed, please verify your email address.</p>
+    
+    <div class="btn-container">
+      <a href="{{verifyUrl}}" class="btn">Verify email</a>
+    </div>
+    
+    <div class="fallback">
+      If the button above doesn't work, copy and paste this link into your browser:<br><br>
+      <a href="{{verifyUrl}}">{{verifyUrl}}</a>
+    </div>
+    
+    <div class="footer">
+      See you on the timeline!<br>
+      <strong>The Bluesky Team</strong>
+    </div>
+  </div>
+</body>
 </html>

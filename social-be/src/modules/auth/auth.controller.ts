@@ -39,6 +39,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
+import { User } from '@prisma/client';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -54,13 +55,8 @@ export class AuthController {
   @Post('register')
   @Throttle({ default: { ttl: 3600, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
-  @ApiResponse({
-    status: 201,
-    description: 'User registered successfully',
-    type: AuthResponseDto,
-  })
   @ApiResponse({ status: 409, description: 'Username or email already exists' })
-  async signup(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async signup(@Body() registerDto: RegisterDto): Promise<User> {
     return this.authService.register(registerDto);
   }
 
@@ -325,6 +321,31 @@ export class AuthController {
     @Param('sessionId') sessionId: string,
   ): Promise<{ message: string }> {
     return this.authService.revokeSession(userId, sessionId);
+  }
+
+  @Public()
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('config.client.url');
+
+    if (!token) {
+      return res.redirect(
+        `${frontendUrl}/login?status=error&message=Token_missing`,
+      );
+    }
+
+    try {
+      await this.authService.verifyEmail(token);
+
+      return res.redirect(
+        `${frontendUrl}/login?status=success&message=Email_verified`,
+      );
+    } catch (error) {
+      const errorMessage = error.message || 'Verification_failed';
+      return res.redirect(
+        `${frontendUrl}/login?status=error&message=${encodeURIComponent(errorMessage)}`,
+      );
+    }
   }
 
   @Public()

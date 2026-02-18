@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import AuthBanner from "@/app/components/auth/auth-banner";
 import RegisterForm from "@/app/components/auth/register-form";
 

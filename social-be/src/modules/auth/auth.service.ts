@@ -19,8 +19,8 @@ import { SUCCESS_MESSAGES } from 'src/common/constants/success-message';
 import { ERROR_MESSAGES } from 'src/common/constants/error-message';
 import { MailService } from 'src/mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { PasswordResetToken } from '@prisma/client';
-
+import { PasswordResetToken, User } from '@prisma/client';
+import * as crypto from 'crypto';
 const RESET_TTL_MINUTES = 30;
 const RESET_TOKEN_BYTES = 32; // 256-bit
 
@@ -33,7 +33,7 @@ export class AuthService {
     private mailService: MailService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async register(registerDto: RegisterDto): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
 
     // Check if email exists
@@ -55,23 +55,37 @@ export class AuthService {
     // Hash password
     const passwordHash = await HashUtil.hash(password);
 
-    // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        username,
-        passwordHash,
-        dateOfBirth,
-      },
+    const newUser = await this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.create({
+        data: {
+          email,
+          username,
+          passwordHash,
+          dateOfBirth,
+        },
+      });
+
+      const verifyToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      await prisma.emailVerificationToken.create({
+        data: {
+          token: verifyToken,
+          userId: user.id,
+          expiresAt: expiresAt,
+        },
+      });
+      await this.mailService.sendVerifyEmail(
+        user.email,
+        verifyToken,
+        user.username,
+      );
+
+      return user;
     });
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
-
-    return {
-      ...tokens,
-      user: this.transformUser(user),
-    };
+    return newUser;
   }
 
   async login(
@@ -79,12 +93,12 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthResponseDto> {
-    const { identifier, password } = loginDto;
+    const { account, password } = loginDto;
 
     // Find user by email or username
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: identifier }, { username: identifier }],
+        OR: [{ email: account }, { username: account }],
       },
     });
 
@@ -347,6 +361,55 @@ export class AuthService {
     });
 
     return { available: !existing };
+  }
+
+  async verifyEmail(token: string) {
+    const existingToken = await this.prisma.emailVerificationToken.findUnique({
+      where: { token },
+    });
+
+    if (!existingToken) {
+      throw new NotFoundException(
+        'Invalid or non-existent verification token.',
+      );
+    }
+
+    const now = new Date();
+    if (existingToken.expiresAt < now) {
+      await this.prisma.emailVerificationToken.delete({
+        where: { id: existingToken.id },
+      });
+
+      throw new BadRequestException(
+        'The verification link has expired. Please request a new verification email.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: existingToken.userId },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User does not exist.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          verified: true,
+          // emailVerifiedAt: new Date()
+        },
+      });
+
+      await tx.emailVerificationToken.deleteMany({
+        where: { userId: user.id },
+      });
+    });
+
+    return {
+      message: 'Email verification successful. You can now log in.',
+    };
   }
 
   async getActiveSessions(userId: string) {

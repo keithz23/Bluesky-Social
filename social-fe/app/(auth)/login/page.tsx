@@ -2,18 +2,27 @@
 
 import AuthBanner from "@/app/components/auth/auth-banner";
 import LoginForm from "@/app/components/auth/login-form";
+import { VerifyToast } from "@/app/components/verify-toast";
+import { Suspense } from "react";
 
 export default function LoginPage() {
   return (
     <>
       <div className="min-h-screen grid grid-cols-1 md:grid-cols-3">
         <div className="col-span-1 flex flex-col justify-center items-end bg-[#f9fafb]">
-        <AuthBanner title="Sign in" description="Enter your username and password"/>
+          <AuthBanner
+            title="Sign in"
+            description="Enter your username and password"
+          />
         </div>
         <div className="col-span-2 flex flex-col justify-center items-start px-12">
-          <LoginForm/>
+          <LoginForm />
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <VerifyToast />
+      </Suspense>
     </>
   );
 }

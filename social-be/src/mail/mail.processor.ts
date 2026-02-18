@@ -26,7 +26,7 @@ export class MailProcessor extends WorkerHost {
     super();
 
     this.appUrl =
-      this.cfg.get<string>('config.client.url') || 'http://localhost:5173';
+      this.cfg.get<string>('config.server.url') || 'http://localhost:5173';
     this.fromAddress = this.cfg.get<string>('config.mail.user') || '';
     this.fromName = this.cfg.get<string>('config.mail.fromName') || 'No Reply';
 
@@ -86,7 +86,7 @@ export class MailProcessor extends WorkerHost {
       switch (type) {
         case 'verify': {
           subject ||= 'Verify your email';
-          const verifyUrl = `${this.appUrl}/verify?token=${encodeURIComponent(
+          const verifyUrl = `${this.appUrl}/auth/verify-email?token=${encodeURIComponent(
             context.token,
           )}${context.redirect ? `&redirect=${encodeURIComponent(context.redirect)}` : ''}`;
           html = this.renderTemplate('verify', {
@@ -102,7 +102,7 @@ export class MailProcessor extends WorkerHost {
         }
         case 'reset': {
           subject ||= 'Reset your password';
-          const resetUrl = `${this.appUrl}/reset?token=${encodeURIComponent(
+          const resetUrl = `${this.appUrl}/auth/reset?token=${encodeURIComponent(
             context.token,
           )}${context.redirect ? `&redirect=${encodeURIComponent(context.redirect)}` : ''}`;
           html = this.renderTemplate('reset', {
