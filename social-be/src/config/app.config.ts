@@ -80,4 +80,8 @@ export default registerAs('config', () => ({
   client: {
     url: process.env.CLIENT_URL || 'http://localhost:5173',
   },
+
+  server: {
+    url: process.env.SERVER_URL || 'http://localhost:3000',
+  },
 }));

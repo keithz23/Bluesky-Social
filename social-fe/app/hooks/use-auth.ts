@@ -62,8 +62,6 @@ export function useAuth() {
     },
     onSuccess: () => {
       qc.setQueryData(["me"], null);
-      toast.success("Đã đăng xuất.");
-      window.location.href = "/login";
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));

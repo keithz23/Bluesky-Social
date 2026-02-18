@@ -66,8 +66,9 @@ model User {
   typingStatus        TypingStatus[]
 
   // Auth & Security
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@index([username])
   @@index([email])
@@ -576,6 +577,16 @@ model Report {
   @@index([postId])
   @@index([userId])
   @@map("reports")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+
+  @@map("email_verification_tokens")
 }
 
 // ============================================

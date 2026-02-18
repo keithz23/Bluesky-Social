@@ -2,19 +2,10 @@
 
 import AuthBanner from "@/app/components/auth/auth-banner";
 import LoginForm from "@/app/components/auth/login-form";
-import { useAuth } from "@/app/hooks/use-auth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { VerifyToast } from "@/app/components/verify-toast";
+import { Suspense } from "react";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { isAuthenticated, isLoadingProfile } = useAuth();
-  useEffect(() => {
-    if (!isLoadingProfile && isAuthenticated) {
-      router.push("/");
-    }
-  }, [isAuthenticated, isLoadingProfile, router]);
-
   return (
     <>
       <div className="min-h-screen grid grid-cols-1 md:grid-cols-3">
@@ -28,6 +19,10 @@ export default function LoginPage() {
           <LoginForm />
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <VerifyToast />
+      </Suspense>
     </>
   );
 }

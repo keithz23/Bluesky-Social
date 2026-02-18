@@ -1,19 +1,8 @@
 "use client";
 import AuthBanner from "@/app/components/auth/auth-banner";
 import RegisterForm from "@/app/components/auth/register-form";
-import { useAuth } from "@/app/hooks/use-auth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const { isAuthenticated, isLoadingProfile } = useAuth();
-  useEffect(() => {
-    if (!isLoadingProfile && isAuthenticated) {
-      router.push("/");
-    }
-  }, [isAuthenticated, isLoadingProfile, router]);
-  
   return (
     <>
       <div className="min-h-screen grid grid-cols-1 md:grid-cols-3">
