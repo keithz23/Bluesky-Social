@@ -17,6 +17,10 @@ import {
   Plus,
   LogOut,
   Ellipsis,
+  ImageIcon,
+  Smile,
+  ChevronDown,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../hooks/use-auth";
@@ -27,7 +31,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+<<<<<<< Updated upstream
 import { useRouter,usePathname } from "next/navigation";
+=======
+import { useRouter, usePathname } from "next/navigation";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import NewPostModal from "../components/dialog/new-post-dialog";
+>>>>>>> Stashed changes
 
 export default function MainLayout({
   children,
@@ -159,12 +169,7 @@ export default function MainLayout({
           })}
 
           {/* New Post */}
-          <div className="mt-4 px-2 w-[90%]">
-            <Button className="w-full h-14 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[17px] font-bold flex gap-2 items-center cursor-pointer shadow-sm">
-              <SquarePen className="w-5 h-5" strokeWidth={2} />
-              New Post
-            </Button>
-          </div>
+          <NewPostModal />
         </aside>
       ) : (
         <aside className="hidden lg:flex w-75 xl:w-87.5 flex-col sticky top-0 h-screen p-6 border-r border-gray-100 overflow-y-auto">
