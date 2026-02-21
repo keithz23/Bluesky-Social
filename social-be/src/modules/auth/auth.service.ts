@@ -21,8 +21,9 @@ import { MailService } from 'src/mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PasswordResetToken, User } from '@prisma/client';
 import * as crypto from 'crypto';
-const RESET_TTL_MINUTES = 30;
-const RESET_TOKEN_BYTES = 32; // 256-bit
+import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
+
+const RESET_TTL_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
@@ -279,8 +280,8 @@ export class AuthService {
     });
     if (activeCount >= 3) return;
 
-    const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('base64url');
-    const tokenHash = await HashUtil.hash(rawToken);
+    const rawCode = generateResetCode();
+    const tokenHash = await HashUtil.hash(rawCode);
     const expiresAt = addMinutes(new Date(), RESET_TTL_MINUTES);
 
     await this.prisma.passwordResetToken.create({
@@ -293,19 +294,18 @@ export class AuthService {
       },
     });
 
-    await this.mailService.sendResetEmail(
-      user.email,
-      rawToken,
-      user.username,
-      RESET_TTL_MINUTES,
-    );
+    await this.mailService.sendForgotEmail(user.email, rawCode, user.username);
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    let { newPassword, token } = resetPasswordDto;
+    let { newPassword, code } = resetPasswordDto;
 
-    token = (token ?? '').trim();
-    if (!token) throw new BadRequestException('Invalid or expired token');
+    code = (code ?? '').trim().toUpperCase().replace(/\s/g, '');
+    if (code.length === 10 && !code.includes('-')) {
+      code = `${code.slice(0, 5)}-${code.slice(5)}`;
+    }
+
+    if (!code) throw new BadRequestException('Invalid or expired token');
 
     const now = new Date();
     const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -321,7 +321,7 @@ export class AuthService {
 
     let match: PasswordResetToken | null = null;
     for (const c of candidates) {
-      if (await HashUtil.compare(token, c.tokenHash)) {
+      if (await HashUtil.compare(code, c.tokenHash)) {
         match = c;
         break;
       }

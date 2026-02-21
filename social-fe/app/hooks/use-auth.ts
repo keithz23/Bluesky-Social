@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AuthService } from "../services/auth.service";
 import { extractErrMsg } from "../utils/error.util";
-import { LoginCredentials, RegisterData } from "../interfaces/auth.interface";
+import {
+  LoginCredentials,
+  RegisterData,
+  ResetPasswordData,
+} from "../interfaces/auth.interface";
+import { AxiosError } from "axios";
 
 export function useAuth() {
   const qc = useQueryClient();
@@ -13,8 +18,8 @@ export function useAuth() {
       try {
         const { data } = await AuthService.me();
         return data;
-      } catch (e: any) {
-        if (e?.response?.status === 401) {
+      } catch (e: unknown) {
+        if (e instanceof AxiosError && e?.response?.status === 401) {
           return null;
         }
         throw e;
@@ -68,6 +73,36 @@ export function useAuth() {
     },
   });
 
+  // 5. Mutation forgot password
+  const forgotPassword = useMutation({
+    mutationFn: async ({ email }: { email: string }) => {
+      return AuthService.forgot(email);
+    },
+    onSuccess: () => {
+      toast.success("Password reset email sent.");
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
+  // 6. Mutation reset password
+  const resetPassword = useMutation({
+    mutationFn: async ({
+      resetPasswordData,
+    }: {
+      resetPasswordData: ResetPasswordData;
+    }) => {
+      return AuthService.reset(resetPasswordData);
+    },
+    onSuccess: () => {
+      toast.success("Password reset successful.");
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
   return {
     // User Info
     user: meQuery.data,
@@ -78,11 +113,20 @@ export function useAuth() {
     loginMutation: login,
     signupMutation: signup,
     logoutMutation: logout,
+    forgotPasswordMutation: forgotPassword,
+    resetPasswordMutation: resetPassword,
 
     isLoggingIn: login.isPending,
     isRegistering: signup.isPending,
+    isLoggingOut: logout.isPending,
+    isResettingPassword: resetPassword.isPending,
+    isForgotPassword: forgotPassword.isPending,
 
     loginError: login.error,
     registerError: signup.error,
+    logoutError: logout.error,
+    forgotPasswordError: forgotPassword.error,
+    resetPasswordError: resetPassword.error,
+    resetPasswordSuccess: resetPassword.isSuccess,
   };
 }

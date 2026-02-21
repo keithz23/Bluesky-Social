@@ -7,7 +7,7 @@ import { SendMailDto } from './dto/send-mail.dto';
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) {}
+  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) { }
 
   private makeJobId(payload: SendMailDto) {
     const raw = `${payload.to}|${payload.type}|${JSON.stringify(payload.context)}`;
@@ -24,7 +24,7 @@ export class MailService {
         backoff: { type: 'exponential', delay: 1000 },
       };
 
-      if (payload.type === 'verify' || payload.type === 'reset') {
+      if (payload.type === 'verify' || payload.type === 'forgot') {
         opts.jobId = this.makeJobId(payload);
       }
 
@@ -43,6 +43,15 @@ export class MailService {
       type: 'verify',
       subject: 'Verify your email',
       context: { token, name },
+    });
+  }
+
+  async sendForgotEmail(to: string, resetCode: string, username: string) {
+    return this.enqueue({
+      to,
+      type: 'forgot',
+      subject: 'Code to reset your password',
+      context: { resetCode, username },
     });
   }
 

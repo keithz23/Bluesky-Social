@@ -12,6 +12,14 @@ import { AuthModule } from './modules/auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
+import { PostsModule } from './modules/posts/posts.module';
+import { FeedModule } from './modules/feed/feed.module';
+import { FollowsModule } from './modules/follows/follows.module';
+import { UsersModule } from './modules/users/users.module';
+import { SuggestionsModule } from './modules/suggestions/suggestions.module';
+import { LikesModule } from './modules/likes/likes.module';
+import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
+import { RepostsModule } from './modules/reposts/reposts.module';
 
 @Module({
   imports: [
@@ -73,6 +81,14 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
     //Feature module
     AuthModule,
+    PostsModule,
+    FeedModule,
+    FollowsModule,
+    UsersModule,
+    SuggestionsModule,
+    LikesModule,
+    BookmarksModule,
+    RepostsModule,
   ],
   providers: [
     // Global guards

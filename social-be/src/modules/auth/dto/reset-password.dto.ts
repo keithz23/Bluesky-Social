@@ -8,5 +8,5 @@ export class ResetPasswordDto {
 
   @ApiProperty()
   @IsString()
-  token: string;
+  code: string;
 }

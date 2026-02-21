@@ -11,16 +11,11 @@ import {
   Bookmark,
   User,
   Settings,
-  SquarePen,
   Menu,
   CircleUser,
   Plus,
   LogOut,
   Ellipsis,
-  ImageIcon,
-  Smile,
-  ChevronDown,
-  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../hooks/use-auth";
@@ -31,13 +26,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-<<<<<<< Updated upstream
-import { useRouter,usePathname } from "next/navigation";
-=======
 import { useRouter, usePathname } from "next/navigation";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import NewPostModal from "../components/dialog/new-post-dialog";
->>>>>>> Stashed changes
 
 export default function MainLayout({
   children,
@@ -58,16 +48,21 @@ export default function MainLayout({
       },
     });
   };
-  
+
+
   const navItems = [
-    { icon: Home, label: "Home", href: "/", },
+    { icon: Home, label: "Home", href: "/" },
     { icon: Search, label: "Explore", href: "/explore" },
     { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: MessageCircle, label: "Chat", href: "/chat" },
     { icon: Hash, label: "Feeds", href: "/feeds" },
     { icon: List, label: "Lists", href: "/lists" },
     { icon: Bookmark, label: "Saved", href: "/saved" },
-    { icon: User, label: "Profile", href: "/profile" },
+    {
+      icon: User,
+      label: "Profile",
+      href: user ? `/profile/${user.username}` : "/profile",
+    },
     { icon: Settings, label: "Settings", href: "/settings" },
   ];
 
@@ -147,7 +142,9 @@ export default function MainLayout({
 
           {/* Navigation Menu */}
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
 
             return (
               <Link

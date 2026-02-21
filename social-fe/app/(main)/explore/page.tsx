@@ -1,3 +1,9 @@
+"use client";
+
+import { FollowButton } from "@/app/components/button/follow-button";
+import { useFollow, useFollowStatus } from "@/app/hooks/use-follow";
+import { useSuggestedUsers } from "@/app/hooks/use-suggestions";
+import { SuggestionsUser } from "@/app/interfaces/suggestion.interface";
 import {
   Search,
   Flame,
@@ -12,6 +18,7 @@ import {
 } from "lucide-react";
 
 export default function ExplorePage() {
+  const { data: users = [], isLoading } = useSuggestedUsers(20);
   // --- MOCK DATA ---
   const trendingTopics = [
     {
@@ -93,44 +100,6 @@ export default function ExplorePage() {
     "Comics",
     "Culture",
     "Comedy",
-  ];
-
-  const suggestedAccounts = [
-    {
-      id: 1,
-      name: "Yale University Press",
-      handle: "@yalepress.bsky.social",
-      verified: false,
-      bio: "Books et Veritas. Bringing truth to light for more than one hundred years.",
-    },
-    {
-      id: 2,
-      name: "kate conger",
-      handle: "@kateconger.com",
-      verified: true,
-      bio: "tech reporter for the NYT!\nco-author of CHARACTER LIMIT!...",
-    },
-    {
-      id: 3,
-      name: "Rian Johnson",
-      handle: "@rianjohnson.bsky.social",
-      verified: true,
-      bio: "Gentleman Sleuth",
-    },
-    {
-      id: 4,
-      name: "Nina Metz",
-      handle: "@ninametz.bsky.social",
-      verified: false,
-      bio: "TV and film critic for the Chicago Tribune\nwww.chicagotribune.com/author/nina-...",
-    },
-    {
-      id: 5,
-      name: "Willow Catelyn Maclay",
-      handle: "@willowcatelyn.bsky.social",
-      verified: false,
-      bio: "Film Critic (Film Comment, Reverse Shot, etc). GALECA.\n...",
-    },
   ];
 
   return (
@@ -281,35 +250,33 @@ export default function ExplorePage() {
         </div>
 
         <div className="flex flex-col mt-2 border-t border-gray-100">
-          {suggestedAccounts.map((acc) => (
+          {users.map((user: SuggestionsUser) => (
             <div
-              key={acc.id}
+              key={user.id}
               className="p-4 border-b border-gray-100 hover:bg-gray-50 transition flex items-start gap-3"
             >
               <div className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">
-                {acc.name.charAt(0)}
+                {user.username.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col truncate pr-4">
                     <div className="flex items-center gap-1">
                       <span className="font-bold text-gray-900 truncate hover:underline cursor-pointer">
-                        {acc.name}
+                        {user.username}
                       </span>
-                      {acc.verified && (
+                      {user.verified && (
                         <BadgeCheck className="w-4 h-4 text-blue-500 shrink-0" />
                       )}
                     </div>
                     <span className="text-sm text-gray-500 truncate">
-                      {acc.handle}
+                      {user.username}
                     </span>
                   </div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-1.5 rounded-full shrink-0 cursor-pointer">
-                    Follow
-                  </button>
+                  <FollowButton targetUserId={user.id} />
                 </div>
                 <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">
-                  {acc.bio}
+                  {user.bio}
                 </p>
               </div>
             </div>

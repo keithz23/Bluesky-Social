@@ -7,6 +7,11 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useAuth } from "@/app/hooks/use-auth";
+import {
+  RegisterData,
+  ResetPasswordData,
+} from "@/app/interfaces/auth.interface";
 
 // --- SCHEMAS ---
 const step1Schema = z.object({
@@ -30,17 +35,39 @@ type Step2Values = z.infer<typeof step2Schema>;
 export default function ForgotPasswordFlow() {
   const [step, setStep] = useState(1);
   const [emailData, setEmailData] = useState<string>("");
+  const { forgotPasswordMutation, resetPasswordMutation } = useAuth();
 
   const onStep1Submit = (data: Step1Values) => {
     setEmailData(data.email);
-    console.log("Email sent to:", data.email);
-    setStep(2);
+    forgotPasswordMutation.mutate(
+      { email: data.email },
+      {
+        onSuccess: () => {
+          setStep(2);
+        },
+        onError: (error) => {
+          console.error("Error sending email:", error);
+        },
+      },
+    );
   };
 
   const onStep2Submit = (data: Step2Values) => {
-    const finalData = { email: emailData, ...data };
-    console.log("Reset Password Data:", finalData);
-    setStep(3);
+    const resetPasswordData: ResetPasswordData = {
+      code: data.resetCode,
+      newPassword: data.newPassword,
+    };
+    resetPasswordMutation.mutate(
+      { resetPasswordData: resetPasswordData },
+      {
+        onSuccess: () => {
+          setStep(3);
+        },
+        onError: (error) => {
+          console.error("Error resetting password:", error);
+        },
+      },
+    );
   };
 
   return (
@@ -145,7 +172,7 @@ function Step2Form({
     >
       <div className="space-y-2">
         <p className="text-gray-900 font-medium">
-          You will receive an email with a "reset code." Enter that code here,
+          You will receive an email with a reset code. Enter that code here,
           then enter your new password.
         </p>
       </div>
