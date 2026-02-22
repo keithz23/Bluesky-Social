@@ -1,12 +1,17 @@
 import { axiosInstance } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
+import {
+  LoginCredentials,
+  RegisterData,
+  ResetPasswordData,
+} from "../interfaces/auth.interface";
 
 export const AuthService = {
-  register: (registerData: any) => {
+  register: (registerData: RegisterData) => {
     return axiosInstance.post(API_ENDPOINT.AUTH.REGISTER, registerData);
   },
 
-  login: (crendentials: any) => {
+  login: (crendentials: LoginCredentials) => {
     return axiosInstance.post(API_ENDPOINT.AUTH.LOGIN, crendentials);
   },
 
@@ -20,5 +25,13 @@ export const AuthService = {
 
   me: () => {
     return axiosInstance.get(API_ENDPOINT.AUTH.ME);
+  },
+
+  forgot: (email: string) => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.FORGOT, { email });
+  },
+
+  reset: (resetPasswordData: ResetPasswordData) => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.RESET, resetPasswordData);
   },
 };

@@ -44,6 +44,10 @@ axiosInstance.interceptors.response.use(
     };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const url = originalRequest.url || "";
+      if (url.includes("/auth/login") || url.includes("/auth/refresh")) {
+        return Promise.reject(error);
+      }
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -79,12 +83,12 @@ axiosInstance.interceptors.response.use(
         accessToken = null;
 
         // Redirect to login
-        if (typeof window !== "undefined") {
-          const currentPath = window.location.pathname;
-          if (currentPath !== "/login" && currentPath !== "/signup") {
-            window.location.href = "/login";
-          }
-        }
+        // if (typeof window !== "undefined") {
+        //   const currentPath = window.location.pathname;
+        //   if (currentPath !== "/login" && currentPath !== "/signup") {
+        //     window.location.href = "/login";
+        //   }
+        // }
 
         return Promise.reject(refreshError);
       } finally {

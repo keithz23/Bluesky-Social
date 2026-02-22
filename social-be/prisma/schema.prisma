@@ -99,10 +99,13 @@ model Post {
   isPinned  Boolean @default(false) @map("is_pinned")
 
   // Reply settings
-  replyPolicy   ReplyPolicy @default(ANYONE) @map("reply_policy")
-  reviewApprove Boolean     @default(false) @map("review_approve")
+  replyPolicy ReplyPolicy @default(ANYONE) @map("reply_policy")
+  allowQuote  Boolean     @default(true) @map("allow_quote")
 
-  // Timestamps
+  replyFollowers Boolean @default(false) @map("reply_followers")
+  replyFollowing Boolean @default(false) @map("reply_following")
+  replyMentioned Boolean @default(false) @map("reply_mentioned")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -667,7 +670,6 @@ enum ParticipantRole {
 
 enum ReplyPolicy {
   ANYONE
-  FOLLOWERS
-  FOLLOWING
-  MENTIONS
+  NOBODY
+  CUSTOM
 }

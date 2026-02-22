@@ -11,7 +11,6 @@ import {
   Bookmark,
   User,
   Settings,
-  SquarePen,
   Menu,
   CircleUser,
   Plus,
@@ -27,7 +26,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter,usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import NewPostModal from "../components/dialog/new-post-dialog";
+import BackToTop from "../components/back-to-top";
 
 export default function MainLayout({
   children,
@@ -48,21 +49,29 @@ export default function MainLayout({
       },
     });
   };
-  
+
   const navItems = [
-    { icon: Home, label: "Home", href: "/", },
+    { icon: Home, label: "Home", href: "/" },
     { icon: Search, label: "Explore", href: "/explore" },
     { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: MessageCircle, label: "Chat", href: "/chat" },
     { icon: Hash, label: "Feeds", href: "/feeds" },
     { icon: List, label: "Lists", href: "/lists" },
     { icon: Bookmark, label: "Saved", href: "/saved" },
-    { icon: User, label: "Profile", href: "/profile" },
+    {
+      icon: User,
+      label: "Profile",
+      href: user ? `/profile/${user.username}` : "/profile",
+    },
     { icon: Settings, label: "Settings", href: "/settings" },
   ];
 
   const dropdownItems = [
-    { icon: CircleUser, label: "Go to profile", href: "/profile" },
+    {
+      icon: CircleUser,
+      label: "Go to profile",
+      href: user ? `/profile/${user.username}` : "/profile",
+    },
     { icon: Plus, label: "Add another account", href: "/login" },
     { icon: LogOut, label: "Sign out", href: "", onClick: handleLogout },
   ];
@@ -137,7 +146,9 @@ export default function MainLayout({
 
           {/* Navigation Menu */}
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
 
             return (
               <Link
@@ -159,12 +170,7 @@ export default function MainLayout({
           })}
 
           {/* New Post */}
-          <div className="mt-4 px-2 w-[90%]">
-            <Button className="w-full h-14 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[17px] font-bold flex gap-2 items-center cursor-pointer shadow-sm">
-              <SquarePen className="w-5 h-5" strokeWidth={2} />
-              New Post
-            </Button>
-          </div>
+          <NewPostModal buttonName="New Post" />
         </aside>
       ) : (
         <aside className="hidden lg:flex w-75 xl:w-87.5 flex-col sticky top-0 h-screen p-6 border-r border-gray-100 overflow-y-auto">
@@ -328,6 +334,8 @@ export default function MainLayout({
           </div>
         </div>
       </div>
+
+      <BackToTop />
     </div>
   );
 }

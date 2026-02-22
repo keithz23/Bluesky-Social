@@ -132,6 +132,39 @@ export class S3Service {
     return successful;
   }
 
+  // Upload raw buffer (e.g. downloaded GIF)
+  async uploadBuffer(
+    buffer: Buffer,
+    folder: string,
+    ext: string,
+    contentType: string,
+  ): Promise<UploadResult> {
+    try {
+      const key = this.generateKey(folder, ext);
+
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        ContentDisposition: 'inline',
+        CacheControl: 'public, max-age=31536000, immutable',
+      });
+
+      await this.s3Client.send(command);
+
+      return {
+        url: this.getFileUrl(key),
+        key,
+        size: buffer.length,
+        mimetype: contentType,
+      };
+    } catch (error) {
+      this.logger.error(`Buffer upload failed: ${error.message}`);
+      throw error;
+    }
+  }
+
   // Generate thumbnail
   async generateThumbnail(
     file: Express.Multer.File,
