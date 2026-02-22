@@ -71,39 +71,32 @@ export class FeedService {
 
     const followingSet = new Set(followingIds);
 
-    const likedPosts = await this.prisma.like.findMany({
-      where: {
-        userId: currentUserId,
-        postId: { in: posts.map((p) => p.id) },
-      },
-      select: {
-        postId: true,
-      },
-    });
+    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
+      this.prisma.like.findMany({
+        where: {
+          userId: currentUserId,
+          postId: { in: posts.map((p) => p.id) },
+        },
+      }),
+
+      this.prisma.bookmark.findMany({
+        where: {
+          userId: currentUserId,
+          postId: { in: posts.map((p) => p.id) },
+        },
+      }),
+
+      this.prisma.repost.findMany({
+        where: {
+          userId: currentUserId,
+          postId: { in: posts.map((p) => p.id) },
+        },
+      }),
+    ]);
 
     const likedSet = new Set(likedPosts.map((l) => l.postId));
 
-    const bookmarkedPosts = await this.prisma.bookmark.findMany({
-      where: {
-        userId: currentUserId,
-        postId: { in: posts.map((p) => p.id) },
-      },
-      select: {
-        postId: true,
-      },
-    });
-
     const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
-
-    const repostedPosts = await this.prisma.repost.findMany({
-      where: {
-        userId: currentUserId,
-        postId: { in: posts.map((p) => p.id) },
-      },
-      select: {
-        postId: true,
-      },
-    });
 
     const repostedSet = new Set(repostedPosts.map((r) => r.postId));
 

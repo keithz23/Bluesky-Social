@@ -14,10 +14,8 @@ export const API_ENDPOINT = {
   POSTS: {
     CREATE_POST: "/posts/create-post",
     UPDATE_POST: (id: string) => `/posts/update-post/${id}`,
-    SOFT_DELETE: "/posts/soft-delete",
-    PERMANENT_DELETE: "/posts/permanent-delete",
-    FIND_ALL: "/posts/find-all",
-    FIND_ONE: (id: string) => `/posts/find-one/${id}`,
+    DELETE_POST: (id: string) => `/posts/delete-post/${id}`,
+    GET_BY_USERNAME: (username: string) => `/posts/users/${username}`,
   },
 
   FEED: {

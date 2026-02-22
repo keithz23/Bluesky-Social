@@ -12,9 +12,24 @@ interface UserHoverCardProps {
   post: Feed;
 }
 
+const formatCustomDate = (dateString: string | Date) => {
+  const date = new Date(dateString);
+  const formattedDate = date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const formattedTime = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${formattedDate} at ${formattedTime}`;
+};
+
 export default function UserHoverCard({ post }: UserHoverCardProps) {
-  console.log(post);
   const { follow } = useFollow(post.user.id);
+
   return (
     <HoverCard>
       <HoverCardTrigger asChild>
@@ -23,8 +38,8 @@ export default function UserHoverCard({ post }: UserHoverCardProps) {
           <span className="text-gray-500 font-normal ml-1">
             ·{" "}
             {post.createdAt
-              ? new Date(post.createdAt).toLocaleDateString()
-              : new Date(post.post.createdAt).toLocaleDateString()}
+              ? formatCustomDate(post.createdAt)
+              : formatCustomDate(post.post.createdAt)}
           </span>
         </span>
       </HoverCardTrigger>

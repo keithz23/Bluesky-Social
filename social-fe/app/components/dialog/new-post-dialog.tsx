@@ -31,7 +31,11 @@ interface ImagePreview {
   preview: string;
 }
 
-export default function NewPostModal() {
+interface NewPostModalProps {
+  buttonName: string;
+}
+
+export default function NewPostModal({ buttonName }: NewPostModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -178,7 +182,7 @@ export default function NewPostModal() {
         <DialogTrigger asChild>
           <Button className="w-full h-14 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[17px] font-bold flex gap-2 items-center cursor-pointer shadow-sm">
             <SquarePen className="w-5 h-5" strokeWidth={2} />
-            New Post
+            {buttonName}
           </Button>
         </DialogTrigger>
 

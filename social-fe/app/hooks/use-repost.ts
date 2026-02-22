@@ -1,6 +1,7 @@
-import { axiosInstance } from "@/lib/axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { axiosInstance } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { updatePostInCaches, updateBookmarkCache } from "@/lib/query-util";
 
 export const useRepost = (postId: string, isReposted: boolean) => {
   const qc = useQueryClient();
@@ -13,86 +14,51 @@ export const useRepost = (postId: string, isReposted: boolean) => {
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["feed"] });
+      await qc.cancelQueries({ queryKey: ["userPosts"] });
       await qc.cancelQueries({ queryKey: ["bookmarks"] });
       await qc.cancelQueries({ queryKey: ["reposts"] });
 
       const previousFeed = qc.getQueryData(["feed"]);
       const previousBookmarks = qc.getQueryData(["bookmarks"]);
       const previousReposts = qc.getQueryData(["reposts"]);
+      const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
 
-      // Optimistic update feed
-      qc.setQueryData(["feed"], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            posts: page.posts.map((p: any) =>
-              p.id === postId
-                ? {
-                    ...p,
-                    isReposted: !isReposted,
-                    repostCount: isReposted
-                      ? p.repostCount - 1
-                      : p.repostCount + 1,
-                  }
-                : p,
-            ),
-          })),
-        };
-      });
+      const allCacheKeys = [
+        ["feed"],
+        ["reposts"],
+        ...userPostsCache.map(([key]) => key as any[]),
+      ];
 
-      // Optimistic update bookmarks
-      qc.setQueryData(["bookmarks"], (old: any) => {
-        if (!old) return old;
-        return old.map((b: any) =>
-          b.post.id === postId
-            ? {
-                ...b,
-                post: {
-                  ...b.post,
-                  isReposted: !isReposted,
-                  repostCount: isReposted
-                    ? b.post.repostCount - 1
-                    : b.post.repostCount + 1,
-                },
-              }
-            : b,
-        );
-      });
+      updatePostInCaches(qc, allCacheKeys, postId, (p) => ({
+        ...p,
+        isReposted: !isReposted,
+        repostCount: !isReposted ? p.repostCount + 1 : p.repostCount - 1,
+      }));
 
-      // Optimistic update reposts
-      qc.setQueryData(["reposts"], (old: any) => {
-        if (!old) return old;
-        return old.map((b: any) =>
-          b.post.id === postId
-            ? {
-                ...b,
-                post: {
-                  ...b.post,
-                  isReposted: !isReposted,
-                  repostCount: isReposted
-                    ? b.post.repostCount - 1
-                    : b.post.repostCount + 1,
-                },
-              }
-            : b,
-        );
-      });
+      updateBookmarkCache(qc, postId, (post) => ({
+        ...post,
+        isReposted: !isReposted,
+        repostCount: !isReposted ? post.repostCount + 1 : post.repostCount - 1,
+      }));
 
-      return { previousFeed, previousBookmarks, previousReposts };
+      return {
+        previousFeed,
+        previousBookmarks,
+        previousReposts,
+        userPostsCache,
+      };
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) {
+      if (context?.previousFeed)
         qc.setQueryData(["feed"], context.previousFeed);
-      }
-      if (context?.previousBookmarks) {
+      if (context?.previousBookmarks)
         qc.setQueryData(["bookmarks"], context.previousBookmarks);
-      }
-      if (context?.previousReposts) {
+      if (context?.previousReposts)
         qc.setQueryData(["reposts"], context.previousReposts);
-      }
+      context?.userPostsCache?.forEach(([queryKey, data]) => {
+        qc.setQueryData(queryKey, data);
+      });
     },
   });
 };

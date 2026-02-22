@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
 import { axiosInstance } from "@/lib/axios";
+import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { Feed } from "../interfaces/feed.interface";
+import { updateBookmarkCache, updatePostInCaches } from "@/lib/query-util";
 
 export const useLike = (postId: string, isLiked: boolean) => {
   const qc = useQueryClient();
@@ -13,81 +15,41 @@ export const useLike = (postId: string, isLiked: boolean) => {
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["feed"] });
+      await qc.cancelQueries({ queryKey: ["userPosts"] });
       await qc.cancelQueries({ queryKey: ["bookmarks"] });
-      await qc.cancelQueries({ queryKey: ["reposts"] });
 
       const previousFeed = qc.getQueryData(["feed"]);
       const previousBookmarks = qc.getQueryData(["bookmarks"]);
-      const previousReposts = qc.getQueryData(["reposts"]);
+      const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
 
-      // Optimistic update feed
-      qc.setQueryData(["feed"], (old: any) => ({
-        ...old,
-        pages: old.pages.map((page: any) => ({
-          ...page,
-          posts: page.posts.map((p: any) =>
-            p.id === postId
-              ? {
-                  ...p,
-                  isLiked: !isLiked,
-                  likeCount: isLiked ? p.likeCount - 1 : p.likeCount + 1,
-                }
-              : p,
-          ),
-        })),
+      const allCacheKeys = [
+        ["feed"],
+        ...userPostsCache.map(([key]) => key as any[]),
+      ];
+
+      updatePostInCaches(qc, allCacheKeys, postId, (p: Feed) => ({
+        ...p,
+        isLiked: !isLiked,
+        likeCount: !isLiked ? p.likeCount + 1 : p.likeCount - 1,
       }));
 
-      // Optimistic update bookmarks
-      qc.setQueryData(["bookmarks"], (old: any) => {
-        if (!old) return old;
-        return old.map((b: any) =>
-          b.post.id === postId
-            ? {
-                ...b,
-                post: {
-                  ...b.post,
-                  isLiked: !isLiked,
-                  likeCount: isLiked
-                    ? b.post.likeCount - 1
-                    : b.post.likeCount + 1,
-                },
-              }
-            : b,
-        );
-      });
+      updateBookmarkCache(qc, postId, (post: Feed) => ({
+        ...post,
+        isLiked: !isLiked,
+        likeCount: !isLiked ? post.likeCount + 1 : post.likeCount - 1,
+      }));
 
-      qc.setQueryData(["reposts"], (old: any) => {
-        if (!old) return old;
-        return old.map((b: any) =>
-          b.post.id === postId
-            ? {
-                ...b,
-                post: {
-                  ...b.post,
-                  isLiked: !isLiked,
-                  likeCount: isLiked
-                    ? b.post.likeCount - 1
-                    : b.post.likeCount + 1,
-                },
-              }
-            : b,
-        );
-      });
-
-      return { previousFeed, previousBookmarks, previousReposts };
+      return { previousFeed, previousBookmarks, userPostsCache };
     },
 
-    // Rollback
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) {
+      if (context?.previousFeed)
         qc.setQueryData(["feed"], context.previousFeed);
-      }
-      if (context?.previousBookmarks) {
+      if (context?.previousBookmarks)
         qc.setQueryData(["bookmarks"], context.previousBookmarks);
-      }
-      if (context?.previousReposts) {
-        qc.setQueryData(["reposts"], context.previousReposts);
-      }
+      context?.userPostsCache?.forEach(([queryKey, data]) => {
+        qc.setQueryData(queryKey, data);
+      });
     },
   });
 };

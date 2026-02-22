@@ -23,6 +23,7 @@ import UserHoverCard from "./use-hover-card";
 import LikeButton from "../button/like-button";
 import BookMarkButton from "../button/bookmark-button";
 import RepostButton from "../button/repost-button";
+import PostDropDown from "../dropdown/post-dropdown";
 
 interface PostCardProps {
   post: Feed;
@@ -161,7 +162,7 @@ export default function PostCard({ post }: PostCardProps) {
                   <Share size={18} strokeWidth={2.2} />
                 </div>
                 <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
-                  <MoreHorizontal size={18} strokeWidth={2.2} />
+                  <PostDropDown post={post} />
                 </div>
               </div>
             </div>

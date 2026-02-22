@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter, usePathname } from "next/navigation";
 import NewPostModal from "../components/dialog/new-post-dialog";
+import BackToTop from "../components/back-to-top";
 
 export default function MainLayout({
   children,
@@ -49,7 +50,6 @@ export default function MainLayout({
     });
   };
 
-
   const navItems = [
     { icon: Home, label: "Home", href: "/" },
     { icon: Search, label: "Explore", href: "/explore" },
@@ -67,7 +67,11 @@ export default function MainLayout({
   ];
 
   const dropdownItems = [
-    { icon: CircleUser, label: "Go to profile", href: "/profile" },
+    {
+      icon: CircleUser,
+      label: "Go to profile",
+      href: user ? `/profile/${user.username}` : "/profile",
+    },
     { icon: Plus, label: "Add another account", href: "/login" },
     { icon: LogOut, label: "Sign out", href: "", onClick: handleLogout },
   ];
@@ -166,7 +170,7 @@ export default function MainLayout({
           })}
 
           {/* New Post */}
-          <NewPostModal />
+          <NewPostModal buttonName="New Post" />
         </aside>
       ) : (
         <aside className="hidden lg:flex w-75 xl:w-87.5 flex-col sticky top-0 h-screen p-6 border-r border-gray-100 overflow-y-auto">
@@ -330,6 +334,8 @@ export default function MainLayout({
           </div>
         </div>
       </div>
+
+      <BackToTop />
     </div>
   );
 }

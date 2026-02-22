@@ -1,24 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
-import { useInView } from "react-intersection-observer";
-import BackToTop from "../components/back-to-top";
 import { useFeed } from "@/app/hooks/use-feed";
-import { useRouter } from "next/navigation";
+import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { Feed } from "../interfaces/feed.interface";
 import PostCard from "../components/card/post-card";
 
 export default function HomePage() {
-  const router = useRouter();
-  const { ref, inView } = useInView();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useFeed();
-
-  useEffect(() => {
-    if (inView && hasNextPage) fetchNextPage();
-  }, [inView, hasNextPage]);
-
+  
   const posts = data?.pages.flatMap((page) => page.posts) ?? [];
+
+  const { ref } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    enabled: posts.length > 0,
+  });
 
   return (
     <>
@@ -62,8 +60,6 @@ export default function HomePage() {
               ? "You're all caught up"
               : null}
         </div>
-
-        <BackToTop />
       </div>
     </>
   );

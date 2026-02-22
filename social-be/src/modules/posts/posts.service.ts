@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -12,6 +17,7 @@ import {
 } from 'src/common/constants/queue.constant';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bull';
+import { PostQueryDto } from './dto/post-query.dto';
 
 @Injectable()
 export class PostsService {
@@ -150,6 +156,235 @@ export class PostsService {
     }
   }
 
+  async getPostByUsername(
+    currentUserId: string,
+    username: string,
+    query: PostQueryDto,
+  ) {
+    const limit = query.limit ?? 20;
+
+    const user = await this.prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    if (query.filter === 'likes') {
+      const likes = await this.prisma.like.findMany({
+        where: {
+          userId: user.id,
+          ...(query.cursor && { postId: { lt: query.cursor } }),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+        select: {
+          postId: true,
+          post: {
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              likeCount: true,
+              replyCount: true,
+              repostCount: true,
+              bookmarkCount: true,
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  avatarUrl: true,
+                  verified: true,
+                },
+              },
+              media: {
+                orderBy: { orderIndex: 'asc' },
+                select: {
+                  id: true,
+                  mediaUrl: true,
+                  mediaType: true,
+                  width: true,
+                  height: true,
+                  altText: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const hasMore = likes.length > limit;
+      if (hasMore) likes.pop();
+      const nextCursor = hasMore ? likes[likes.length - 1].postId : null;
+
+      const postIds = likes.map((l) => l.postId);
+      const [bookmarkedPosts, repostedPosts] = await Promise.all([
+        this.prisma.bookmark.findMany({
+          where: { userId: currentUserId, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+        this.prisma.repost.findMany({
+          where: { userId: currentUserId, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+      ]);
+
+      const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
+      const repostedSet = new Set(repostedPosts.map((r) => r.postId));
+
+      return {
+        posts: likes.map((l) => ({
+          ...l.post,
+          isLiked: true,
+          isBookmarked: bookmarkedSet.has(l.postId),
+          isReposted: repostedSet.has(l.postId),
+        })),
+        nextCursor,
+        hasMore,
+      };
+    }
+
+    const baseWhere = {
+      userId: user.id,
+      isDeleted: false,
+      ...(query.cursor && { id: { lt: query.cursor } }),
+    };
+
+    const where = {
+      posts: { ...baseWhere, parentPostId: null },
+      replies: { ...baseWhere, parentPostId: { not: null } },
+      media: { ...baseWhere, parentPostId: null, media: { some: {} } },
+      videos: {
+        ...baseWhere,
+        parentPostId: null,
+        media: { some: { mediaType: MediaType.VIDEO } },
+      },
+    }[query.filter ?? 'posts'] ?? { ...baseWhere, parentPostId: null };
+
+    const posts = await this.prisma.post.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            verified: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            width: true,
+            height: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    if (posts.length === 0)
+      return { posts: [], nextCursor: null, hasMore: false };
+
+    console.log(
+      'limit:',
+      limit,
+      'posts.length:',
+      posts.length,
+      'hasMore:',
+      posts.length > limit,
+    );
+
+    const hasMore = posts.length > limit;
+    if (hasMore) posts.pop();
+    const nextCursor = hasMore ? posts[posts.length - 1].id : null;
+
+    const postIds = posts.map((p) => p.id);
+    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
+      this.prisma.like.findMany({
+        where: { userId: currentUserId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      this.prisma.bookmark.findMany({
+        where: { userId: currentUserId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      this.prisma.repost.findMany({
+        where: { userId: currentUserId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedSet = new Set(likedPosts.map((l) => l.postId));
+    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
+    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
+
+    return {
+      posts: posts.map((post) => ({
+        ...post,
+        isLiked: likedSet.has(post.id),
+        isBookmarked: bookmarkedSet.has(post.id),
+        isReposted: repostedSet.has(post.id),
+      })),
+      nextCursor,
+      hasMore,
+    };
+  }
+
+  async delete(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      include: { media: true },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+
+    if (post.userId !== userId)
+      throw new ForbiddenException(
+        'Your are not authorized to delete this post',
+      );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.postMedia.deleteMany({ where: { postId } });
+
+      if (post.parentPostId) {
+        await tx.post.update({
+          where: { id: post.parentPostId },
+          data: { replyCount: { decrement: 1 } },
+        });
+      }
+
+      await tx.user.update({
+        where: {
+          id: post.userId,
+        },
+        data: {
+          postsCount: { decrement: 1 },
+        },
+      });
+
+      await tx.post.delete({ where: { id: postId } });
+    });
+
+    // Schedule s3 cleanup
+    if (post.media.length > 0) {
+      const keys = post.media.map((m) => this.extractKeyFromUrl(m.mediaUrl));
+      await this.scheduleCleanup(keys, 'post_deleted');
+    }
+  }
+
   private async scheduleCleanup(
     keys: string[],
     reason: CleanupJobData['reason'],
@@ -168,19 +403,12 @@ export class PostsService {
     );
   }
 
-  findAll() {
-    return `This action returns all posts`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
-  }
-
-  update(id: number, updatePostDto: UpdatePostDto) {
-    return `This action updates a #${id} post`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  private extractKeyFromUrl(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.pathname.substring(1);
+    } catch {
+      return url;
+    }
   }
 }

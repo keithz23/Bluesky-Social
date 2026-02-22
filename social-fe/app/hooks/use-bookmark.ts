@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
 import { axiosInstance } from "@/lib/axios";
+import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { updatePostInCaches } from "@/lib/query-util";
 
 export const useGetBookmarks = () => {
   return useQuery({
@@ -25,32 +26,25 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["feed"] });
+      await qc.cancelQueries({ queryKey: ["userPosts"] });
       await qc.cancelQueries({ queryKey: ["bookmarks"] });
 
       const previousFeed = qc.getQueryData(["feed"]);
       const previousBookmarks = qc.getQueryData(["bookmarks"]);
+      const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
 
-      // Optimistic update feed
-      qc.setQueryData(["feed"], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            posts: page.posts.map((p: any) =>
-              p.id === postId
-                ? {
-                    ...p,
-                    isBookmarked: !isBookmarked,
-                    bookmarkCount: isBookmarked
-                      ? p.bookmarkCount - 1
-                      : p.bookmarkCount + 1,
-                  }
-                : p,
-            ),
-          })),
-        };
-      });
+      const allCacheKeys = [
+        ["feed"],
+        ...userPostsCache.map(([key]) => key as any[]),
+      ];
+
+      updatePostInCaches(qc, allCacheKeys, postId, (p) => ({
+        ...p,
+        isBookmarked: !isBookmarked,
+        bookmarkCount: !isBookmarked
+          ? p.bookmarkCount + 1
+          : p.bookmarkCount - 1,
+      }));
 
       qc.setQueryData(["bookmarks"], (old: any) => {
         if (!old) return old;
@@ -59,7 +53,7 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
           : old;
       });
 
-      return { previousFeed, previousBookmarks };
+      return { previousFeed, previousBookmarks, userPostsCache };
     },
 
     onSuccess: () => {
@@ -67,12 +61,13 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) {
+      if (context?.previousFeed)
         qc.setQueryData(["feed"], context.previousFeed);
-      }
-      if (context?.previousBookmarks) {
+      if (context?.previousBookmarks)
         qc.setQueryData(["bookmarks"], context.previousBookmarks);
-      }
+      context?.userPostsCache?.forEach(([queryKey, data]) => {
+        qc.setQueryData(queryKey, data);
+      });
     },
   });
 };
