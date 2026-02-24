@@ -33,6 +33,7 @@ export const PostService = {
     const { data } = await axiosInstance.get(
       `${API_ENDPOINT.POSTS.GET_BY_USERNAME(username)}?${params}`,
     );
+
     return data;
   },
 };

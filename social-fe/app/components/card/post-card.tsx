@@ -2,28 +2,29 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  MessageSquare,
-  Share,
-  MoreHorizontal,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { MessageSquare, Share, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { PostMedia } from "@/app/interfaces/post.interface";
 import AvatarHoverCard from "./avatar-hover-card";
-import UserHoverCard from "./use-hover-card";
+import UserHoverCard from "./user-hover-card";
 import LikeButton from "../button/like-button";
 import BookMarkButton from "../button/bookmark-button";
 import RepostButton from "../button/repost-button";
 import PostDropDown from "../dropdown/post-dropdown";
+import { formatDistanceToNow } from "date-fns";
+import { enUS } from "date-fns/locale";
+import { useMemo } from "react";
 
 interface PostCardProps {
   post: Feed;
@@ -56,6 +57,40 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const formattedDate = useMemo(() => {
+    const distance = formatDistanceToNow(
+      new Date(post.createdAt || new Date()),
+      {
+        addSuffix: false,
+        locale: enUS,
+      },
+    );
+
+    return distance
+      .replace(/^about\s/, "")
+      .replace(/^almost\s/, "")
+      .replace(/^over\s/, "")
+      .replace("less than a minute", "now")
+      .replace(/\s?minutes?/, "m")
+      .replace(/\s?hours?/, "h")
+      .replace(/\s?days?/, "d")
+      .replace(/\s?months?/, "mo")
+      .replace(/\s?years?/, "y");
+  }, [post.createdAt]);
+
+  const fullDate = useMemo(
+    () =>
+      new Date(post.createdAt || new Date()).toLocaleString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    [post.createdAt],
+  );
+
   return (
     <>
       <div
@@ -63,14 +98,27 @@ export default function PostCard({ post }: PostCardProps) {
         onClick={handleProfileClick}
       >
         <div className="flex gap-3">
-          <AvatarHoverCard post={post} />
+          <AvatarHoverCard data={post} />
 
           {/* Post Content */}
           <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <div className="font-bold text-[15px] hover:underline cursor-pointer">
-                <UserHoverCard post={post} />
+            <div className="flex items-center gap-x-1">
+              <div className="font-bold text-[15px] cursor-pointer">
+                <UserHoverCard data={post} />
               </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="text-gray-500 text-sm cursor-pointer"
+                    suppressHydrationWarning
+                  >
+                    {formattedDate}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p suppressHydrationWarning>{fullDate}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <p className="mt-1 text-[15px] leading-normal text-gray-900">

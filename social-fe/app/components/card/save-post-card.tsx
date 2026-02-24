@@ -22,12 +22,13 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
-import UserHoverCard from "./use-hover-card";
+import UserHoverCard from "./user-hover-card";
 import AvatarHoverCard from "./avatar-hover-card";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
   const post = bookmark.post;
+  console.log(bookmark)
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
     currentIndex: number;
@@ -63,12 +64,12 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
         onClick={handleProfileClick}
       >
         {/* Avatar */}
-        <AvatarHoverCard post={bookmark} />
+        <AvatarHoverCard data={bookmark} />
 
         {/* Content */}
         <div className="flex flex-col flex-1 min-w-0">
           <div className="font-bold text-[15px] hover:underline cursor-pointer">
-            <UserHoverCard post={bookmark} />
+            <UserHoverCard data={bookmark} />
           </div>
 
           {post.media?.length > 0 && (

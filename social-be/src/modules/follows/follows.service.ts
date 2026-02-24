@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { FollowQueryDto } from './dto/follow-query.dto';
 
 @Injectable()
 export class FollowsService {
@@ -168,5 +169,106 @@ export class FollowsService {
     if (follow) return { status: 'following' };
     if (request) return { status: 'requested' };
     return { status: 'none' };
+  }
+
+  async getFollowingLists(query: FollowQueryDto) {
+    const limit = query.limit ?? 20;
+    const username = query.username;
+
+    const user = await this.prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+
+    const follows = await this.prisma.follow.findMany({
+      where: {
+        followerId: user?.id,
+      },
+      take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        following: {
+          select: {
+            id: true,
+            username: true,
+            bio: true,
+            avatarUrl: true,
+            coverUrl: true,
+            verified: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = follows.length > limit;
+    if (hasMore) follows.pop();
+
+    const nextCursor = hasMore ? follows[follows.length - 1].id : null;
+
+    const formattedFollowing = follows.map((f) => ({
+      followId: f.id,
+      followedAt: f.createdAt,
+      ...f.following,
+    }));
+
+    return {
+      following: formattedFollowing,
+      nextCursor,
+      hasMore,
+    };
+  }
+
+  async getFollowerLists(query: FollowQueryDto) {
+    const limit = query.limit ?? 20;
+    const username = query.username;
+    const user = await this.prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+
+    const follows = await this.prisma.follow.findMany({
+      where: {
+        followingId: user?.id,
+      },
+      take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            bio: true,
+            verified: true,
+            username: true,
+            avatarUrl: true,
+            coverUrl: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = follows.length > limit;
+    if (hasMore) follows.pop();
+
+    const nextCursor = hasMore ? follows[follows.length - 1].id : null;
+
+    const formattedFollowers = follows.map((f) => ({
+      followerId: f.id,
+      followerAt: f.createdAt,
+      ...f.follower,
+    }));
+
+    return {
+      follower: formattedFollowers,
+      nextCursor,
+      hasMore,
+    };
   }
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { FollowButton } from "@/app/components/button/follow-button";
-import { useFollow, useFollowStatus } from "@/app/hooks/use-follow";
 import { useSuggestedUsers } from "@/app/hooks/use-suggestions";
 import { SuggestionsUser } from "@/app/interfaces/suggestion.interface";
 import {
@@ -16,8 +15,10 @@ import {
   Layers,
   BadgeCheck,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
+  const router = useRouter();
   const { data: users = [], isLoading } = useSuggestedUsers(20);
   // --- MOCK DATA ---
   const trendingTopics = [

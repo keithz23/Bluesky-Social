@@ -1,6 +1,12 @@
 import { axiosInstance } from "@/lib/axios";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { FollowService } from "../services/follow.service";
 
 export const useFollowStatus = (targetUserId: string) => {
   return useQuery({
@@ -37,4 +43,33 @@ export const useFollow = (targetUserId: string) => {
   });
 
   return { follow, unfollow };
+};
+
+export const useGetFollowingLists = (username: string) => {
+  return useInfiniteQuery({
+    queryKey: ["followings", username],
+
+    queryFn: ({ pageParam }) =>
+      FollowService.getFollowingLists(
+        username,
+        pageParam as string | undefined,
+      ),
+
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
+  });
+};
+
+export const useGetFollowerLists = (username: string) => {
+  return useInfiniteQuery({
+    queryKey: ["followers", username],
+
+    queryFn: ({ pageParam }) =>
+      FollowService.getFollowerLists(username, pageParam as string | undefined),
+
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
+  });
 };

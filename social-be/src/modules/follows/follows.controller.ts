@@ -6,13 +6,25 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { FollowsService } from './follows.service';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { FollowQueryDto } from './dto/follow-query.dto';
 
 @Controller('follows')
 export class FollowsController {
   constructor(private readonly followsService: FollowsService) {}
+
+  @Get('following-lists')
+  getFollowingLists(@Query() query: FollowQueryDto) {
+    return this.followsService.getFollowingLists(query);
+  }
+
+  @Get('follower-lists')
+  getFollowerLists(@Query() query: FollowQueryDto) {
+    return this.followsService.getFollowerLists(query);
+  }
 
   @Post(':userId')
   follow(@CurrentUser('id') currentUserId, @Param('userId') userId: string) {

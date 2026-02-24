@@ -279,6 +279,8 @@ export class PostsService {
             username: true,
             avatarUrl: true,
             verified: true,
+            followersCount: true,
+            followingCount: true,
           },
         },
         media: {
@@ -298,20 +300,12 @@ export class PostsService {
     if (posts.length === 0)
       return { posts: [], nextCursor: null, hasMore: false };
 
-    console.log(
-      'limit:',
-      limit,
-      'posts.length:',
-      posts.length,
-      'hasMore:',
-      posts.length > limit,
-    );
-
     const hasMore = posts.length > limit;
     if (hasMore) posts.pop();
     const nextCursor = hasMore ? posts[posts.length - 1].id : null;
 
     const postIds = posts.map((p) => p.id);
+
     const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
       this.prisma.like.findMany({
         where: { userId: currentUserId, postId: { in: postIds } },
@@ -331,12 +325,36 @@ export class PostsService {
     const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
     const repostedSet = new Set(repostedPosts.map((r) => r.postId));
 
+    const following = await this.prisma.follow.findMany({
+      where: { followerId: currentUserId },
+      select: {
+        followingId: true,
+      },
+    });
+
+    const followingIds = following.map((f) => f.followingId);
+
+    const followingSet = new Set(followingIds);
+
+    const userInfo = posts.length > 0 ? posts[0].user : null;
+
     return {
       posts: posts.map((post) => ({
         ...post,
         isLiked: likedSet.has(post.id),
         isBookmarked: bookmarkedSet.has(post.id),
         isReposted: repostedSet.has(post.id),
+        user: userInfo
+          ? {
+              ...userInfo,
+              followStatus:
+                userInfo.id === currentUserId
+                  ? null
+                  : followingSet.has(userInfo.id)
+                    ? 'following'
+                    : 'none',
+            }
+          : null,
       })),
       nextCursor,
       hasMore,

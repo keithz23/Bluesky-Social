@@ -29,6 +29,34 @@ export const API_ENDPOINT = {
   },
 
   FOLLOWS: {
+    FOLLOWING_LISTS: (params: {
+      username: string;
+      cursor?: string;
+      limit?: number;
+    }) => {
+      const query = new URLSearchParams();
+
+      query.set("username", params.username);
+
+      if (params.cursor) query.set("cursor", params.cursor);
+      if (params.limit) query.set("limit", String(params.limit));
+
+      return `/follows/following-lists?${query.toString()}`;
+    },
+    FOLLOWER_LISTS: (params: {
+      username: string;
+      cursor?: string;
+      limit?: number;
+    }) => {
+      const query = new URLSearchParams();
+
+      query.set("username", params.username);
+
+      if (params.cursor) query.set("cursor", params.cursor);
+      if (params.limit) query.set("limit", String(params.limit));
+
+      return `/follows/follower-lists?${query.toString()}`;
+    },
     FOLLOW: (userId: string) => `/follows/${userId}`,
     UNFOLLOW: (userId: string) => `/follows/${userId}`,
     STATUS: (userId: string) => `/follows/status/${userId}`,

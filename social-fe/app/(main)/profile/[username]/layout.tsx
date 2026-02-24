@@ -3,9 +3,8 @@
 import { useProfile } from "@/app/hooks/use-profile";
 import { ArrowLeft, MoreHorizontal, BadgeCheck } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { FollowButton } from "@/app/components/button/follow-button";
-import { useEffect, useState } from "react";
 
 export default function ProfileLayout({
   children,
@@ -15,24 +14,7 @@ export default function ProfileLayout({
   const { username } = useParams<{ username: string }>();
   const { data: profile, isLoading } = useProfile(username);
   const pathname = usePathname();
-
-  const [isFixed, setIsFixed] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setIsFixed(true);
-      } else {
-        setIsFixed(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
+  const router = useRouter();
 
   const tabs = [
     { name: "Posts", href: `/profile/${username}` },
@@ -67,6 +49,13 @@ export default function ProfileLayout({
     );
   }
 
+  if (
+    pathname === `/profile/${username}/follows` ||
+    pathname === `/profile/${username}/followers`
+  ) {
+    return children;
+  }
+
   return (
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* --- COVER & AVATAR --- */}
@@ -79,14 +68,13 @@ export default function ProfileLayout({
           />
         )}
 
-        <Link
-          href="/"
-          className="absolute top-4 left-4 p-1.5 bg-black/20 hover:bg-black/30 rounded-full transition text-white z-10"
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 p-1.5 bg-black/20 hover:bg-black/30 rounded-full transition text-white z-10 cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5" />
-        </Link>
+        </button>
 
-        {/* Avatar */}
         <div className="absolute -bottom-10 left-4 w-21 h-21 rounded-full border-4 border-white bg-[#FF4F5A] flex items-center justify-center text-[40px] text-white font-bold shadow-sm z-10 overflow-hidden">
           {profile?.avatarUrl ? (
             <img
@@ -132,18 +120,23 @@ export default function ProfileLayout({
 
         {/* Stats */}
         <div className="flex gap-4 mt-3 text-[15px] text-gray-500">
-          <div>
-            <span className="font-bold text-gray-900">
-              {profile?.followersCount ?? 0}
-            </span>{" "}
-            followers
-          </div>
-          <div>
-            <span className="font-bold text-gray-900">
-              {profile?.followingCount ?? 0}
-            </span>{" "}
-            following
-          </div>
+          <Link href={`/profile/${username}/followers`}>
+            <div className="hover:underline">
+              <span className="font-bold text-gray-900">
+                {profile?.followersCount ?? 0}
+              </span>{" "}
+              followers
+            </div>
+          </Link>
+
+          <Link href={`/profile/${username}/follows`}>
+            <div className="hover:underline">
+              <span className="font-bold text-gray-900">
+                {profile?.followingCount ?? 0}
+              </span>{" "}
+              following
+            </div>
+          </Link>
           <div>
             <span className="font-bold text-gray-900">
               {profile?.postsCount ?? 0}
