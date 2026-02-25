@@ -9,12 +9,16 @@ import {
   UseInterceptors,
   Query,
 } from '@nestjs/common';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import {
+  AnyFilesInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { PostQueryDto } from './dto/post-query.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -54,5 +58,31 @@ export class PostsController {
   @Delete('/delete-post/:postId')
   delete(@CurrentUser('id') userId: string, @Param('postId') postId: string) {
     return this.postsService.delete(userId, postId);
+  }
+
+  @Post(':postId/replies')
+  @UseInterceptors(FilesInterceptor('images', 4))
+  createReply(
+    @CurrentUser('id') userId: string,
+    @Param('postId') postId: string,
+    @Body() createReplyDto: CreateReplyDto,
+    @UploadedFiles() images?: Express.Multer.File[],
+  ) {
+    return this.postsService.createReply(
+      userId,
+      postId,
+      createReplyDto,
+      images,
+    );
+  }
+
+  @Get(':postId/replies')
+  getReplies(
+    @CurrentUser('id') userId: string,
+    @Param('postId') postId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.postsService.getReplies(userId, postId, cursor, limit);
   }
 }

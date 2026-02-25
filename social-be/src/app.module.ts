@@ -20,6 +20,7 @@ import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { RepostsModule } from './modules/reposts/reposts.module';
+import { RepliesModule } from './modules/replies/replies.module';
 
 @Module({
   imports: [

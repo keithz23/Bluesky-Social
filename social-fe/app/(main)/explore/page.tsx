@@ -15,10 +15,8 @@ import {
   Layers,
   BadgeCheck,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
-  const router = useRouter();
   const { data: users = [], isLoading } = useSuggestedUsers(20);
   // --- MOCK DATA ---
   const trendingTopics = [

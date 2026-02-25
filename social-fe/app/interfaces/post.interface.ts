@@ -18,6 +18,12 @@ export interface CreatePostPayload {
   gifUrl?: string;
 }
 
+export interface CreateReplyDto {
+  content?: string;
+  images?: File[];
+  gifUrl?: string;
+}
+
 export interface UpdatePostPayload extends CreatePostPayload {
   id: string;
 }

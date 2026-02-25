@@ -1,6 +1,10 @@
 "use client";
 import PostDetailCard from "@/app/components/card/post-detail-card";
+import ReplyCard from "@/app/components/card/reply-card";
+import ReplyPostModal from "@/app/components/dialog/reply-post-dialog";
+import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetPostById } from "@/app/hooks/use-post";
+import { useReplies } from "@/app/hooks/use-reply";
 import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -8,6 +12,16 @@ export default function PostDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { data: post, isLoading } = useGetPostById(id);
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useReplies(id);
+  const replies = data?.pages.flatMap((page) => page.replies) ?? [];
+
+  const { ref } = useInfiniteScroll({
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    enabled: replies.length > 0,
+  });
 
   return (
     <>
@@ -37,6 +51,23 @@ export default function PostDetailPage() {
 
       {/* Post detail */}
       {post && <PostDetailCard post={post} />}
+
+      {post && (
+        <div className="w-full border-y">
+          <ReplyPostModal post={post} type="avatar-with-input" />
+        </div>
+      )}
+
+      <div className="flex flex-col">
+        {replies.map((reply) => (
+          <ReplyCard key={reply.id} reply={reply} />
+        ))}
+      </div>
+
+      {/* Infinite scroll trigger */}
+      <div ref={ref} className="py-4 text-center text-sm text-gray-400">
+        {isFetchingNextPage ? "Loading more..." : null}
+      </div>
     </>
   );
 }

@@ -18,6 +18,7 @@ import {
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bull';
 import { PostQueryDto } from './dto/post-query.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
 
 @Injectable()
 export class PostsService {
@@ -377,6 +378,28 @@ export class PostsService {
         allowQuote: true,
         parentPostId: true,
         rootPostId: true,
+        rootPost: {
+          select: {
+            id: true,
+            content: true,
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
+            },
+            createdAt: true,
+            likeCount: true,
+            replyCount: true,
+            bookmarkCount: true,
+            replyPolicy: true,
+          },
+        },
         user: {
           select: {
             id: true,
@@ -477,6 +500,219 @@ export class PostsService {
       const keys = post.media.map((m) => this.extractKeyFromUrl(m.mediaUrl));
       await this.scheduleCleanup(keys, 'post_deleted');
     }
+  }
+
+  async createReply(
+    userId: string,
+    postId: string,
+    createReplyDto: CreateReplyDto,
+    images?: Express.Multer.File[],
+  ) {
+    const { content, gifUrl } = createReplyDto;
+
+    const parentPost = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      select: { id: true, rootPostId: true },
+    });
+
+    if (!parentPost) throw new NotFoundException('Post not found');
+
+    const rootPostId = parentPost.rootPostId ?? postId;
+
+    let uploadResults: UploadResult[] = [];
+    const uploadedKeys: string[] = [];
+
+    if (images && images.length > 0) {
+      try {
+        uploadResults = await this.s3Service.uploadImages(
+          images,
+          `public/posts/${userId}/images`,
+          { resize: true, quality: 85 },
+        );
+        uploadedKeys.push(...uploadResults.map((r) => r.key));
+      } catch (error) {
+        this.logger.error('Error uploading images', error);
+        throw new Error('Failed to upload images');
+      }
+    }
+
+    let gifUploadResult: UploadResult | null = null;
+    if (!images?.length && gifUrl) {
+      try {
+        const response = await fetch(gifUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to download GIF: ${response.statusText}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        gifUploadResult = await this.s3Service.uploadBuffer(
+          buffer,
+          `public/posts/${userId}/gifs`,
+          'gif',
+          'image/gif',
+        );
+        uploadedKeys.push(gifUploadResult.key);
+      } catch (error) {
+        this.logger.error('Error uploading GIF to S3', error);
+        throw new Error('Failed to upload GIF');
+      }
+    }
+
+    try {
+      const reply = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.post.create({
+          data: {
+            content: content ?? '',
+            parentPostId: postId,
+            rootPostId,
+            userId,
+          },
+        });
+
+        await tx.post.update({
+          where: { id: postId },
+          data: { replyCount: { increment: 1 } },
+        });
+
+        await tx.user.update({
+          where: { id: userId },
+          data: { postsCount: { increment: 1 } },
+        });
+
+        if (uploadResults.length > 0) {
+          await tx.postMedia.createMany({
+            data: uploadResults.map((u, idx) => ({
+              postId: created.id,
+              mediaUrl: u.url,
+              mediaType: MediaType.IMAGE,
+              fileSize: u.size,
+              orderIndex: idx,
+            })),
+          });
+        }
+
+        if (gifUploadResult) {
+          await tx.postMedia.create({
+            data: {
+              postId: created.id,
+              mediaUrl: gifUploadResult.url,
+              mediaType: MediaType.GIF,
+              fileSize: gifUploadResult.size,
+              orderIndex: 0,
+            },
+          });
+        }
+
+        return tx.post.findUnique({
+          where: { id: created.id },
+          include: {
+            media: { orderBy: { orderIndex: 'asc' } },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatarUrl: true,
+                verified: true,
+              },
+            },
+          },
+        });
+      });
+
+      return reply;
+    } catch (error) {
+      if (uploadedKeys.length > 0) {
+        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+      }
+      throw error;
+    }
+  }
+
+  async getReplies(
+    userId: string,
+    postId: string,
+    cursor?: string,
+    limit: number = 20,
+  ) {
+    const cursorDate = cursor ? new Date(cursor) : null;
+
+    const replies = await this.prisma.post.findMany({
+      where: {
+        parentPostId: postId,
+        isDeleted: false,
+        ...(cursorDate &&
+          !isNaN(cursorDate.getTime()) && {
+            createdAt: { gt: cursorDate },
+          }),
+      },
+      take: limit + 1,
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        parentPostId: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            verified: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = replies.length > limit;
+    if (hasMore) replies.pop();
+
+    const nextCursor = hasMore
+      ? replies[replies.length - 1].createdAt.toISOString()
+      : null;
+
+    const replyIds = replies.map((r) => r.id);
+
+    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
+      this.prisma.like.findMany({
+        where: { userId, postId: { in: replyIds } },
+        select: { postId: true },
+      }),
+      this.prisma.bookmark.findMany({
+        where: { userId, postId: { in: replyIds } },
+        select: { postId: true },
+      }),
+      this.prisma.repost.findMany({
+        where: { userId, postId: { in: replyIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedSet = new Set(likedPosts.map((l) => l.postId));
+    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
+    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
+
+    return {
+      replies: replies.map((r) => ({
+        ...r,
+        isLiked: likedSet.has(r.id),
+        isBookmarked: bookmarkedSet.has(r.id),
+        isReposted: repostedSet.has(r.id),
+      })),
+      nextCursor,
+      hasMore,
+    };
   }
 
   private async scheduleCleanup(

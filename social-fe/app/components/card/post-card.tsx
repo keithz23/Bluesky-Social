@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Share, ChevronLeft, ChevronRight } from "lucide-react";
+import { Share, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Carousel,
@@ -25,6 +25,7 @@ import PostDropDown from "../dropdown/post-dropdown";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useMemo } from "react";
+import ReplyPostModal from "../dialog/reply-post-dialog";
 
 interface PostCardProps {
   post: Feed;
@@ -137,43 +138,30 @@ export default function PostCard({ post }: PostCardProps) {
 
             {/* Media Carousel */}
             {post.media?.length > 0 && (
-              <Carousel
-                opts={{ align: "start" }}
-                className="w-full max-w-full mt-3"
-              >
+              <Carousel opts={{ align: "start" }} className="w-full mb-3">
                 <CarouselContent>
-                  {post.media.map((m: PostMedia, i: number) => {
-                    const isSingleImage = post.media.length === 1;
-
-                    return (
-                      <CarouselItem
-                        key={m.id}
-                        className={
-                          isSingleImage
-                            ? "basis-full"
-                            : "basis-4/5 sm:basis-1/2 lg:basis-1/3"
-                        }
+                  {post.media.map((m: PostMedia, i: number) => (
+                    <CarouselItem
+                      key={m.id}
+                      className={
+                        post.media.length === 1 ? "basis-full" : "basis-[85%]"
+                      }
+                    >
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setZoomData({ media: post.media, currentIndex: i });
+                        }}
+                        className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${post.media.length === 1 ? "aspect-video" : "h-64"}`}
                       >
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setZoomData({ media: post.media, currentIndex: i });
-                          }}
-                          className={`w-full rounded-xl overflow-hidden bg-gray-100 cursor-pointer group ${
-                            isSingleImage
-                              ? "h-64 sm:h-80 md:h-100 lg:h-125"
-                              : "h-56 sm:h-64 md:h-72 lg:h-80"
-                          }`}
-                        >
-                          <img
-                            src={m.mediaUrl}
-                            alt={m.altText ?? "Post image"}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        </div>
-                      </CarouselItem>
-                    );
-                  })}
+                        <img
+                          src={m.mediaUrl}
+                          alt={m.altText ?? ""}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))}
                 </CarouselContent>
               </Carousel>
             )}
@@ -185,13 +173,7 @@ export default function PostCard({ post }: PostCardProps) {
             >
               <div className="flex items-center gap-8">
                 <div className="flex items-center gap-1 group cursor-pointer">
-                  <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <MessageSquare
-                      size={18}
-                      strokeWidth={2.2}
-                      className="group-hover:text-blue-500 transition-colors"
-                    />
-                  </div>
+                  <ReplyPostModal post={post} />
                   <span className="group-hover:text-blue-500 transition-colors">
                     {post.replyCount}
                   </span>

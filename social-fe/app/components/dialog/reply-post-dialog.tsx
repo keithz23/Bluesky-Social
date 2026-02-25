@@ -6,22 +6,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  SquarePen,
-  Globe,
-  ChevronDown,
-  ChevronUp,
-  Image as ImageIcon,
-  Smile,
-  X,
-  Check,
-  Quote,
-} from "lucide-react";
+import { Image as ImageIcon, Smile, X, MessageSquare } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { Grid } from "@giphy/react-components";
 import { GiphyFetch } from "@giphy/js-fetch-api";
-import { usePost } from "@/app/hooks/use-post";
-import { ReplyType } from "@/app/interfaces/post.interface";
+import { Feed } from "@/app/interfaces/feed.interface";
+import AvatarHoverCard from "../card/avatar-hover-card";
+import { useCreateReply } from "@/app/hooks/use-reply";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 
@@ -30,30 +21,19 @@ interface ImagePreview {
   preview: string;
 }
 
-interface NewPostModalProps {
-  buttonName: string;
+interface ReplyPostModalProps {
+  post: Feed;
+  type?: "avatar-with-input" | "icon";
 }
 
-export default function NewPostModal({ buttonName }: NewPostModalProps) {
+export default function ReplyPostModal({ post, type }: ReplyPostModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
-  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-
-  const [replyType, setReplyType] = useState<ReplyType>("anyone");
-  const [customSettings, setCustomSettings] = useState({
-    followers: false,
-    following: false,
-    mentioned: false,
-  });
-  const [isListsExpanded, setIsListsExpanded] = useState(false);
 
   const [selectedImages, setSelectedImages] = useState<ImagePreview[]>([]);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
-
-  const [allowQuote, setAllowQuote] = useState(true);
-  const [saveForNextTime, setSaveForNextTime] = useState(false);
 
   // Derived flags
   const hasImages = selectedImages.length > 0;
@@ -68,7 +48,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
   const gifPickerRef = useRef<HTMLDivElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { createPost } = usePost();
+  const { createReply } = useCreateReply(post.id);
 
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
 
@@ -94,20 +74,6 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const handleSelectRadio = (type: ReplyType) => {
-    setReplyType(type);
-    setCustomSettings({
-      followers: false,
-      following: false,
-      mentioned: false,
-    });
-  };
-
-  const handleToggleCustom = (key: keyof typeof customSettings) => {
-    setReplyType("custom");
-    setCustomSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -145,25 +111,17 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
   };
 
   const handleCreatePost = () => {
-    const privacyData = {
-      type: replyType,
-      allowQuote,
-      custom: replyType === "custom" ? customSettings : undefined,
-    };
-
     const payload = hasImages
       ? {
           content: postText,
-          replyPrivacy: privacyData,
-          images: selectedImages.map((img) => img.file), // File[]
+          images: selectedImages.map((img) => img.file),
         }
       : {
           content: postText,
-          replyPrivacy: privacyData,
-          gifUrl: selectedGif ?? undefined, // string | undefined
+          gifUrl: selectedGif ?? undefined,
         };
 
-    createPost.mutate(payload, {
+    createReply.mutate(payload, {
       onSuccess: () => {
         setIsOpen(false);
         resetForm();
@@ -172,17 +130,40 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
   };
 
   const isSubmitDisabled =
-    createPost.isPending || (!postText.trim() && !hasImages && !hasGif);
+    createReply.isPending || (!postText.trim() && !hasImages && !hasGif);
 
   return (
-    <div className="mt-4 px-2 w-[90%]">
-      {/* -------------------- MAIN POST MODAL -------------------- */}
+    <div className="px-2">
+      {/* -------------------- MAIN REPLY MODAL -------------------- */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button className="w-full h-14 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[17px] font-bold flex gap-2 items-center cursor-pointer shadow-sm">
-            <SquarePen className="w-5 h-5" strokeWidth={2} />
-            {buttonName}
-          </Button>
+          {type == "avatar-with-input" ? (
+            <div className="flex items-center gap-x-3 p-2 rounded-full cursor-pointer hover:bg-gray-200 transition-colors w-full">
+              <div className="w-8 h-8 rounded-full bg-[#FF4F5A] flex items-center justify-center text-sm text-white font-bold shrink-0 overflow-hidden">
+                {post.user?.avatarUrl ? (
+                  <img
+                    src={post?.user.avatarUrl}
+                    alt={post?.user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  post?.user?.username?.charAt(0).toUpperCase()
+                )}
+              </div>
+
+              <span className="text-[15px] text-gray-500">
+                Write your reply
+              </span>
+            </div>
+          ) : (
+            <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors cursor-pointer">
+              <MessageSquare
+                size={18}
+                strokeWidth={2.2}
+                className="group-hover:text-blue-500 transition-colors text-gray-500"
+              />
+            </div>
+          )}
         </DialogTrigger>
 
         <DialogContent className="max-w-150 p-0 border-none rounded-xl shadow-lg bg-white gap-0">
@@ -195,24 +176,77 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                 Cancel
               </button>
               <div className="flex items-center gap-6">
-                <button className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer">
-                  Drafts
-                </button>
                 <Button
                   onClick={handleCreatePost}
                   disabled={isSubmitDisabled}
-                  className={`rounded-full font-medium px-5 h-9 shadow-none transition-colors ${
+                  className={`rounded-full font-bold px-5 h-9 shadow-none transition-colors ${
                     !isSubmitDisabled
                       ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
                       : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
                   }`}
                 >
-                  {createPost.isPending ? "Posting..." : "Post"}
+                  {createReply.isPending ? "Processing..." : "Reply"}
                 </Button>
               </div>
             </div>
           </DialogTitle>
 
+          {/* Original Post Preview */}
+          <div className="px-4 flex justify-between items-start mt-2">
+            <div className="flex gap-3">
+              {/* Mock Avatar */}
+              <AvatarHoverCard data={post} />
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-[15px] text-gray-900">
+                    {post.user.username}
+                  </span>
+                  {/* Verified Badge */}
+                  {post.user.verified && (
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-label="Verified account"
+                      className="w-4.5 h-4.5 text-[#0066FF]"
+                      fill="currentColor"
+                    >
+                      <g>
+                        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.792-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.827 2.74 2.043 3.39-.11.457-.167.936-.167 1.41 0 2.21 1.71 4 3.918 4 .537 0 1.058-.11 1.536-.31.587 1.25 1.854 2.11 3.337 2.11 1.48 0 2.75-.86 3.336-2.11.478.2.998.31 1.536.31 2.21 0 3.918-1.79 3.918-4 0-.474-.057-.953-.167-1.41 1.216-.65 2.043-1.93 2.043-3.39zM10.25 16.5l-3.5-3.5 1.41-1.41L10.25 13.67l7.09-7.09 1.41 1.41L10.25 16.5z"></path>
+                      </g>
+                    </svg>
+                  )}
+                </div>
+                <span className="text-[15px] mt-0.5">{post.content}</span>
+              </div>
+            </div>
+
+            {/* Mock Thumbnail Image */}
+            <div className="w-15 h-15 border border-gray-100 overflow-hidden shrink-0 bg-white flex flex-col justify-center">
+              <div
+                className={`w-full h-full grid gap-px ${
+                  post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                } ${post.media.length > 2 ? "grid-rows-2" : "grid-rows-1"}`}
+              >
+                {post.media.slice(0, 4).map((m, index) => (
+                  <div
+                    key={m.id || index}
+                    className={`w-full h-full overflow-hidden ${
+                      post.media.length === 3 && index === 0 ? "row-span-2" : ""
+                    }`}
+                  >
+                    <img
+                      src={m.mediaUrl}
+                      alt={m.altText ?? "Reply post image"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-4 my-3 border-b border-gray-200"></div>
+
+          {/* Reply Input */}
           <div className="px-4 flex gap-3">
             <div className="w-12 h-12 rounded-full bg-[#F05555] shrink-0 flex items-center justify-center text-white font-medium text-2xl">
               @
@@ -221,8 +255,8 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
               <textarea
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
-                className="w-full resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-500 min-h-20"
-                placeholder="What's up?"
+                className="w-full resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-400 min-h-20"
+                placeholder="Write your reply"
               />
             </div>
           </div>
@@ -241,7 +275,9 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                       <img
                         src={img.preview}
                         alt={`Selected media ${i + 1}`}
-                        className={`rounded-xl w-full object-cover border border-gray-200 ${isThreeFirst ? "max-h-48" : "max-h-40"}`}
+                        className={`rounded-xl w-full object-cover border border-gray-200 ${
+                          isThreeFirst ? "max-h-48" : "max-h-40"
+                        }`}
                       />
                       <button
                         onClick={() => removeImage(i)}
@@ -278,23 +314,9 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
             </div>
           )}
 
-          <div className="px-4 pb-3 mt-2">
-            <button
-              onClick={() => setIsPrivacyModalOpen(true)}
-              className="flex items-center gap-1.5 bg-[#F2F4F8] hover:bg-gray-200 text-[#444746] text-[13px] font-medium px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
-            >
-              <Globe className="w-4 h-4 text-[#444746]" strokeWidth={2} />
-              {replyType === "anyone"
-                ? "Anyone can interact"
-                : replyType === "nobody"
-                  ? "Nobody can reply"
-                  : "Custom interactions"}
-              <ChevronDown className="w-4 h-4 text-[#444746]" strokeWidth={2} />
-            </button>
-          </div>
+          <hr className="border-gray-100" />
 
-          <hr className="border-gray-200" />
-
+          {/* Bottom Toolbar */}
           <div className="relative flex justify-between items-center px-4 py-3">
             {showEmojiPicker && (
               <div
@@ -337,7 +359,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
               onChange={handleFileChange}
             />
 
-            <div className="flex items-center gap-4 text-[#0066FF]">
+            <div className="flex items-center gap-3 text-[#0066FF]">
               <button
                 onClick={() => !imageDisabled && fileInputRef.current?.click()}
                 disabled={imageDisabled}
@@ -354,11 +376,11 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                     : "hover:bg-blue-50 text-[#0066FF] cursor-pointer"
                 }`}
               >
-                <ImageIcon className="w-5.5 h-5.5" />
+                <ImageIcon className="w-5 h-5" />
               </button>
 
               <button
-                ref ={gifButtonRef}
+                ref={gifButtonRef}
                 onClick={() => !gifDisabled && setShowGifPicker(!showGifPicker)}
                 disabled={gifDisabled}
                 title={
@@ -388,165 +410,19 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className="hover:bg-blue-50 p-1.5 rounded-full transition-colors cursor-pointer"
               >
-                <Smile className="w-5.5 h-5.5" />
+                <Smile className="w-5 h-5 text-[#0066FF]" />
               </button>
             </div>
 
-            <div className="flex items-center gap-4 pr-2">
-              <button className="text-[#0066FF] font-medium text-[15px] hover:underline">
+            <div className="flex items-center gap-4">
+              <button className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer">
                 English
               </button>
               <span className="text-gray-900 text-[15px]">
                 {300 - postText.length}
               </span>
-              <div className="w-7 h-7 rounded-full border border-gray-200"></div>
+              <div className="w-6.5 h-6.5 rounded-full border border-gray-200"></div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* -------------------- PRIVACY SETTINGS MODAL -------------------- */}
-      <Dialog open={isPrivacyModalOpen} onOpenChange={setIsPrivacyModalOpen}>
-        <DialogContent className="max-w-100 p-6 border-none rounded-xl shadow-xl bg-white gap-0">
-          <DialogTitle className="flex justify-between items-center mb-4 text-xl font-bold text-black">
-            Post interaction settings
-            <button
-              onClick={() => setIsPrivacyModalOpen(false)}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </DialogTitle>
-
-          <p className="text-sm font-semibold mb-3">Who can reply</p>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <div
-                onClick={() => handleSelectRadio("anyone")}
-                className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${replyType === "anyone" ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] ${replyType === "anyone" ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                >
-                  {replyType === "anyone" && (
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                  )}
-                </div>
-                <span className="text-[15px] font-medium">Anyone</span>
-              </div>
-
-              <div
-                onClick={() => handleSelectRadio("nobody")}
-                className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${replyType === "nobody" ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] ${replyType === "nobody" ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                >
-                  {replyType === "nobody" && (
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                  )}
-                </div>
-                <span className="text-[15px] font-medium">Nobody</span>
-              </div>
-            </div>
-
-            {[
-              { id: "followers", label: "Your followers" },
-              { id: "following", label: "People you follow" },
-              { id: "mentioned", label: "People you mention" },
-            ].map((item) => {
-              const isActive =
-                customSettings[item.id as keyof typeof customSettings];
-              return (
-                <div
-                  key={item.id}
-                  onClick={() =>
-                    handleToggleCustom(item.id as keyof typeof customSettings)
-                  }
-                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-lg flex items-center justify-center border-[1.5px] ${isActive ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                  >
-                    {isActive && (
-                      <Check
-                        className="w-3.5 h-3.5 text-white"
-                        strokeWidth={3}
-                      />
-                    )}
-                  </div>
-                  <span className="text-[15px] font-medium">{item.label}</span>
-                </div>
-              );
-            })}
-
-            <div className="bg-[#F2F4F8] rounded-xl overflow-hidden mt-1">
-              <div
-                onClick={() => setIsListsExpanded(!isListsExpanded)}
-                className="flex items-center justify-between p-3 cursor-pointer text-[#444746]"
-              >
-                <span className="text-[15px] font-medium">
-                  Select from your lists
-                </span>
-                {isListsExpanded ? (
-                  <ChevronUp className="w-5 h-5" />
-                ) : (
-                  <ChevronDown className="w-5 h-5" />
-                )}
-              </div>
-              {isListsExpanded && (
-                <div className="p-3 border-t border-white/40 text-[#444746] text-[15px]">
-                  You don't have any lists yet.
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between p-3 mt-2 bg-[#EAF2FF] rounded-xl text-black">
-              <div className="flex items-center gap-2">
-                <Quote className="w-5 h-5" />
-                <span className="text-[15px] font-semibold">
-                  Allow quote posts
-                </span>
-              </div>
-              <div
-                onClick={() => setAllowQuote(!allowQuote)}
-                className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors flex items-center ${allowQuote ? "bg-[#0066FF] justify-end" : "bg-gray-400 justify-start"}`}
-              >
-                <div className="w-4 h-4 rounded-full bg-white shadow-sm"></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-4">
-            {replyType === "anyone" ? (
-              <p className="text-[14px] text-[#444746]">
-                These are your default settings
-              </p>
-            ) : (
-              <div
-                onClick={() => setSaveForNextTime(!saveForNextTime)}
-                className="flex items-center gap-2 cursor-pointer text-black"
-              >
-                <div
-                  className={`w-4 h-4 rounded-[3px] flex items-center justify-center border-[1.5px] ${saveForNextTime ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                >
-                  {saveForNextTime && (
-                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                  )}
-                </div>
-                <span className="text-[14px]">
-                  Save these options for next time
-                </span>
-              </div>
-            )}
-
-            <Button
-              onClick={() => setIsPrivacyModalOpen(false)}
-              className="w-full h-11 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-[16px] shadow-none"
-            >
-              Save
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
