@@ -393,6 +393,17 @@ export class PostsService {
                 altText: true,
               },
             },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatarUrl: true,
+                verified: true,
+                bio: true,
+                followersCount: true,
+                followingCount: true,
+              },
+            },
             createdAt: true,
             likeCount: true,
             replyCount: true,

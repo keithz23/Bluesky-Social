@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -35,35 +35,50 @@ export default function ReplyCard({
   isLastInThread = false,
 }: ReplyCardProps) {
   const router = useRouter();
+  const [zoomData, setZoomData] = useState<{
+    media: PostMedia[];
+    currentIndex: number;
+  } | null>(null);
 
   const handleProfileClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     router.push(`/profile/${reply.user.username}`);
   };
 
-  const [zoomData, setZoomData] = useState<{
-    media: PostMedia[];
-    currentIndex: number;
-  } | null>(null);
-
   const handleReplyClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     router.push(`/profile/${reply.user.username}/post/${reply.id}`);
   };
 
-  const handleNextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
-      setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex + 1 });
-    }
-  };
+  const handleNextImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
+        setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex + 1 });
+      }
+    },
+    [zoomData],
+  );
 
-  const handlePrevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoomData && zoomData.currentIndex > 0) {
-      setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex - 1 });
-    }
-  };
+  const handlePrevImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex > 0) {
+        setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex - 1 });
+      }
+    },
+    [zoomData],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!zoomData) return;
+      if (e.key === "ArrowRight") handleNextImage();
+      if (e.key === "ArrowLeft") handlePrevImage();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomData, handleNextImage, handlePrevImage]);
 
   const formattedDate = useMemo(() => {
     if (!reply.createdAt) return "";
@@ -84,34 +99,31 @@ export default function ReplyCard({
   return (
     <>
       <div
-        className={`px-4 py-3 hover:bg-gray-50/30 transition cursor-pointer ${!isLastInThread ? "border-b border-gray-100" : ""}`}
+        className={`px-4 py-3 hover:bg-gray-50/30 transition cursor-pointer ${
+          !isLastInThread ? "border-b border-gray-100" : ""
+        }`}
         onClick={handleReplyClick}
       >
         <div className="flex gap-3">
-          {/* Avatar Section */}
-          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative flex flex-col items-center shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Avatar data={reply.user} />
           </div>
 
-          {/* Main Content Section */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pb-1">
             {/* Header: Name, Handle, Time */}
             <div className="flex items-center justify-between mb-0.5">
               <div className="flex items-center gap-1 overflow-hidden">
                 <div
-                  className="font-bold text-[15px] hover:underline truncate"
-                  onClick={(e) => e.stopPropagation()}
+                  className="font-bold text-[15px] hover:underline truncate cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProfileClick();
+                  }}
                 >
-                  <button
-                    type="button"
-                    className="cursor-pointer hover:underline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleProfileClick?.();
-                    }}
-                  >
-                    {reply.user.username}
-                  </button>
+                  {reply.user.username}
                 </div>
                 <span className="text-gray-500 text-[15px] truncate">
                   @{reply.user.username}
@@ -126,11 +138,11 @@ export default function ReplyCard({
               </div>
             </div>
 
-            {/* Reply Text */}
             <p className="text-[15px] leading-snug text-gray-900 wrap-break-words mb-2 mt-0.5">
               {reply.content}
             </p>
 
+            {/* Media Carousel */}
             {reply?.media?.length > 0 && (
               <Carousel opts={{ align: "start" }} className="w-full mb-3">
                 <CarouselContent>
@@ -149,7 +161,9 @@ export default function ReplyCard({
                             currentIndex: i,
                           });
                         }}
-                        className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${reply?.media.length === 1 ? "aspect-video" : "h-64"}`}
+                        className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${
+                          reply?.media.length === 1 ? "aspect-video" : "h-64"
+                        }`}
                       >
                         <img
                           src={m.mediaUrl}
@@ -182,13 +196,17 @@ export default function ReplyCard({
                 {/* Repost */}
                 <div className="flex items-center gap-1.5 group cursor-pointer">
                   <div
-                    className={`p-1.5 rounded-full group-hover:bg-green-50 transition-colors ${reply.isReposted ? "text-green-600" : ""}`}
+                    className={`p-1.5 rounded-full group-hover:bg-green-50 transition-colors ${
+                      reply.isReposted ? "text-green-600" : ""
+                    }`}
                   >
                     <Repeat size={18} className="group-hover:text-green-500" />
                   </div>
                   {reply.repostCount > 0 && (
                     <span
-                      className={`text-[13px] group-hover:text-green-500 ${reply.isReposted ? "text-green-600" : ""}`}
+                      className={`text-[13px] group-hover:text-green-500 ${
+                        reply.isReposted ? "text-green-600" : ""
+                      }`}
                     >
                       {reply.repostCount}
                     </span>
@@ -198,16 +216,22 @@ export default function ReplyCard({
                 {/* Like */}
                 <div className="flex items-center gap-1.5 group cursor-pointer">
                   <div
-                    className={`p-1.5 rounded-full group-hover:bg-pink-50 transition-colors ${reply.isLiked ? "text-pink-600" : ""}`}
+                    className={`p-1.5 rounded-full group-hover:bg-pink-50 transition-colors ${
+                      reply.isLiked ? "text-pink-600" : ""
+                    }`}
                   >
                     <Heart
                       size={18}
-                      className={`group-hover:text-pink-500 ${reply.isLiked ? "fill-pink-600 text-pink-600" : ""}`}
+                      className={`group-hover:text-pink-500 ${
+                        reply.isLiked ? "fill-pink-600 text-pink-600" : ""
+                      }`}
                     />
                   </div>
                   {reply.likeCount > 0 && (
                     <span
-                      className={`text-[13px] group-hover:text-pink-500 ${reply.isLiked ? "text-pink-600" : ""}`}
+                      className={`text-[13px] group-hover:text-pink-500 ${
+                        reply.isLiked ? "text-pink-600" : ""
+                      }`}
                     >
                       {reply.likeCount}
                     </span>
@@ -220,7 +244,9 @@ export default function ReplyCard({
                 <div className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
                   <Bookmark
                     size={18}
-                    className={`group-hover:text-blue-500 ${reply.isBookmarked ? "fill-blue-500 text-blue-500" : ""}`}
+                    className={`group-hover:text-blue-500 ${
+                      reply.isBookmarked ? "fill-blue-500 text-blue-500" : ""
+                    }`}
                   />
                 </div>
                 <div className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
@@ -237,6 +263,7 @@ export default function ReplyCard({
           </div>
         </div>
       </div>
+
       <Dialog
         open={!!zoomData}
         onOpenChange={(open) => !open && setZoomData(null)}

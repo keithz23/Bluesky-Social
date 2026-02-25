@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  MessageSquare,
   Repeat,
   Heart,
   Bookmark,
@@ -33,9 +32,13 @@ import ReplyPostModal from "../dialog/reply-post-dialog";
 
 interface PostDetailCardProps {
   post: Feed;
+  role?: "parent" | "main" | "reply";
 }
 
-export default function PostDetailCard({ post }: PostDetailCardProps) {
+export default function PostDetailCard({
+  post,
+  role = "main",
+}: PostDetailCardProps) {
   const router = useRouter();
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
@@ -111,18 +114,33 @@ export default function PostDetailCard({ post }: PostDetailCardProps) {
 
   return (
     <>
-      <div className="px-4 py-3 border-b border-gray-100 hover:bg-gray-50/30 transition cursor-pointer">
+      {post?.rootPost && <PostDetailCard post={post.rootPost} role="parent" />}
+
+      <div
+        className={`relative px-4 py-3 cursor-pointer transition ${
+          role === "parent"
+            ? "hover:bg-gray-50/30 z-0"
+            : "border-b border-gray-100 hover:bg-gray-50/30 z-10"
+        }`}
+      >
         <div className="flex gap-3">
-          {/* Avatar Section */}
-          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-            <AvatarHoverCard
-              data={post}
-              handleProfileClick={handleProfileClick}
-            />
+          <div className="relative flex flex-col items-center shrink-0 w-10">
+            <div
+              className="relative z-10 w-full flex justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <AvatarHoverCard
+                data={post}
+                handleProfileClick={handleProfileClick}
+              />
+            </div>
+
+            {role === "parent" && (
+              <div className="absolute top-10 bottom-6 left-1/2 -translate-x-1/2 w-0.5 bg-gray-200 z-0" />
+            )}
           </div>
 
-          {/* Main Content Section */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pb-1">
             {/* Header: Name, Handle, Time, More */}
             <div className="flex items-center justify-between mb-0.5">
               <div className="flex items-center gap-1 overflow-hidden">
@@ -165,7 +183,11 @@ export default function PostDetailCard({ post }: PostDetailCardProps) {
             </div>
 
             {/* Post Text */}
-            <p className="text-[15px] leading-snug text-gray-900 wrap-break-words mb-3">
+            <p
+              className={`leading-snug text-gray-900 wrap-break-words mb-3 ${
+                role === "main" ? "text-[17px]" : "text-[15px]"
+              }`}
+            >
               {post.content}
             </p>
 
@@ -199,32 +221,7 @@ export default function PostDetailCard({ post }: PostDetailCardProps) {
               </Carousel>
             )}
 
-            <div className="flex items-center gap-4 py-3 border-y border-gray-100 text-[14px]">
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">
-                  {post.repostCount}
-                </span>
-                <span className="text-gray-500">reposts</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">0</span>
-                <span className="text-gray-500">quotes</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">
-                  {post.likeCount}
-                </span>
-                <span className="text-gray-500">likes</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">
-                  {post.bookmarkCount}
-                </span>
-                <span className="text-gray-500">saves</span>
-              </div>
-            </div>
-
-            {/* Reaction Icons */}
+            {/* Action Buttons (Reply, Repost, Like, etc.) */}
             <div
               className="flex items-center justify-between mt-2 px-1 text-gray-500"
               onClick={(e) => e.stopPropagation()}
@@ -284,6 +281,7 @@ export default function PostDetailCard({ post }: PostDetailCardProps) {
         </div>
       </div>
 
+      {/* DIALOG ZOOM ẢNH */}
       <Dialog
         open={!!zoomData}
         onOpenChange={(open) => !open && setZoomData(null)}

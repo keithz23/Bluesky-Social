@@ -14,5 +14,6 @@ export interface Feed {
   user: User;
   media: PostMedia[];
   createdAt?: Date;
+  rootPost?: Feed;
   post?: any;
 }

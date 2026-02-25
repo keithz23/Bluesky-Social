@@ -43,14 +43,14 @@ export default function PostDetailPage() {
           <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
           <div className="flex-1 flex flex-col gap-2">
             <div className="h-4 bg-gray-200 rounded w-1/3" />
-            <div className="h-4 bg-gray-200 rounded w-full" />
+            <div className="h-4 bg-gray-200 rounded w-full" />a
             <div className="h-4 bg-gray-200 rounded w-2/3" />
           </div>
         </div>
       )}
 
       {/* Post detail */}
-      {post && <PostDetailCard post={post} />}
+      {post && <PostDetailCard post={post} role="main" />}
 
       {post && (
         <div className="w-full border-y">
