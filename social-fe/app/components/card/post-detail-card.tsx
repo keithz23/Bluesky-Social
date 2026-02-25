@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Share, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -24,13 +24,13 @@ import RepostButton from "../button/repost-button";
 import PostDropDown from "../dropdown/post-dropdown";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { useMemo } from "react";
+import { FollowButton } from "../button/follow-button";
 
-interface PostCardProps {
+interface PostDetailCardProps {
   post: Feed;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostDetailCard({ post }: PostDetailCardProps) {
   const router = useRouter();
 
   const [zoomData, setZoomData] = useState<{
@@ -38,37 +38,52 @@ export default function PostCard({ post }: PostCardProps) {
     currentIndex: number;
   } | null>(null);
 
-  const handleProfileClick = () => {
+  const handleProfileClick = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     router.push(`/profile/${post.user.username}`);
   };
 
-  const handlePostDetailClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(`/profile/${post.user.username}/post/${post.id}`);
-  };
+  const handleNextImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
+        setZoomData((prev) =>
+          prev ? { ...prev, currentIndex: prev.currentIndex + 1 } : null,
+        );
+      }
+    },
+    [zoomData],
+  );
 
-  const handleNextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
-      setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex + 1 });
-    }
-  };
+  const handlePrevImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex > 0) {
+        setZoomData((prev) =>
+          prev ? { ...prev, currentIndex: prev.currentIndex - 1 } : null,
+        );
+      }
+    },
+    [zoomData],
+  );
 
-  const handlePrevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoomData && zoomData.currentIndex > 0) {
-      setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex - 1 });
-    }
-  };
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!zoomData) return;
+      if (e.key === "ArrowRight") handleNextImage();
+      if (e.key === "ArrowLeft") handlePrevImage();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomData, handleNextImage, handlePrevImage]);
 
   const formattedDate = useMemo(() => {
-    const distance = formatDistanceToNow(
-      new Date(post.createdAt || new Date()),
-      {
-        addSuffix: false,
-        locale: enUS,
-      },
-    );
+    if (!post.createdAt) return "";
+    const distance = formatDistanceToNow(new Date(post.createdAt), {
+      addSuffix: false,
+      locale: enUS,
+    });
 
     return distance
       .replace(/^about\s/, "")
@@ -82,53 +97,62 @@ export default function PostCard({ post }: PostCardProps) {
       .replace(/\s?years?/, "y");
   }, [post.createdAt]);
 
-  const fullDate = useMemo(
-    () =>
-      new Date(post.createdAt || new Date()).toLocaleString("en-US", {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    [post.createdAt],
-  );
+  const fullDate = useMemo(() => {
+    if (!post.createdAt) return "";
+    return new Date(post.createdAt).toLocaleString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, [post.createdAt]);
 
   return (
     <>
-      <div
-        className="p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer"
-        onClick={handlePostDetailClick}
-      >
+      <div className="p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
         <div className="flex gap-3">
-          <AvatarHoverCard
-            data={post}
-            handleProfileClick={handleProfileClick}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <AvatarHoverCard
+              data={post}
+              handleProfileClick={handleProfileClick}
+            />
+          </div>
 
           {/* Post Content */}
           <div className="flex-1">
-            <div className="flex items-center gap-x-1">
-              <div className="font-bold text-[15px]">
-                <UserHoverCard
-                  data={post}
-                  handleProfileClick={handleProfileClick}
-                />
+            <div className="flex items-center justify-between gap-x-1">
+              <div className="flex item-center gap-x-1">
+                <div
+                  className="font-bold text-[15px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <UserHoverCard
+                    data={post}
+                    handleProfileClick={handleProfileClick}
+                  />
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className="text-gray-500 text-sm cursor-pointer"
+                      suppressHydrationWarning
+                    >
+                      {formattedDate}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p suppressHydrationWarning>{fullDate}</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className="text-gray-500 text-sm cursor-pointer"
-                    suppressHydrationWarning
-                  >
-                    {formattedDate}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p suppressHydrationWarning>{fullDate}</p>
-                </TooltipContent>
-              </Tooltip>
+
+              {post.user.followStatus && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <FollowButton targetUserId={post.user.id} />
+                </div>
+              )}
             </div>
 
             <p className="mt-1 text-[15px] leading-normal text-gray-900">
@@ -228,7 +252,6 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       </div>
 
-      {/* Post-level Image Zoom Dialog */}
       <Dialog
         open={!!zoomData}
         onOpenChange={(open) => !open && setZoomData(null)}

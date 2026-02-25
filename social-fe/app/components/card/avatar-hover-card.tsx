@@ -9,14 +9,24 @@ import Avatar from "../avatar";
 
 interface AvatarHoverCardProps {
   data: any;
+  handleProfileClick?: () => void;
 }
 
-export default function AvatarHoverCard({ data }: AvatarHoverCardProps) {
+export default function AvatarHoverCard({
+  data,
+  handleProfileClick,
+}: AvatarHoverCardProps) {
   const { follow } = useFollow(data.user.id);
   return (
     <HoverCard>
       <HoverCardTrigger asChild>
-        <Avatar data={data.user} />
+        <Avatar
+          data={data.user}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleProfileClick?.();
+          }}
+        />
       </HoverCardTrigger>
 
       <HoverCardContent className="w-72 p-4 rounded-2xl shadow-xl border border-gray-100">

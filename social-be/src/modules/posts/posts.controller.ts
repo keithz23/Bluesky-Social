@@ -43,6 +43,14 @@ export class PostsController {
     return this.postsService.getPostByUsername(userId, username, query);
   }
 
+  @Get('post-detail/:postId')
+  getPostDetail(
+    @CurrentUser('id') userId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.postsService.getPostDetail(userId, postId);
+  }
+
   @Delete('/delete-post/:postId')
   delete(@CurrentUser('id') userId: string, @Param('postId') postId: string) {
     return this.postsService.delete(userId, postId);

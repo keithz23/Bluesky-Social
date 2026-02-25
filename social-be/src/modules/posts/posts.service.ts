@@ -361,6 +361,82 @@ export class PostsService {
     };
   }
 
+  async getPostDetail(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        replyPolicy: true,
+        allowQuote: true,
+        parentPostId: true,
+        rootPostId: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            verified: true,
+            bio: true,
+            followersCount: true,
+            followingCount: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            width: true,
+            height: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+
+    const [follow, liked, bookmarked, reposted] = await Promise.all([
+      this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: userId,
+            followingId: post.user.id,
+          },
+        },
+      }),
+      this.prisma.like.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.bookmark.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.repost.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+    ]);
+
+    return {
+      ...post,
+      isLiked: !!liked,
+      isBookmarked: !!bookmarked,
+      isReposted: !!reposted,
+      user: {
+        ...post.user,
+        followStatus:
+          post.user.id === userId ? null : follow ? 'following' : 'none',
+      },
+    };
+  }
+
   async delete(userId: string, postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },

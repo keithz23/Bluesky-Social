@@ -16,6 +16,7 @@ export const API_ENDPOINT = {
     UPDATE_POST: (id: string) => `/posts/update-post/${id}`,
     DELETE_POST: (id: string) => `/posts/delete-post/${id}`,
     GET_BY_USERNAME: (username: string) => `/posts/users/${username}`,
+    GET_BY_ID: (postId: string) => `/posts/post-detail/${postId}`,
   },
 
   FEED: {

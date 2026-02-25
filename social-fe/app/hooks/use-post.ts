@@ -1,6 +1,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { CreatePostPayload } from "../interfaces/post.interface";
@@ -110,5 +111,13 @@ export const useUserPosts = (username: string, filter: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+  });
+};
+
+export const useGetPostById = (postId: string) => {
+  return useQuery({
+    queryKey: ["post-detail", postId],
+    queryFn: () => PostService.getPostById(postId),
+    enabled: !!postId,
   });
 };
