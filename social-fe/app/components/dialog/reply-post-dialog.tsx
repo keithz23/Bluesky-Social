@@ -13,6 +13,8 @@ import { GiphyFetch } from "@giphy/js-fetch-api";
 import { Feed } from "@/app/interfaces/feed.interface";
 import AvatarHoverCard from "../card/avatar-hover-card";
 import { useCreateReply } from "@/app/hooks/use-reply";
+import { checkCanReply } from "@/app/utils/check.util";
+import { useAuth } from "@/app/hooks/use-auth";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 
@@ -24,9 +26,14 @@ interface ImagePreview {
 interface ReplyPostModalProps {
   post: Feed;
   type?: "avatar-with-input" | "icon";
+  disabled?: boolean;
 }
 
-export default function ReplyPostModal({ post, type }: ReplyPostModalProps) {
+export default function ReplyPostModal({
+  post,
+  type,
+  disabled,
+}: ReplyPostModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -137,8 +144,15 @@ export default function ReplyPostModal({ post, type }: ReplyPostModalProps) {
       {/* -------------------- MAIN REPLY MODAL -------------------- */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          {type == "avatar-with-input" ? (
-            <div className="flex items-center gap-x-3 p-2 rounded-full cursor-pointer hover:bg-gray-200 transition-colors w-full">
+          {type === "avatar-with-input" ? (
+            <button
+              disabled={disabled}
+              className={`flex items-center gap-x-3 p-2 w-full text-left rounded-full transition-colors ${
+                disabled
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer hover:bg-gray-200"
+              }`}
+            >
               <div className="w-8 h-8 rounded-full bg-[#FF4F5A] flex items-center justify-center text-sm text-white font-bold shrink-0 overflow-hidden">
                 {post.user?.avatarUrl ? (
                   <img
@@ -154,15 +168,26 @@ export default function ReplyPostModal({ post, type }: ReplyPostModalProps) {
               <span className="text-[15px] text-gray-500">
                 Write your reply
               </span>
-            </div>
+            </button>
           ) : (
-            <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors cursor-pointer">
+            <button
+              disabled={disabled}
+              className={`p-2 rounded-full transition-colors ${
+                disabled
+                  ? "opacity-50 cursor-not-allowed"
+                  : "group-hover:bg-blue-50 cursor-pointer"
+              }`}
+            >
               <MessageSquare
                 size={18}
                 strokeWidth={2.2}
-                className="group-hover:text-blue-500 transition-colors text-gray-500"
+                className={`transition-colors ${
+                  disabled
+                    ? "text-gray-400" // Màu xám nhạt hơn khi bị khoá
+                    : "group-hover:text-blue-500 text-gray-500"
+                }`}
               />
-            </div>
+            </button>
           )}
         </DialogTrigger>
 

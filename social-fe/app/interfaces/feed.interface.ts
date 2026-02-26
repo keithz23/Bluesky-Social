@@ -11,6 +11,11 @@ export interface Feed {
   isLiked: boolean;
   isBookmarked: boolean;
   isReposted: boolean;
+  replyPolicy?: string;
+  replyFollowers?: string;
+  replyFollowing?: string;
+  replyMentioned?: string;
+  userId: string;
   user: User;
   media: PostMedia[];
   createdAt?: Date;

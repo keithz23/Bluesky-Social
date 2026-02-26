@@ -151,6 +151,8 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
       custom: replyType === "custom" ? customSettings : undefined,
     };
 
+    console.log(privacyData);
+
     const payload = hasImages
       ? {
           content: postText,
@@ -358,7 +360,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
               </button>
 
               <button
-                ref ={gifButtonRef}
+                ref={gifButtonRef}
                 onClick={() => !gifDisabled && setShowGifPicker(!showGifPicker)}
                 disabled={gifDisabled}
                 title={

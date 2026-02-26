@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
+  MessageSquare,
   Repeat,
   Heart,
   Bookmark,
@@ -10,6 +11,7 @@ import {
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
+  Globe,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -29,15 +31,18 @@ import UserHoverCard from "./user-hover-card";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import ReplyPostModal from "../dialog/reply-post-dialog";
+import { REPLY_POLICY_CONFIG } from "@/app/constants/reply-policy.constant";
 
 interface PostDetailCardProps {
   post: Feed;
   role?: "parent" | "main" | "reply";
+  disabled?: boolean;
 }
 
 export default function PostDetailCard({
   post,
-  role = "main",
+  role,
+  disabled,
 }: PostDetailCardProps) {
   const router = useRouter();
   const [zoomData, setZoomData] = useState<{
@@ -112,10 +117,15 @@ export default function PostDetailCard({
     });
   }, [post.createdAt]);
 
+  const policyConfig =
+    REPLY_POLICY_CONFIG[post.replyPolicy as keyof typeof REPLY_POLICY_CONFIG] ||
+    REPLY_POLICY_CONFIG.ANYONE;
+
+  const PolicyIcon = policyConfig.icon;
+
   return (
     <>
       {post?.rootPost && <PostDetailCard post={post.rootPost} role="parent" />}
-
       <div
         className={`relative px-4 py-3 cursor-pointer transition ${
           role === "parent"
@@ -124,11 +134,9 @@ export default function PostDetailCard({
         }`}
       >
         <div className="flex gap-3">
-          <div className="relative flex flex-col items-center shrink-0 w-10">
-            <div
-              className="relative z-10 w-full flex justify-center"
-              onClick={(e) => e.stopPropagation()}
-            >
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center shrink-0 relative">
+            <div className="z-10" onClick={(e) => e.stopPropagation()}>
               <AvatarHoverCard
                 data={post}
                 handleProfileClick={handleProfileClick}
@@ -136,11 +144,12 @@ export default function PostDetailCard({
             </div>
 
             {role === "parent" && (
-              <div className="absolute top-10 bottom-6 left-1/2 -translate-x-1/2 w-0.5 bg-gray-200 z-0" />
+              <div className="absolute top-10 bottom-3 w-0.5 bg-gray-200 z-0" />
             )}
           </div>
 
-          <div className="flex-1 min-w-0 pb-1">
+          {/* Main Content Section */}
+          <div className="flex-1 min-w-0">
             {/* Header: Name, Handle, Time, More */}
             <div className="flex items-center justify-between mb-0.5">
               <div className="flex items-center gap-1 overflow-hidden">
@@ -221,7 +230,60 @@ export default function PostDetailCard({
               </Carousel>
             )}
 
-            {/* Action Buttons (Reply, Repost, Like, etc.) */}
+            <div className="flex items-center flex-wrap gap-1.5 text-[14px] text-gray-500 mb-3 mt-1">
+              <span>
+                {new Date(post.createdAt || "").toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
+              </span>
+
+              <span>·</span>
+
+              <span>
+                {new Date(post.createdAt || "").toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+
+              {/* Reply Policy */}
+              <div className="flex items-center gap-1 ml-1">
+                <PolicyIcon size={14} />
+                <span>
+                  <span>{policyConfig.text}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 py-3 border-y border-gray-100 text-[14px]">
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-gray-900">
+                  {post.repostCount}
+                </span>
+                <span className="text-gray-500">reposts</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-gray-900">0</span>
+                <span className="text-gray-500">quotes</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-gray-900">
+                  {post.likeCount}
+                </span>
+                <span className="text-gray-500">likes</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-gray-900">
+                  {post.bookmarkCount}
+                </span>
+                <span className="text-gray-500">saves</span>
+              </div>
+            </div>
+
+            {/* Reaction Icons */}
             <div
               className="flex items-center justify-between mt-2 px-1 text-gray-500"
               onClick={(e) => e.stopPropagation()}
@@ -229,7 +291,7 @@ export default function PostDetailCard({
               <div className="flex items-center gap-10">
                 {/* Reply */}
                 <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <ReplyPostModal post={post} />
+                  <ReplyPostModal post={post} type="icon" disabled={disabled} />
                   <span className="text-[13px] group-hover:text-blue-500">
                     {post.replyCount}
                   </span>
@@ -281,7 +343,6 @@ export default function PostDetailCard({
         </div>
       </div>
 
-      {/* DIALOG ZOOM ẢNH */}
       <Dialog
         open={!!zoomData}
         onOpenChange={(open) => !open && setZoomData(null)}

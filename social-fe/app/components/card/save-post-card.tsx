@@ -18,7 +18,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { PostMedia } from "../../interfaces/post.interface";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
@@ -28,7 +28,6 @@ import AvatarHoverCard from "./avatar-hover-card";
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
   const post = bookmark.post;
-  console.log(bookmark)
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
     currentIndex: number;
@@ -38,24 +37,43 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const { mutate: toggleBookmark } = useBookmark(post.id, true);
   const { mutate: toggleRepost } = useRepost(post.id, post.isReposted);
 
-  const handleNextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
-      setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex + 1 });
-    }
-  };
+  const handleNextImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
+        setZoomData((prev) =>
+          prev ? { ...prev, currentIndex: prev.currentIndex + 1 } : null,
+        );
+      }
+    },
+    [zoomData],
+  );
 
-  const handlePrevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoomData && zoomData.currentIndex > 0) {
-      setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex - 1 });
-    }
-  };
-
+  const handlePrevImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex > 0) {
+        setZoomData((prev) =>
+          prev ? { ...prev, currentIndex: prev.currentIndex - 1 } : null,
+        );
+      }
+    },
+    [zoomData],
+  );
   const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     router.push(`/profile/${post.user.username}`);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!zoomData) return;
+      if (e.key === "ArrowRight") handleNextImage();
+      if (e.key === "ArrowLeft") handlePrevImage();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomData, handleNextImage, handlePrevImage]);
 
   return (
     <>
@@ -73,46 +91,30 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
           </div>
 
           {post.media?.length > 0 && (
-            <Carousel
-              opts={{ align: "start" }}
-              className="w-full max-w-full mt-3"
-            >
+            <Carousel opts={{ align: "start" }} className="w-full mb-3">
               <CarouselContent>
-                {post.media.map((m: PostMedia, i: number) => {
-                  const isSingleImage = post.media.length === 1;
-
-                  return (
-                    <CarouselItem
-                      key={m.id}
-                      className={
-                        isSingleImage
-                          ? "basis-full"
-                          : "basis-4/5 sm:basis-1/2 lg:basis-1/3"
-                      }
+                {post.media.map((m: PostMedia, i: number) => (
+                  <CarouselItem
+                    key={m.id}
+                    className={
+                      post.media.length === 1 ? "basis-full" : "basis-[85%]"
+                    }
+                  >
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setZoomData({ media: post.media, currentIndex: i });
+                      }}
+                      className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${post.media.length === 1 ? "aspect-video" : "h-64"}`}
                     >
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setZoomData({
-                            media: post.media,
-                            currentIndex: i,
-                          });
-                        }}
-                        className={`w-full rounded-xl overflow-hidden bg-gray-100 cursor-pointer group ${
-                          isSingleImage
-                            ? "h-64 sm:h-80 md:h-100 lg:h-125"
-                            : "h-56 sm:h-64 md:h-72 lg:h-80"
-                        }`}
-                      >
-                        <img
-                          src={m.mediaUrl}
-                          alt={m.altText ?? "Post image"}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      </div>
-                    </CarouselItem>
-                  );
-                })}
+                      <img
+                        src={m.mediaUrl}
+                        alt={m.altText ?? ""}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
               </CarouselContent>
             </Carousel>
           )}
@@ -189,7 +191,6 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
         </div>
       </div>
 
-      {/* ĐÃ DI CHUYỂN: Global Image Zoom Dialog ra bên ngoài thẻ div bọc Card */}
       <Dialog
         open={!!zoomData}
         onOpenChange={(open) => {
@@ -200,9 +201,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
       >
         <DialogContent
           className="max-w-7xl w-[95vw] h-[90vh] p-0 border-none bg-black/95 flex items-center justify-center overflow-hidden"
-          /* Thêm onInteractOutside để tránh side-effect khi click ra ngoài nếu cần */
           onInteractOutside={(e) => {
-            // Tùy chọn: ngăn chặn event click truyền đi khi đóng
             // e.preventDefault();
           }}
         >

@@ -4,11 +4,13 @@ import { useFeed } from "@/app/hooks/use-feed";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { Feed } from "../interfaces/feed.interface";
 import PostCard from "../components/card/post-card";
+import { useAuth } from "../hooks/use-auth";
 
 export default function HomePage() {
+  const { isAuthenticated } = useAuth();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useFeed();
-  
+
   const posts = data?.pages.flatMap((page) => page.posts) ?? [];
 
   const { ref } = useInfiniteScroll({
@@ -21,16 +23,43 @@ export default function HomePage() {
   return (
     <>
       {/* Header Tabs */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100">
-        <div className="flex text-md font-bold h-13 items-center">
-          <div className="flex-1 text-center border-b-2 border-blue-500 h-full flex items-center justify-center cursor-pointer hover:bg-gray-50 transition">
-            Discover
-          </div>
-          <div className="flex-1 text-center h-full flex items-center justify-center text-gray-500 cursor-pointer hover:bg-gray-50 transition">
-            Feeds ✨
+      {isAuthenticated ? (
+        <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 pt-2"></div>
+
+          <div className="flex text-[15px] h-13 items-center overflow-x-auto px-4 gap-7 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="h-full flex items-center cursor-pointer hover:opacity-80 transition relative p-5">
+              <span className="font-bold text-gray-900">Discover</span>
+              <div className="absolute bottom-0 left-0 right-0 h-0.75 bg-blue-500 rounded-t-full"></div>
+            </div>
+
+            <div className="h-full flex items-center cursor-pointer hover:opacity-80 transition p-5">
+              <span className="font-semibold text-gray-500">Following</span>
+            </div>
+
+            <div className="h-full flex items-center cursor-pointer hover:opacity-80 transition p-5">
+              <span className="font-semibold text-gray-500">Video</span>
+            </div>
+
+            <div className="h-full flex items-center cursor-pointer hover:opacity-80 transition p-5">
+              <span className="font-semibold text-gray-500 whitespace-nowrap">
+                Popular With Friends
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+          <div className="flex text-md font-bold h-13 items-center">
+            <div className="flex-1 text-center border-b-2 border-blue-500 h-full flex items-center justify-center cursor-pointer hover:bg-gray-50 transition">
+              Discover
+            </div>
+            <div className="flex-1 text-center h-full flex items-center justify-center text-gray-500 cursor-pointer hover:bg-gray-50 transition">
+              Feeds ✨
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feed List */}
       <div className="flex flex-col">

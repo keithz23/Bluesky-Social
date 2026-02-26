@@ -28,11 +28,13 @@ import ReplyPostModal from "../dialog/reply-post-dialog";
 interface ReplyCardProps {
   reply: Feed;
   isLastInThread?: boolean;
+  disabled?: boolean;
 }
 
 export default function ReplyCard({
   reply,
   isLastInThread = false,
+  disabled = false,
 }: ReplyCardProps) {
   const router = useRouter();
   const [zoomData, setZoomData] = useState<{
@@ -185,7 +187,11 @@ export default function ReplyCard({
               <div className="flex items-center gap-10">
                 {/* Reply */}
                 <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <ReplyPostModal post={reply} />
+                  <ReplyPostModal
+                    post={reply}
+                    type="icon"
+                    disabled={disabled}
+                  />
                   {reply.replyCount > 0 && (
                     <span className="text-[13px] group-hover:text-blue-500">
                       {reply.replyCount}

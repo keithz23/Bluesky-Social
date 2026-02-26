@@ -672,4 +672,7 @@ enum ReplyPolicy {
   ANYONE
   NOBODY
   CUSTOM
+  FOLLOWERS // Your followers
+  FOLLOWING // People you follow
+  MENTIONED // People you mention
 }

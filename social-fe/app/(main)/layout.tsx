@@ -29,6 +29,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import NewPostModal from "../components/dialog/new-post-dialog";
 import BackToTop from "../components/back-to-top";
+import Loading from "../components/loading";
 
 export default function MainLayout({
   children,
@@ -37,7 +38,7 @@ export default function MainLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, user, logoutMutation } = useAuth();
+  const { isAuthenticated, user, logoutMutation, isLoadingProfile } = useAuth();
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -75,6 +76,10 @@ export default function MainLayout({
     { icon: Plus, label: "Add another account", href: "/login" },
     { icon: LogOut, label: "Sign out", href: "", onClick: handleLogout },
   ];
+
+  if (isLoadingProfile) {
+    return <Loading />;
+  }
 
   return (
     <div className="min-h-screen bg-white flex justify-center text-slate-900 font-sans">

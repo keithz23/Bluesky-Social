@@ -15,6 +15,7 @@ export function useAuth() {
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       try {
         const { data } = await AuthService.me();
         return data;
@@ -106,7 +107,7 @@ export function useAuth() {
   return {
     // User Info
     user: meQuery.data,
-    isLoadingProfile: meQuery.isLoading,
+    isLoadingProfile: meQuery.isFetching,
     isAuthenticated: !!meQuery.data,
     refetchMe: meQuery.refetch,
 

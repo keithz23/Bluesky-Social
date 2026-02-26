@@ -86,6 +86,16 @@ export class PostsService {
             replyPolicy: replyPrivacy?.type
               ? (replyPrivacy.type.toUpperCase() as ReplyPolicy)
               : 'ANYONE',
+            replyFollowers:
+              replyPrivacy?.type === 'custom' &&
+              replyPrivacy?.custom?.followers === true,
+            replyFollowing:
+              replyPrivacy?.type === 'custom' &&
+              replyPrivacy?.custom?.following === true,
+            replyMentioned:
+              replyPrivacy?.type === 'custom' &&
+              replyPrivacy?.custom?.mentioned === true,
+
             userId,
           },
         });
@@ -190,6 +200,10 @@ export class PostsService {
               replyCount: true,
               repostCount: true,
               bookmarkCount: true,
+              replyPolicy: true,
+              replyFollowers: true,
+              replyFollowing: true,
+              replyMentioned: true,
               user: {
                 select: {
                   id: true,
@@ -274,6 +288,10 @@ export class PostsService {
         replyCount: true,
         repostCount: true,
         bookmarkCount: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
         user: {
           select: {
             id: true,
@@ -375,6 +393,9 @@ export class PostsService {
         repostCount: true,
         bookmarkCount: true,
         replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
         allowQuote: true,
         parentPostId: true,
         rootPostId: true,
@@ -382,17 +403,15 @@ export class PostsService {
           select: {
             id: true,
             content: true,
-            media: {
-              orderBy: { orderIndex: 'asc' },
-              select: {
-                id: true,
-                mediaUrl: true,
-                mediaType: true,
-                width: true,
-                height: true,
-                altText: true,
-              },
-            },
+            createdAt: true,
+            updatedAt: true,
+            likeCount: true,
+            replyCount: true,
+            repostCount: true,
+            replyPolicy: true,
+            replyFollowers: true,
+            replyFollowing: true,
+            replyMentioned: true,
             user: {
               select: {
                 id: true,
@@ -404,11 +423,17 @@ export class PostsService {
                 followingCount: true,
               },
             },
-            createdAt: true,
-            likeCount: true,
-            replyCount: true,
-            bookmarkCount: true,
-            replyPolicy: true,
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
+            },
           },
         },
         user: {
@@ -438,33 +463,69 @@ export class PostsService {
 
     if (!post) throw new NotFoundException('Post not found');
 
-    const [follow, liked, bookmarked, reposted] = await Promise.all([
-      this.prisma.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: userId,
-            followingId: post.user.id,
+    const [follow, liked, bookmarked, reposted, rootFollow, authorFollowsMe] =
+      await Promise.all([
+        this.prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: userId,
+              followingId: post.user.id,
+            },
           },
-        },
-      }),
-      this.prisma.like.findUnique({
-        where: { userId_postId: { userId, postId } },
-      }),
-      this.prisma.bookmark.findUnique({
-        where: { userId_postId: { userId, postId } },
-      }),
-      this.prisma.repost.findUnique({
-        where: { userId_postId: { userId, postId } },
-      }),
-    ]);
+        }),
+        this.prisma.like.findUnique({
+          where: { userId_postId: { userId, postId } },
+        }),
+        this.prisma.bookmark.findUnique({
+          where: { userId_postId: { userId, postId } },
+        }),
+        this.prisma.repost.findUnique({
+          where: { userId_postId: { userId, postId } },
+        }),
+
+        post.rootPost?.user?.id
+          ? this.prisma.follow.findUnique({
+              where: {
+                followerId_followingId: {
+                  followerId: userId,
+                  followingId: post.rootPost?.user.id,
+                },
+              },
+            })
+          : null,
+
+        // Check author has followed current user
+        this.prisma.follow.findMany({
+          where: {
+            followerId: post.user?.id, //Author
+            followingId: userId, //current user
+          },
+        }),
+      ]);
 
     return {
       ...post,
       isLiked: !!liked,
       isBookmarked: !!bookmarked,
       isReposted: !!reposted,
+      rootPost: post.rootPost
+        ? {
+            ...post.rootPost,
+            user: {
+              ...post.rootPost.user,
+              followStatus:
+                post.rootPost.user.id === userId
+                  ? null
+                  : rootFollow
+                    ? 'following'
+                    : 'none',
+              isFollowedByAuthor: !!authorFollowsMe,
+            },
+          }
+        : null,
       user: {
         ...post.user,
+        isFollowedByAuthor: !!authorFollowsMe,
         followStatus:
           post.user.id === userId ? null : follow ? 'following' : 'none',
       },

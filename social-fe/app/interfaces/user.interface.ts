@@ -7,4 +7,5 @@ export interface User {
   followingCount: number;
   bio: string;
   followStatus: string;
+  isFollowedByAuthor?: boolean;
 }

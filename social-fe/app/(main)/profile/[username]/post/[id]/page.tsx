@@ -2,15 +2,18 @@
 import PostDetailCard from "@/app/components/card/post-detail-card";
 import ReplyCard from "@/app/components/card/reply-card";
 import ReplyPostModal from "@/app/components/dialog/reply-post-dialog";
+import { useAuth } from "@/app/hooks/use-auth";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetPostById } from "@/app/hooks/use-post";
 import { useReplies } from "@/app/hooks/use-reply";
+import { checkCanReply } from "@/app/utils/check.util";
 import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 export default function PostDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const { data: post, isLoading } = useGetPostById(id);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useReplies(id);
@@ -22,6 +25,8 @@ export default function PostDetailPage() {
     isFetchingNextPage,
     enabled: replies.length > 0,
   });
+
+  const disableReply = post ? !checkCanReply(post, user) : false;
 
   return (
     <>
@@ -50,17 +55,23 @@ export default function PostDetailPage() {
       )}
 
       {/* Post detail */}
-      {post && <PostDetailCard post={post} role="main" />}
+      {post && (
+        <PostDetailCard post={post} role="main" disabled={disableReply} />
+      )}
 
       {post && (
         <div className="w-full border-y">
-          <ReplyPostModal post={post} type="avatar-with-input" />
+          <ReplyPostModal
+            post={post}
+            type="avatar-with-input"
+            disabled={disableReply}
+          />
         </div>
       )}
 
       <div className="flex flex-col">
         {replies.map((reply) => (
-          <ReplyCard key={reply.id} reply={reply} />
+          <ReplyCard key={reply.id} reply={reply} disabled={disableReply} />
         ))}
       </div>
 
