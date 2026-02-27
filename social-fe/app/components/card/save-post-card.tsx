@@ -6,7 +6,6 @@ import {
   Heart,
   Bookmark,
   Share,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -24,6 +23,19 @@ import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
 import UserHoverCard from "./user-hover-card";
 import AvatarHoverCard from "./avatar-hover-card";
+import PostDropDown from "../dropdown/post-dropdown";
+import {
+  BookA,
+  Clipboard,
+  EyeOff,
+  Frown,
+  Funnel,
+  Smile,
+  TriangleAlert,
+  UserX,
+  VolumeOff,
+} from "lucide-react";
+import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
@@ -64,6 +76,17 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
     e.stopPropagation();
     router.push(`/profile/${post.user.username}`);
   };
+
+  const dropdownItems: DropdownItem[] = [
+    { id: 1, title: "Translate", icon: <BookA size={18} /> },
+    { id: 2, title: "Copy post text", icon: <Clipboard size={18} /> },
+    { id: 3, title: "Mute thread", icon: <VolumeOff size={18} /> },
+    { id: 4, title: "Mute words & tags", icon: <Funnel size={18} /> },
+    { id: 5, title: "Hide post for me", icon: <EyeOff size={18} /> },
+    { id: 6, title: "Mute account", icon: <VolumeOff size={18} /> },
+    { id: 7, title: "Block account", icon: <UserX size={18} /> },
+    { id: 8, title: "Report post", icon: <TriangleAlert size={18} /> },
+  ];
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -174,7 +197,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
               }}
               className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition group cursor-pointer"
             >
-              <div className="p-1.5 rounded-full group-hover:bg-blue-50 transition -ml-1.5">
+              <div className="p-1.5 rounded-full group-hover:bDg-blue-50 transition -ml-1.5">
                 <Bookmark className="w-4 h-4" fill="currentColor" />
               </div>
             </button>
@@ -183,9 +206,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
               <button className="p-1.5 rounded-full hover:bg-blue-50 hover:text-blue-500 transition cursor-pointer">
                 <Share className="w-4 h-4" />
               </button>
-              <button className="p-1.5 rounded-full hover:bg-blue-50 hover:text-blue-500 transition cursor-pointer">
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
+              <PostDropDown post={post} items={dropdownItems} />
             </div>
           </div>
         </div>

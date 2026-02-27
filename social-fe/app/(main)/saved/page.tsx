@@ -1,15 +1,7 @@
 "use client";
 import SavedPostCard from "@/app/components/card/save-post-card";
 import { useGetBookmarks } from "@/app/hooks/use-bookmark";
-import {
-  ArrowLeft,
-  MessageSquare,
-  Repeat2,
-  Heart,
-  Bookmark,
-  Share,
-  MoreHorizontal,
-} from "lucide-react";
+import { ArrowLeft, Bookmark } from "lucide-react";
 import Link from "next/link";
 
 export default function SavedPostsPage() {

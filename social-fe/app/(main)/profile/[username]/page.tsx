@@ -7,7 +7,25 @@ import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import PostCard from "@/app/components/card/post-card";
 import { Feed } from "@/app/interfaces/feed.interface";
 import NewPostModal from "@/app/components/dialog/new-post-dialog";
-import { SquarePen } from "lucide-react";
+import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import {
+  SquarePen,
+  BookA,
+  Copy,
+  Funnel,
+  Pin,
+  Settings,
+  VolumeOff,
+} from "lucide-react";
+
+const dropdownItems: DropdownItem[] = [
+  { id: 1, title: "Pin to your profile", icon: <Pin size={18} /> },
+  { id: 2, title: "Translate", icon: <BookA size={18} /> },
+  { id: 3, title: "Copy post text", icon: <Copy size={18} /> },
+  { id: 4, title: "Mute thread", icon: <VolumeOff size={18} /> },
+  { id: 5, title: "Mute words & tags", icon: <Funnel size={18} /> },
+  { id: 6, title: "Edit interaction settings", icon: <Settings size={18} /> },
+];
 
 export default function PostsPage() {
   const { username } = useParams<{ username: string }>();
@@ -62,7 +80,7 @@ export default function PostsPage() {
           ))}
 
         {posts.map((post: Feed) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} dropdownItems={dropdownItems} />
         ))}
       </div>
 

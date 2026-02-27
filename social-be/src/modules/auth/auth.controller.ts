@@ -34,19 +34,19 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Request, Response } from 'express';
-import { MailService } from 'src/mail/mail.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
 import { User } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(
+    private jwtService: JwtService,
     private readonly authService: AuthService,
-    private readonly mailService: MailService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -310,6 +310,18 @@ export class AuthController {
   })
   async getActiveSessions(@CurrentUser('id') userId: string) {
     return this.authService.getActiveSessions(userId);
+  }
+
+  @Get('socket-token')
+  getSocketToken(@CurrentUser('id') userId: string) {
+    const token = this.jwtService.sign(
+      { sub: userId },
+      {
+        secret: this.configService.get('config.jwt.secret'),
+        expiresIn: '1h',
+      },
+    );
+    return { token };
   }
 
   @Delete('sessions/:sessionId')

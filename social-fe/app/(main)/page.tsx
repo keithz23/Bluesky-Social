@@ -5,9 +5,10 @@ import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { Feed } from "../interfaces/feed.interface";
 import PostCard from "../components/card/post-card";
 import { useAuth } from "../hooks/use-auth";
+import { dropdownItems } from "../constants/dropdown.constant";
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useFeed();
 
@@ -78,7 +79,7 @@ export default function HomePage() {
           ))}
 
         {posts.map((post: Feed) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} dropdownItems={dropdownItems} />
         ))}
 
         {/* Trigger infinite scroll */}

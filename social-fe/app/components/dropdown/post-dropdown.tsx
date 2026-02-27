@@ -7,52 +7,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  BookA,
-  Copy,
-  Funnel,
-  MoreHorizontal,
-  Pin,
-  Settings,
-  Trash,
-  VolumeOff,
-  Loader2,
-} from "lucide-react";
 import { usePost } from "@/app/hooks/use-post";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { useAuth } from "@/app/hooks/use-auth";
+import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import { Loader2, MoreHorizontal, Trash } from "lucide-react";
 
 interface PostDropDownProps {
   post: Feed;
+  items: DropdownItem[];
 }
 
-interface DropdownItem {
-  id: number;
-  title: string;
-  icon: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}
-
-export default function PostDropDown({ post }: PostDropDownProps) {
+export default function PostDropDown({ post, items }: PostDropDownProps) {
   const { deletePost, isDeletingPost } = usePost();
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isOwner = user?.id === post?.user?.id;
 
-  const baseItems: DropdownItem[] = [
-    { id: 1, title: "Pin to your profile", icon: <Pin size={18} /> },
-    { id: 2, title: "Translate", icon: <BookA size={18} /> },
-    { id: 3, title: "Copy post text", icon: <Copy size={18} /> },
-    { id: 4, title: "Mute thread", icon: <VolumeOff size={18} /> },
-    { id: 5, title: "Mute words & tags", icon: <Funnel size={18} /> },
-    { id: 6, title: "Edit interaction settings", icon: <Settings size={18} /> },
-  ];
-
   const dropdownItems = isOwner
     ? [
-        ...baseItems,
+        ...items,
         {
           id: 7,
           title: "Delete post",
@@ -61,7 +36,7 @@ export default function PostDropDown({ post }: PostDropDownProps) {
           className: "text-red-600 focus:text-red-700 focus:bg-red-50",
         },
       ]
-    : baseItems;
+    : items;
 
   const confirmDelete = () => {
     deletePost.mutate(post.id, {
@@ -92,7 +67,7 @@ export default function PostDropDown({ post }: PostDropDownProps) {
                   </span>
                 </DropdownMenuItem>
 
-                {(index === 0 || index === 2 || index === 4) && (
+                {(index === 1 || index === 3 || index === 5 || index === 6) && (
                   <DropdownMenuSeparator className="my-1" />
                 )}
               </React.Fragment>

@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplicationContext, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -17,6 +17,10 @@ import { ServerOptions } from 'socket.io';
 
 class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
+
+  constructor(private app: INestApplicationContext) {
+    super(app);
+  }
 
   async connectToRedis(): Promise<void> {
     const pubClient = new Redis(

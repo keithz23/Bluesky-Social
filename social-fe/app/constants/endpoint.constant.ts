@@ -9,6 +9,7 @@ export const API_ENDPOINT = {
     RESET: "/auth/reset-password",
     UPDATE_PROFILE: "/auth/update-profile",
     UPDATE_PASSWORD: "/auth/update-password",
+    SOCKET_TOKEN: "/auth/socket-token",
   },
 
   POSTS: {

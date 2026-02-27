@@ -26,12 +26,14 @@ import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useMemo } from "react";
 import ReplyPostModal from "../dialog/reply-post-dialog";
+import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 
 interface PostCardProps {
   post: Feed;
+  dropdownItems: DropdownItem[];
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, dropdownItems }: PostCardProps) {
   const router = useRouter();
 
   const [zoomData, setZoomData] = useState<{
@@ -202,7 +204,7 @@ export default function PostCard({ post }: PostCardProps) {
                   <Share size={18} strokeWidth={2.2} />
                 </div>
                 <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
-                  <PostDropDown post={post} />
+                  <PostDropDown post={post} items={dropdownItems} />
                 </div>
               </div>
             </div>

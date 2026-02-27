@@ -3,15 +3,12 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  MessageSquare,
   Repeat,
   Heart,
   Bookmark,
   Share,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
-  Globe,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -32,6 +29,8 @@ import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import ReplyPostModal from "../dialog/reply-post-dialog";
 import { REPLY_POLICY_CONFIG } from "@/app/constants/reply-policy.constant";
+import PostDropDown from "../dropdown/post-dropdown";
+import { dropdownItems } from "@/app/constants/dropdown.constant";
 
 interface PostDetailCardProps {
   post: Feed;
@@ -184,10 +183,7 @@ export default function PostDetailCard({
                 className="p-1.5 hover:bg-blue-50 rounded-full transition-colors group"
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreHorizontal
-                  size={18}
-                  className="text-gray-500 group-hover:text-blue-500"
-                />
+                <PostDropDown post={post} items={dropdownItems} />
               </div>
             </div>
 

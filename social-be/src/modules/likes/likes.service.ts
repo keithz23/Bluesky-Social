@@ -1,9 +1,17 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SocketGateway } from '../socket/socket.gateway';
+import { NotificationGateway } from '../socket/notification.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class LikesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationGateway: NotificationGateway,
+    private readonly notificationService: NotificationsService,
+  ) {}
 
   async like(userId: string, postId: string) {
     const existing = await this.prisma.like.findUnique({
@@ -21,6 +29,23 @@ export class LikesService {
         data: { likeCount: { increment: 1 } },
       }),
     ]);
+
+    const post = await this.prisma.post.findUnique({
+      where: {
+        id: postId,
+      },
+      select: { userId: true },
+    });
+
+    if (post && post.userId !== userId) {
+      const data = {
+        type: NotificationType.LIKE,
+        postId,
+        actorId: userId,
+        userId: post.userId,
+      };
+      this.notificationService.sendNotification(data);
+    }
 
     return { liked: true };
   }

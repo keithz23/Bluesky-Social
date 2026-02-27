@@ -30,12 +30,14 @@ import { useRouter, usePathname } from "next/navigation";
 import NewPostModal from "../components/dialog/new-post-dialog";
 import BackToTop from "../components/back-to-top";
 import Loading from "../components/loading";
+import { useNotifications } from "../hooks/use-notifications";
 
 export default function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  useNotifications();
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, user, logoutMutation, isLoadingProfile } = useAuth();
