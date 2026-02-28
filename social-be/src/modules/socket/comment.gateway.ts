@@ -17,7 +17,7 @@ import { ConfigService } from '@nestjs/config';
     origin: process.env.CLIENT_URL,
     credentials: true,
   },
-  namespace: '/socket',
+  namespace: '/comments',
 })
 export class CommentGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -39,7 +39,7 @@ export class CommentGateway
       const token = client.handshake.auth?.token;
 
       if (!token) {
-        throw new Error('Không tìm thấy token trong handshake.auth');
+        throw new Error("can't find token from handshake.auth");
       }
 
       // 2. Verify token

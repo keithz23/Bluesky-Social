@@ -33,6 +33,18 @@ export const API_ENDPOINT = {
     },
   },
 
+  NOTIFICATIONS: {
+    GET_NOTIFICATIONS: (params: { cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs
+        ? `/notifications/get-notifications${qs}`
+        : "/notifications/get-notifications";
+    },
+  },
+
   FOLLOWS: {
     FOLLOWING_LISTS: (params: {
       username: string;

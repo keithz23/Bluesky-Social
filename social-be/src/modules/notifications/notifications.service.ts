@@ -55,6 +55,9 @@ export class NotificationsService implements OnModuleInit {
   }) {
     if (data.userId === data.actorId) return null;
 
+    const isOnline = await this.notificationGateway.isUserConnected(
+      data.userId,
+    );
     const duplicate = await this.findDuplicate(data);
     if (duplicate) return duplicate;
 
@@ -66,7 +69,7 @@ export class NotificationsService implements OnModuleInit {
     });
 
     // Real-time emit if user connected
-    if (this.notificationGateway.isUserConnected(data.userId)) {
+    if (isOnline) {
       this.notificationGateway.emitToUserById(
         data.userId,
         'new-notification',
@@ -121,10 +124,25 @@ export class NotificationsService implements OnModuleInit {
         userId,
         ...(cursorDate &&
           !isNaN(cursorDate.getTime()) && {
-            createdAt: { gt: cursorDate },
+            createdAt: { lt: cursorDate },
           }),
       },
       take: limit + 1,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        actor: {
+          select: {
+            id: true,
+            username: true,
+            bio: true,
+            avatarUrl: true,
+            coverUrl: true,
+            followersCount: true,
+            followingCount: true,
+            verified: true,
+          },
+        },
+      },
     });
 
     const hasMore = notifications.length > limit;
@@ -135,7 +153,7 @@ export class NotificationsService implements OnModuleInit {
       : null;
 
     return {
-      ...notifications,
+      notifications,
       hasMore,
       nextCursor,
     };

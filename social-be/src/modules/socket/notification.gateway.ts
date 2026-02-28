@@ -24,10 +24,9 @@ export class NotificationGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   private logger = new Logger(NotificationGateway.name);
+
   @WebSocketServer()
   server: Server;
-
-  private userSockets = new Map<string, string>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -37,14 +36,9 @@ export class NotificationGateway
 
   async handleConnection(client: Socket) {
     try {
-      // 1. get token from auth
       const token = client.handshake.auth?.token;
+      if (!token) throw new Error("Can't find token in auth handshake");
 
-      if (!token) {
-        throw new Error("Can't find token in auth handshake");
-      }
-
-      // 2. Verify token
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get('config.jwt.secret'),
       });
@@ -53,25 +47,23 @@ export class NotificationGateway
 
       client.join(`user:${payload.sub}`);
 
-      this.userSockets.set(payload.sub, client.id);
-
-      this.logger.log(`User ${payload.sub} connected`);
+      this.logger.log(
+        `User ${payload.sub} connected (Socket ID: ${client.id})`,
+      );
     } catch (error) {
       this.logger.error(`Connect error: ${error.message}`);
-      client.disconnect();
+      client.disconnect(true);
     }
   }
 
   handleDisconnect(client: Socket) {
-    const userId = client.data.userId;
-    if (userId) {
-      this.userSockets.delete(userId);
-    }
+    this.logger.log(`User ${client.data.userId} disconnected`);
   }
 
   @SubscribeMessage('get-notifications')
   handleGetNotifications(@ConnectedSocket() client: Socket) {
-    const userId = client.handshake.query.userId as string;
+    const userId = client.data.userId;
+
     if (!userId) {
       client.emit('notifications:error', { message: 'User not authenticated' });
       return;
@@ -81,12 +73,6 @@ export class NotificationGateway
       userId,
       socketId: client.id,
     });
-    this.logger.debug(
-      this.eventEmitter.emit('notifications.get', {
-        userId,
-        socketId: client.id,
-      }),
-    );
   }
 
   @SubscribeMessage('mark-notification-read')
@@ -94,11 +80,10 @@ export class NotificationGateway
     @MessageBody() data: { notificationId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const userId = client.handshake.query.userId as string;
-    if (!userId) {
-      client.emit('notifications:error', { message: 'User not authenticated' });
-      return;
-    }
+    const userId = client.data.userId;
+
+    if (!userId) return;
+
     this.eventEmitter.emit('notifications.markRead', {
       userId,
       notificationId: data.notificationId,
@@ -108,33 +93,22 @@ export class NotificationGateway
 
   @SubscribeMessage('mark-all-read')
   handleMarkAllRead(@ConnectedSocket() client: Socket) {
-    const userId = client.handshake.query.userId as string;
-    if (!userId) {
-      client.emit('notifications:error', { message: 'User not authenticated' });
-      return;
-    }
+    const userId = client.data.userId;
+
+    if (!userId) return;
+
     this.eventEmitter.emit('notifications.markAllRead', {
       userId,
       socketId: client.id,
     });
   }
 
-  isUserOnline(userId: string) {
-    return this.userSockets.has(userId);
-  }
-
   emitToUserById(userId: string, event: string, payload: any) {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit(event, payload);
-    }
+    this.server.to(`user:${userId}`).emit(event, payload);
   }
 
-  isUserConnected(userId: string) {
-    return this.userSockets.has(userId);
-  }
-
-  getSocketId(userId: string) {
-    return this.userSockets.get(userId);
+  async isUserConnected(userId: string): Promise<boolean> {
+    const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+    return sockets.length > 0;
   }
 }
