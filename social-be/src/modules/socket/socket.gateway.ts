@@ -3,13 +3,11 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
@@ -21,26 +19,24 @@ import { ConfigService } from '@nestjs/config';
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private logger = new Logger(SocketGateway.name);
+
   @WebSocketServer()
   server: Server;
 
-  private userSockets = new Map<string, string>();
-
   constructor(
     private readonly jwtService: JwtService,
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   async handleConnection(client: Socket) {
+    //I treat Socket.io as a transport layer.
+    // For stable identification,
+    // I map the userId from the database to the socket.id.
+    // By using Rooms, I can bridge the gap between a persistent User identity and their temporary physical connections.
     try {
-      // 1. get token from auth
       const token = client.handshake.auth?.token;
+      if (!token) throw new Error("Can't find token in auth handshake");
 
-      if (!token) {
-        throw new Error('Không tìm thấy token trong handshake.auth');
-      }
-
-      // 2. Verify token
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get('config.jwt.secret'),
       });
@@ -49,28 +45,24 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.join(`user:${payload.sub}`);
 
-      this.userSockets.set(payload.sub, client.id);
-
-      this.logger.log(`User ${payload.sub} connected`);
+      this.logger.log(
+        `User ${payload.sub} connected (Socket ID: ${client.id})`,
+      );
     } catch (error) {
       this.logger.error(`Connect error: ${error.message}`);
-      client.disconnect();
+      client.disconnect(true);
     }
   }
 
   handleDisconnect(client: Socket) {
-    const userId = client.data.userId;
-    if (userId) {
-      this.userSockets.delete(userId);
-    }
+    this.logger.log(`User ${client.data.userId} disconnected`);
   }
 
-  sendNotification(userId: string, notification: any) {
-    this.logger.debug(notification);
-    this.server.to(`user:${userId}`).emit('notification', notification);
-  }
-
-  isUserOnline(userId: string) {
-    return this.userSockets.has(userId);
+  @OnEvent('database.changed')
+  handleDatabaseChange(payload: { model: string; action: string; data: any }) {
+    const { model, action, data } = payload;
+    const eventName = `${model}_${action}`;
+    this.logger.log(`event name::: ${eventName}`);
+    this.server.emit(eventName, data);
   }
 }

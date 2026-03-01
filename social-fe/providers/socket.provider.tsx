@@ -10,6 +10,7 @@ import React, {
 import { io, Socket } from "socket.io-client";
 import { axiosInstance } from "@/lib/axios";
 import { API_ENDPOINT } from "@/app/constants/endpoint.constant";
+import { useGlobal } from "@/app/hooks/use-global";
 
 interface SocketContextType {
   globalSocket: Socket | null;
@@ -24,6 +25,11 @@ const SocketContext = createContext<SocketContextType>({
   commentsSocket: null,
   isConnected: false,
 });
+
+const GlobalSocketWrapper = ({ children }: { children: React.ReactNode }) => {
+  useGlobal();
+  return <>{children}</>;
+};
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
@@ -88,7 +94,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     initSocket();
 
-    // 5. Cleanup function: Ngắt kết nối khi Provider bị hủy
     return () => {
       if (globalIo) globalIo.disconnect();
       if (notiIo) notiIo.disconnect();
@@ -106,7 +111,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         isConnected,
       }}
     >
-      {children}
+      <GlobalSocketWrapper>{children}</GlobalSocketWrapper>
     </SocketContext.Provider>
   );
 };
