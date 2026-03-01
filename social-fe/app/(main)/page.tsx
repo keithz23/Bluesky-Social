@@ -6,9 +6,12 @@ import { Feed } from "../interfaces/feed.interface";
 import PostCard from "../components/card/post-card";
 import { useAuth } from "../hooks/use-auth";
 import { dropdownItems } from "../constants/dropdown.constant";
+import { useGlobal } from "../hooks/use-global";
+import { ArrowUp } from "lucide-react";
 
 export default function HomePage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { hasNewPosts, refreshFeed } = useGlobal();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useFeed();
 
@@ -62,6 +65,18 @@ export default function HomePage() {
         </div>
       )}
 
+      {hasNewPosts && (
+        <div className="flex justify-center">
+          <button
+            onClick={refreshFeed}
+            className="fixed top-16 z-50 mt-2 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg transition cursor-pointer"
+          >
+            <ArrowUp  size={17}/>
+            New posts available
+          </button>
+        </div>
+      )}
+
       {/* Feed List */}
       <div className="flex flex-col">
         {isLoading &&
@@ -91,6 +106,14 @@ export default function HomePage() {
               : null}
         </div>
       </div>
+      {hasNewPosts && (
+        <button
+          onClick={refreshFeed}
+          className="sticky top-14 z-50 mx-auto flex w-fit items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg transition cursor-pointer"
+        >
+          ↑ New posts available
+        </button>
+      )}
     </>
   );
 }

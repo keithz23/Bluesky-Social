@@ -151,8 +151,6 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
       custom: replyType === "custom" ? customSettings : undefined,
     };
 
-    console.log(privacyData);
-
     const payload = hasImages
       ? {
           content: postText,

@@ -98,6 +98,28 @@ export class PostsService {
 
             userId,
           },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                bio: true,
+                avatarUrl: true,
+                coverUrl: true,
+              },
+            },
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
+            },
+          },
         });
 
         // increment postsCount
