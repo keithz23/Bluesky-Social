@@ -88,6 +88,12 @@ export const API_ENDPOINT = {
 
   USERS: {
     GET_PROFILE: (username: string) => `/users/${username}`,
+    SEARCH: (q: string, limit: number) => {
+      const params = new URLSearchParams();
+      params.set("q", q);
+      params.set("limit", String(limit));
+      return `/users/search?${params.toString()}`;
+    },
   },
 
   LIKES: {

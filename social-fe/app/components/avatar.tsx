@@ -1,30 +1,28 @@
-import Link from "next/link";
 import React from "react";
 import { User } from "../interfaces/user.interface";
 
-interface AvatarProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
   data: User;
 }
 
-const Avatar = React.forwardRef<HTMLAnchorElement, AvatarProps>(
+const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   ({ data, className, ...props }, ref) => {
     return (
-      <Link
-        href={`/profile/${data.username}`}
+      <div
         ref={ref}
         {...props}
-        className={`w-12 h-12 rounded-full bg-[#FF4F5A] flex items-center justify-center text-xl text-white font-bold shrink-0 overflow-hidden ${className || ""}`}
+        className={`w-12 h-12 rounded-full bg-[#FF4F5A] flex items-center justify-center text-xl text-white font-bold shrink-0 overflow-hidden cursor-pointer ${className || ""}`}
       >
         {data?.avatarUrl ? (
           <img
             src={data.avatarUrl}
             alt={data.username}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover pointer-events-none"
           />
         ) : (
           data?.username?.charAt(0).toUpperCase()
         )}
-      </Link>
+      </div>
     );
   },
 );

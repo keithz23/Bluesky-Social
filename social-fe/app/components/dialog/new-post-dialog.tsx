@@ -16,12 +16,16 @@ import {
   X,
   Check,
   Quote,
+  Loader2,
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { Grid } from "@giphy/react-components";
 import { GiphyFetch } from "@giphy/js-fetch-api";
 import { usePost } from "@/app/hooks/use-post";
 import { ReplyType } from "@/app/interfaces/post.interface";
+import { useMention } from "@/app/hooks/use-metion";
+import { User } from "@/app/interfaces/user.interface";
+import Avatar from "../avatar";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 
@@ -35,6 +39,56 @@ interface NewPostModalProps {
 }
 
 export default function NewPostModal({ buttonName }: NewPostModalProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const {
+    query,
+    isOpen: isMentionOpen,
+    mentionStart,
+    results: mentionResults,
+    activeIndex,
+    setActiveIndex,
+    handleInput,
+    closeMention,
+    isLoading,
+  } = useMention();
+
+  const insertMention = (username: string) => {
+    const textarea = textareaRef.current!;
+    const before = postText.slice(0, mentionStart);
+    const after = postText.slice(mentionStart + 1 + query.length);
+    const newText = `${before}@${username} ${after}`;
+
+    setPostText(newText);
+    closeMention();
+
+    setTimeout(() => {
+      const pos = before.length + username.length + 2;
+      textarea.setSelectionRange(pos, pos);
+      textarea.focus();
+    }, 0);
+  };
+
+  // Keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isMentionOpen) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, mentionResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      const result = mentionResults[activeIndex] as User | undefined;
+      if (result) {
+        e.preventDefault();
+        insertMention(result.username);
+      }
+    } else if (e.key === "Escape") {
+      closeMention();
+    }
+  };
+
   const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -217,13 +271,80 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
             <div className="w-12 h-12 rounded-full bg-[#F05555] shrink-0 flex items-center justify-center text-white font-medium text-2xl">
               @
             </div>
-            <div className="flex-1 pt-2">
-              <textarea
-                value={postText}
-                onChange={(e) => setPostText(e.target.value)}
-                className="w-full resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-500 min-h-20"
-                placeholder="What's up?"
-              />
+            <div className="flex-1 pt-2 relative">
+              <div className="relative flex-1 pt-2 min-h-20">
+                <div
+                  className="absolute inset-0 pt-2 px-0 text-[17px] whitespace-pre-wrap wrap-break-words pointer-events-none select-none border-none"
+                  aria-hidden="true"
+                >
+                  {postText.split(/(\s+)/).map((part, i) => {
+                    if (part.match(/^@\S+/)) {
+                      return (
+                        <span
+                          key={i}
+                          className="bg-[#0066FF]/15 text-[#0066FF] rounded-[3px] py-px"
+                        >
+                          {part}
+                        </span>
+                      );
+                    }
+                    return <span key={i}>{part}</span>;
+                  })}
+                </div>
+
+                <textarea
+                  ref={textareaRef}
+                  value={postText}
+                  onChange={(e) => {
+                    setPostText(e.target.value);
+                    handleInput(e.target.value, e.target.selectionStart ?? 0);
+                  }}
+                  onKeyDown={handleKeyDown}
+                  className="relative w-full bg-transparent resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-500 min-h-20 z-10 text-transparent caret-black"
+                  placeholder="What's up?"
+                  spellCheck={false}
+                />
+              </div>
+
+              {/* Mention Dropdown */}
+              {isMentionOpen && (isLoading || mentionResults.length > 0) && (
+                <div className="absolute top-full left-0 w-72 bg-popover text-popover-foreground border border-border rounded-md shadow-md z-60 mt-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                  <div className="max-h-72 overflow-y-auto p-1">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center p-4 text-sm text-muted-foreground gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span>Searching...</span>
+                      </div>
+                    ) : (
+                      mentionResults.map((user: User, i) => (
+                        <div
+                          key={user.id}
+                          onClick={() => insertMention(user.username)}
+                          onMouseEnter={() => setActiveIndex(i)}
+                          className={`relative flex cursor-pointer select-none items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none transition-colors ${
+                            i === activeIndex
+                              ? "bg-accent text-accent-foreground"
+                              : "hover:bg-accent hover:text-accent-foreground"
+                          }`}
+                        >
+                          <Avatar data={user} className="w-8 h-8" />
+                          <div className="flex flex-col min-w-0">
+                            <p className="text-[14px] font-medium truncate">
+                              {user.username}
+                            </p>
+                            <p className="text-[12px] text-muted-foreground truncate">
+                              @{user.username}
+                            </p>
+                          </div>
+                          {i === activeIndex && (
+                            <Check className="w-4 h-4 ml-auto shrink-0 text-primary" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

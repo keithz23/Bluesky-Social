@@ -18,20 +18,18 @@ export default function UserHoverCard({
 }: UserHoverCardProps) {
   const { follow } = useFollow(data.user.id);
   return (
-    <HoverCard>
+    <HoverCard openDelay={400} closeDelay={150}>
       <HoverCardTrigger asChild>
-        <HoverCardTrigger asChild>
-          <button
-            type="button"
-            className="cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleProfileClick?.();
-            }}
-          >
-            {data.user.username}
-          </button>
-        </HoverCardTrigger>
+        <button
+          type="button"
+          className="cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleProfileClick?.();
+          }}
+        >
+          {data.user.username}
+        </button>
       </HoverCardTrigger>
 
       <HoverCardContent className="w-72 p-4 rounded-2xl shadow-xl border border-gray-100">

@@ -8,4 +8,11 @@ export const UserService = {
     );
     return data;
   },
+
+  searchUsers: async (query: string, limit: number = 10) => {
+    const { data } = await axiosInstance.get(
+      API_ENDPOINT.USERS.SEARCH(query, limit),
+    );
+    return data;
+  },
 };
