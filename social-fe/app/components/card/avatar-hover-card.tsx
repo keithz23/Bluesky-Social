@@ -18,7 +18,7 @@ export default function AvatarHoverCard({
 }: AvatarHoverCardProps) {
   const { follow } = useFollow(data.user.id);
   return (
-    <HoverCard>
+    <HoverCard openDelay={400} closeDelay={150}>
       <HoverCardTrigger asChild>
         <Avatar
           data={data.user}
@@ -63,7 +63,7 @@ export default function AvatarHoverCard({
               <BadgeCheck className="w-4 h-4 text-blue-500" />
             )}
           </div>
-          <p className="text-gray-500 text-sm">@{data.username}</p>
+          <p className="text-gray-500 text-sm">@{data.user.username}</p>
         </div>
 
         {/* Stats */}

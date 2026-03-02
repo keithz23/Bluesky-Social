@@ -71,7 +71,7 @@ export default function HomePage() {
             onClick={refreshFeed}
             className="fixed top-16 z-50 mt-2 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg transition cursor-pointer"
           >
-            <ArrowUp  size={17}/>
+            <ArrowUp size={17} />
             New posts available
           </button>
         </div>
@@ -106,14 +106,6 @@ export default function HomePage() {
               : null}
         </div>
       </div>
-      {hasNewPosts && (
-        <button
-          onClick={refreshFeed}
-          className="sticky top-14 z-50 mx-auto flex w-fit items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg transition cursor-pointer"
-        >
-          ↑ New posts available
-        </button>
-      )}
     </>
   );
 }

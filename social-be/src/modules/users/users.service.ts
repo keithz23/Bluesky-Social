@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SearchUserDto } from './dto/search-user.dto';
+import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -51,5 +53,24 @@ export class UsersService {
     const followStatus = follow ? 'following' : request ? 'requested' : 'none';
 
     return { ...user, followStatus, isOwner: false };
+  }
+
+  async searchUser(userId: string, searchUserDto: SearchUserDto) {
+    const { q, limit = 10 } = searchUserDto;
+
+    const users = await this.prisma.$queryRaw<User[]>`
+      SELECT 
+        id, username, bio,
+        avatar_url AS "avatarUrl",
+        cover_url AS "coverUrl"
+      FROM users
+      WHERE username ILIKE ${`%${q}%`}
+      AND id != ${userId}
+      ORDER BY
+        CASE WHEN username ILIKE ${`${q}%`} THEN 0 ELSE 1 END
+      LIMIT ${Prisma.sql`${limit}::int`}
+    `;
+
+    return users;
   }
 }
