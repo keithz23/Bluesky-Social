@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { NotificationQueryDto } from './dto/notification-query.dto';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -15,9 +16,8 @@ export class NotificationsController {
   @Get('get-notifications')
   getNotifications(
     @CurrentUser('id') userId: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: number,
+    @Query() query: NotificationQueryDto,
   ) {
-    return this.notificationsService.getNotifications(userId, cursor, limit);
+    return this.notificationsService.getNotifications(userId, query);
   }
 }

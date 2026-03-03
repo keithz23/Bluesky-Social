@@ -1,7 +1,7 @@
 import { IsOptional, IsInt, Min, Max, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class PostQueryDto {
+export class NotificationQueryDto {
   @IsOptional()
   cursor?: string;
 
@@ -14,6 +14,6 @@ export class PostQueryDto {
 
   @IsOptional()
   @IsOptional()
-  @IsIn(['posts', 'replies', 'media', 'videos', 'likes'])
-  filter?: string = 'posts';
+  @IsIn(['all', 'mention'])
+  filter?: string = 'all';
 }

@@ -237,6 +237,7 @@ model Bookmark {
 
 model Mention {
   id        String   @id @default(cuid())
+  userId    String
   postId    String   @map("post_id")
   username  String
   createdAt DateTime @default(now()) @map("created_at")

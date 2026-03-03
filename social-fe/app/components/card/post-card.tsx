@@ -27,6 +27,7 @@ import { enUS } from "date-fns/locale";
 import { useMemo } from "react";
 import ReplyPostModal from "../dialog/reply-post-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import { PostContent } from "../post-content";
 
 interface PostCardProps {
   post: Feed;
@@ -134,9 +135,7 @@ export default function PostCard({ post, dropdownItems }: PostCardProps) {
               </Tooltip>
             </div>
 
-            <p className="mt-1 text-[15px] leading-normal text-gray-900">
-              {post.content}
-            </p>
+            <PostContent content={post.content} />
 
             {/* Media Carousel */}
             {post.media?.length > 0 && (
