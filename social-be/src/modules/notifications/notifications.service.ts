@@ -5,6 +5,7 @@ import { NotificationGateway } from '../socket/notification.gateway';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NotificationType } from '@prisma/client';
+import { NotificationQueryDto } from './dto/notification-query.dto';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -17,7 +18,7 @@ export class NotificationsService implements OnModuleInit {
   @OnEvent('notifications.get')
   async handleGetNotifications(payload: { userId: string; socketId?: string }) {
     const { userId, socketId } = payload;
-    const notifications = await this.getNotifications(userId);
+    const notifications = await this.getNotifications(userId, {});
     // emit về client qua gateway
     this.notificationGateway.emitToUserById(
       userId,
@@ -117,29 +118,37 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
-  async getNotifications(userId: string, cursor?: string, limit: number = 20) {
-    const cursorDate = cursor ? new Date(cursor) : null;
+  async getNotifications(userId: string, query: NotificationQueryDto) {
+    const limit = query.limit ?? 20;
+    const cursorDate = query.cursor ? new Date(query.cursor) : null;
+    const validCursor = cursorDate && !isNaN(cursorDate.getTime());
+
     const notifications = await this.prisma.notification.findMany({
       where: {
         userId,
-        ...(cursorDate &&
-          !isNaN(cursorDate.getTime()) && {
-            createdAt: { lt: cursorDate },
-          }),
+        ...(validCursor && {
+          createdAt: { lt: cursorDate },
+        }),
+        ...(query.filter === 'mention' && {
+          type: NotificationType.MENTION,
+        }),
       },
       take: limit + 1,
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        type: true,
+        isRead: true,
+        createdAt: true,
+        postId: true,
         actor: {
           select: {
             id: true,
             username: true,
-            bio: true,
             avatarUrl: true,
-            coverUrl: true,
+            verified: true,
             followersCount: true,
             followingCount: true,
-            verified: true,
           },
         },
       },
@@ -152,11 +161,7 @@ export class NotificationsService implements OnModuleInit {
       ? notifications[notifications.length - 1].createdAt.toISOString()
       : null;
 
-    return {
-      notifications,
-      hasMore,
-      nextCursor,
-    };
+    return { notifications, nextCursor, hasMore };
   }
 
   async findDuplicate(data: {

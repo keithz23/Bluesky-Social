@@ -9,7 +9,6 @@ import { NotificationType } from '@prisma/client';
 export class LikesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationGateway: NotificationGateway,
     private readonly notificationService: NotificationsService,
   ) {}
 

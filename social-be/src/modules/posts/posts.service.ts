@@ -9,7 +9,7 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { S3Service } from 'src/uploads/s3.service';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
-import { MediaType, ReplyPolicy } from '@prisma/client';
+import { MediaType, NotificationType, ReplyPolicy } from '@prisma/client';
 import {
   CleanupJobData,
   JOB_NAMES,
@@ -19,6 +19,8 @@ import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bull';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { extractMentions } from 'src/common/utils/extract.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PostsService {
@@ -26,6 +28,7 @@ export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
+    private readonly notificationService: NotificationsService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
     @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
@@ -40,6 +43,7 @@ export class PostsService {
     const { content, replyPrivacy, gifUrl } = createPostDto;
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
+    const mentionedUsernames = extractMentions(content ?? '');
 
     if (images && images.length > 0) {
       try {
@@ -153,10 +157,36 @@ export class PostsService {
           });
         }
 
-        return tx.post.findUnique({
+        let mentionedUsers: { id: string; username: string }[] = [];
+        if (mentionedUsernames.length > 0) {
+          mentionedUsers = await tx.user.findMany({
+            where: {
+              username: { in: mentionedUsernames },
+              id: { not: userId },
+            },
+            select: { id: true, username: true },
+          });
+
+          await tx.mention.createMany({
+            data: mentionedUsers.map((user) => ({
+              postId: created.id,
+              userId: user.id,
+              username: user.username,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        const post = await tx.post.findUnique({
           where: { id: created.id },
-          include: {
-            media: { orderBy: { orderIndex: 'asc' } },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            likeCount: true,
+            replyCount: true,
+            repostCount: true,
+            bookmarkCount: true,
             user: {
               select: {
                 id: true,
@@ -164,19 +194,35 @@ export class PostsService {
                 avatarUrl: true,
               },
             },
-            _count: {
+            media: {
+              orderBy: { orderIndex: 'asc' },
               select: {
-                likes: true,
-                replies: true,
-                reposts: true,
-                bookmarks: true,
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
               },
             },
           },
         });
+
+        return { post, mentionedUsers };
       });
 
-      return fullPost;
+      if (fullPost.mentionedUsers.length > 0) {
+        fullPost.mentionedUsers.forEach((user) => {
+          this.notificationService.sendNotification({
+            type: NotificationType.MENTION,
+            postId: fullPost.post?.id,
+            actorId: userId,
+            userId: user.id,
+          });
+        });
+      }
+
+      return fullPost.post;
     } catch (error) {
       // Cleanup S3 if transaction fail
       if (uploadedKeys.length > 0) {

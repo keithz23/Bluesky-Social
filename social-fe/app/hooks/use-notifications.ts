@@ -124,10 +124,11 @@ export const useNotifications = () => {
   return { unreadCount, markAsRead, markAllAsRead };
 };
 
-export const useGetNotifications = () => {
+export const useGetNotifications = (filter: "all" | "mention" = "all") => {
   return useInfiniteQuery({
-    queryKey: ["notifications"],
-    queryFn: ({ pageParam }) => NotificationService.getNotifications(pageParam),
+    queryKey: ["notifications", filter],
+    queryFn: ({ pageParam }) =>
+      NotificationService.getNotifications(filter, pageParam),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,

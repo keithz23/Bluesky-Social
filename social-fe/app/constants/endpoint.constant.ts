@@ -34,13 +34,18 @@ export const API_ENDPOINT = {
   },
 
   NOTIFICATIONS: {
-    GET_NOTIFICATIONS: (params: { cursor?: string; limit?: number }) => {
+    GET_NOTIFICATIONS: (params: {
+      cursor?: string;
+      limit?: number;
+      filter?: "all" | "mention";
+    }) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
-      if (params.limit) query.set("limit", String(params.limit));
+      if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.filter) query.set("filter", params.filter);
       const qs = query.toString();
       return qs
-        ? `/notifications/get-notifications${qs}`
+        ? `/notifications/get-notifications?${qs}`
         : "/notifications/get-notifications";
     },
   },
