@@ -13,7 +13,6 @@ import { GiphyFetch } from "@giphy/js-fetch-api";
 import { Feed } from "@/app/interfaces/feed.interface";
 import AvatarHoverCard from "../card/avatar-hover-card";
 import { useCreateReply } from "@/app/hooks/use-reply";
-import { checkCanReply } from "@/app/utils/check.util";
 import { useAuth } from "@/app/hooks/use-auth";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
@@ -34,6 +33,7 @@ export default function ReplyPostModal({
   type,
   disabled,
 }: ReplyPostModalProps) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -154,14 +154,14 @@ export default function ReplyPostModal({
               }`}
             >
               <div className="w-8 h-8 rounded-full bg-[#FF4F5A] flex items-center justify-center text-sm text-white font-bold shrink-0 overflow-hidden">
-                {post.user?.avatarUrl ? (
+                {user?.avatarUrl ? (
                   <img
-                    src={post?.user.avatarUrl}
-                    alt={post?.user.username}
+                    src={user.avatarUrl}
+                    alt={user.username}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  post?.user?.username?.charAt(0).toUpperCase()
+                  user?.username?.charAt(0).toUpperCase()
                 )}
               </div>
 
@@ -183,7 +183,7 @@ export default function ReplyPostModal({
                 strokeWidth={2.2}
                 className={`transition-colors ${
                   disabled
-                    ? "text-gray-400" // Màu xám nhạt hơn khi bị khoá
+                    ? "text-gray-400"
                     : "group-hover:text-blue-500 text-gray-500"
                 }`}
               />

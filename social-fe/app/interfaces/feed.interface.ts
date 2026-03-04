@@ -19,6 +19,7 @@ export interface Feed {
   user: User;
   media: PostMedia[];
   createdAt?: Date;
+  parentPostId?: string;
   rootPost?: Feed;
   post?: any;
 }

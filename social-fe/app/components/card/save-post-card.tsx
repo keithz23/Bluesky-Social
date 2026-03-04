@@ -36,6 +36,7 @@ import {
   VolumeOff,
 } from "lucide-react";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import { PostContent } from "../post-content";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
@@ -112,6 +113,8 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
           <div className="font-bold text-[15px] hover:underline cursor-pointer">
             <UserHoverCard data={bookmark} />
           </div>
+
+          <PostContent content={post.content} />
 
           {post.media?.length > 0 && (
             <Carousel opts={{ align: "start" }} className="w-full mb-3">

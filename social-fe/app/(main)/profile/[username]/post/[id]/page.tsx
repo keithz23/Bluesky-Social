@@ -6,6 +6,7 @@ import { useAuth } from "@/app/hooks/use-auth";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetPostById } from "@/app/hooks/use-post";
 import { useReplies } from "@/app/hooks/use-reply";
+import { usePostRoom } from "@/app/hooks/use-post-room";
 import { checkCanReply } from "@/app/utils/check.util";
 import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -17,6 +18,9 @@ export default function PostDetailPage() {
   const { data: post, isLoading } = useGetPostById(id);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useReplies(id);
+
+  // Join the post room for real-time reply updates
+  usePostRoom(id);
   const replies = data?.pages.flatMap((page) => page.replies) ?? [];
 
   const { ref } = useInfiniteScroll({
