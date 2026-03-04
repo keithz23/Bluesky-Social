@@ -15,14 +15,12 @@ import { useGlobal } from "@/app/hooks/use-global";
 interface SocketContextType {
   globalSocket: Socket | null;
   notificationsSocket: Socket | null;
-  commentsSocket: Socket | null;
   isConnected: boolean;
 }
 
 const SocketContext = createContext<SocketContextType>({
   globalSocket: null,
   notificationsSocket: null,
-  commentsSocket: null,
   isConnected: false,
 });
 
@@ -37,11 +35,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [sockets, setSockets] = useState<{
     global: Socket | null;
     notifications: Socket | null;
-    comments: Socket | null;
   }>({
     global: null,
     notifications: null,
-    comments: null,
   });
 
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -53,7 +49,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     let globalIo: Socket;
     let notiIo: Socket;
-    let commentIo: Socket;
 
     const initSocket = async () => {
       try {
@@ -73,7 +68,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
         globalIo = io(`${SERVER_URL}/socket`, commonOptions);
         notiIo = io(`${SERVER_URL}/notifications`, commonOptions);
-        commentIo = io(`${SERVER_URL}/comments`, commonOptions);
 
         globalIo.on("connect", () => setIsConnected(true));
         globalIo.on("disconnect", () => setIsConnected(false));
@@ -84,7 +78,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         setSockets({
           global: globalIo,
           notifications: notiIo,
-          comments: commentIo,
         });
       } catch (error) {
         console.error("Get socket token failed:", error);
@@ -97,7 +90,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       if (globalIo) globalIo.disconnect();
       if (notiIo) notiIo.disconnect();
-      if (commentIo) commentIo.disconnect();
       isInitialized.current = false;
     };
   }, []);
@@ -107,7 +99,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         globalSocket: sockets.global,
         notificationsSocket: sockets.notifications,
-        commentsSocket: sockets.comments,
         isConnected,
       }}
     >

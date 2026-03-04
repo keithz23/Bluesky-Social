@@ -12,6 +12,7 @@ import { Feed } from "@/app/interfaces/feed.interface";
 import { useAuth } from "@/app/hooks/use-auth";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { Loader2, MoreHorizontal, Trash } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 interface PostDropDownProps {
   post: Feed;
@@ -19,9 +20,11 @@ interface PostDropDownProps {
 }
 
 export default function PostDropDown({ post, items }: PostDropDownProps) {
+  const router = useRouter();
   const { deletePost, isDeletingPost } = usePost();
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const pathname = usePathname();
 
   const isOwner = user?.id === post?.user?.id;
 
@@ -29,7 +32,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
     ? [
         ...items,
         {
-          id: 7,
+          id: 99,
           title: "Delete post",
           icon: <Trash size={18} />,
           onClick: () => setIsModalOpen(true),
@@ -39,9 +42,24 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
     : items;
 
   const confirmDelete = () => {
+    const isOnPostDetail =
+      pathname === `/profile/${post.user.username}/post/${post.id}`;
+
     deletePost.mutate(post.id, {
       onSettled: () => {
         setIsModalOpen(false);
+      },
+      onSuccess: () => {
+        if (isOnPostDetail) {
+          if (post.parentPostId && post.rootPost?.user?.username) {
+            // Reply → go back to parent post
+            router.push(
+              `/profile/${post.rootPost.user.username}/post/${post.parentPostId}`,
+            );
+          } else {
+            router.push("/");
+          }
+        }
       },
     });
   };

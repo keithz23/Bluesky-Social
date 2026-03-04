@@ -9,12 +9,10 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import {
-  MessageSquare,
   Repeat,
   Heart,
   Bookmark,
   Share,
-  MoreHorizontal,
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
@@ -24,6 +22,8 @@ import { enUS } from "date-fns/locale";
 import Avatar from "../avatar";
 import { PostMedia } from "@/app/interfaces/post.interface";
 import ReplyPostModal from "../dialog/reply-post-dialog";
+import PostDropDown from "../dropdown/post-dropdown";
+import { dropdownItems } from "@/app/constants/dropdown.constant";
 
 interface ReplyCardProps {
   reply: Feed;
@@ -259,10 +259,7 @@ export default function ReplyCard({
                   <Share size={18} className="group-hover:text-blue-500" />
                 </div>
                 <div className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
-                  <MoreHorizontal
-                    size={18}
-                    className="group-hover:text-blue-500"
-                  />
+                  <PostDropDown items={dropdownItems} post={reply} />
                 </div>
               </div>
             </div>

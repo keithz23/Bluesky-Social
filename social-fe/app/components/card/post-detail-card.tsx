@@ -31,6 +31,7 @@ import ReplyPostModal from "../dialog/reply-post-dialog";
 import { REPLY_POLICY_CONFIG } from "@/app/constants/reply-policy.constant";
 import PostDropDown from "../dropdown/post-dropdown";
 import { dropdownItems } from "@/app/constants/dropdown.constant";
+import { PostContent } from "../post-content";
 
 interface PostDetailCardProps {
   post: Feed;
@@ -188,13 +189,13 @@ export default function PostDetailCard({
             </div>
 
             {/* Post Text */}
-            <p
+
+            <PostContent
+              content={post.content}
               className={`leading-snug text-gray-900 wrap-break-words mb-3 ${
                 role === "main" ? "text-[17px]" : "text-[15px]"
               }`}
-            >
-              {post.content}
-            </p>
+            />
 
             {/* Media Carousel */}
             {post.media?.length > 0 && (

@@ -21,6 +21,7 @@ import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { extractMentions } from 'src/common/utils/extract.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SocketGateway } from '../socket/socket.gateway';
 
 @Injectable()
 export class PostsService {
@@ -29,6 +30,7 @@ export class PostsService {
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
     private readonly notificationService: NotificationsService,
+    private readonly socketGateway: SocketGateway,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
     @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
@@ -652,7 +654,7 @@ export class PostsService {
 
     const parentPost = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
-      select: { id: true, rootPostId: true },
+      select: { id: true, rootPostId: true, userId: true },
     });
 
     if (!parentPost) throw new NotFoundException('Post not found');
@@ -757,6 +759,17 @@ export class PostsService {
           },
         });
       });
+
+      this.socketGateway.emitToPost(postId, 'new-reply', reply);
+
+      if (parentPost.userId !== userId) {
+        this.notificationService.sendNotification({
+          type: NotificationType.REPLY,
+          postId,
+          actorId: userId,
+          userId: parentPost.userId,
+        });
+      }
 
       return reply;
     } catch (error) {

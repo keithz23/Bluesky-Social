@@ -3,6 +3,9 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
+  ConnectedSocket,
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
@@ -57,6 +60,44 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket) {
     this.logger.log(`User ${client.data.userId} disconnected`);
   }
+
+  // ── Post Room Management ──────────────────────────────────
+
+  @SubscribeMessage('join-post')
+  handleJoinPost(
+    @MessageBody() data: { postId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.join(`post:${data.postId}`);
+    this.logger.log(
+      `User ${client.data.userId} joined room post:${data.postId}`,
+    );
+  }
+
+  @SubscribeMessage('leave-post')
+  handleLeavePost(
+    @MessageBody() data: { postId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.leave(`post:${data.postId}`);
+    this.logger.log(
+      `User ${client.data.userId} left room post:${data.postId}`,
+    );
+  }
+
+  // ── Broadcast helpers ─────────────────────────────────────
+
+  /** Emit an event to every user currently viewing a specific post */
+  emitToPost(postId: string, event: string, payload: any) {
+    this.server.to(`post:${postId}`).emit(event, payload);
+  }
+
+  /** Emit an event to a specific user by their DB id */
+  emitToUser(userId: string, event: string, payload: any) {
+    this.server.to(`user:${userId}`).emit(event, payload);
+  }
+
+  // ── Generic DB change broadcast ───────────────────────────
 
   @OnEvent('database.changed')
   handleDatabaseChange(payload: { model: string; action: string; data: any }) {
