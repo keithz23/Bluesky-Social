@@ -469,43 +469,6 @@ export class PostsService {
         allowQuote: true,
         parentPostId: true,
         rootPostId: true,
-        rootPost: {
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-            updatedAt: true,
-            likeCount: true,
-            replyCount: true,
-            repostCount: true,
-            replyPolicy: true,
-            replyFollowers: true,
-            replyFollowing: true,
-            replyMentioned: true,
-            user: {
-              select: {
-                id: true,
-                username: true,
-                avatarUrl: true,
-                verified: true,
-                bio: true,
-                followersCount: true,
-                followingCount: true,
-              },
-            },
-            media: {
-              orderBy: { orderIndex: 'asc' },
-              select: {
-                id: true,
-                mediaUrl: true,
-                mediaType: true,
-                width: true,
-                height: true,
-                altText: true,
-              },
-            },
-          },
-        },
         user: {
           select: {
             id: true,
@@ -533,71 +496,172 @@ export class PostsService {
 
     if (!post) throw new NotFoundException('Post not found');
 
-    const [follow, liked, bookmarked, reposted, rootFollow, authorFollowsMe] =
-      await Promise.all([
-        this.prisma.follow.findUnique({
-          where: {
-            followerId_followingId: {
-              followerId: userId,
-              followingId: post.user.id,
+    // Build parent chain (root → ... → immediate parent)
+    const parentChain: any[] = [];
+    if (post.parentPostId) {
+      let currentParentId: string | null = post.parentPostId;
+      const maxDepth = 20;
+      let depth = 0;
+      while (currentParentId && depth < maxDepth) {
+        const parent = await this.prisma.post.findUnique({
+          where: { id: currentParentId, isDeleted: false },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            parentPostId: true,
+            likeCount: true,
+            replyCount: true,
+            repostCount: true,
+            bookmarkCount: true,
+            replyPolicy: true,
+            replyFollowers: true,
+            replyFollowing: true,
+            replyMentioned: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatarUrl: true,
+                verified: true,
+                bio: true,
+                followersCount: true,
+                followingCount: true,
+              },
+            },
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
             },
           },
-        }),
-        this.prisma.like.findUnique({
-          where: { userId_postId: { userId, postId } },
-        }),
-        this.prisma.bookmark.findUnique({
-          where: { userId_postId: { userId, postId } },
-        }),
-        this.prisma.repost.findUnique({
-          where: { userId_postId: { userId, postId } },
-        }),
+        });
+        if (!parent) break;
+        parentChain.unshift(parent);
+        currentParentId = parent.parentPostId;
+        depth++;
+      }
+    }
 
-        post.rootPost?.user?.id
-          ? this.prisma.follow.findUnique({
-              where: {
-                followerId_followingId: {
-                  followerId: userId,
-                  followingId: post.rootPost?.user.id,
-                },
-              },
-            })
-          : null,
+    const parentIds = parentChain.map((p) => p.id);
+    const allUserIds = [
+      ...new Set([
+        post.user.id,
+        ...parentChain.map((p) => p.user.id),
+      ]),
+    ];
 
-        // Check author has followed current user
-        this.prisma.follow.findMany({
-          where: {
-            followerId: post.user?.id, //Author
-            followingId: userId, //current user
+    const [
+      follow,
+      liked,
+      bookmarked,
+      reposted,
+      authorFollowsMe,
+      parentLikes,
+      parentBookmarks,
+      parentReposts,
+      parentFollows,
+    ] = await Promise.all([
+      this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: userId,
+            followingId: post.user.id,
           },
-        }),
-      ]);
+        },
+      }),
+      this.prisma.like.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.bookmark.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.repost.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.follow.findMany({
+        where: {
+          followerId: post.user?.id,
+          followingId: userId,
+        },
+      }),
+      parentIds.length > 0
+        ? this.prisma.like.findMany({
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
+        : [],
+      parentIds.length > 0
+        ? this.prisma.bookmark.findMany({
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
+        : [],
+      parentIds.length > 0
+        ? this.prisma.repost.findMany({
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
+        : [],
+      this.prisma.follow.findMany({
+        where: {
+          followerId: userId,
+          followingId: { in: allUserIds },
+        },
+        select: { followingId: true },
+      }),
+    ]);
+
+    const parentLikeSet = new Set(
+      (parentLikes as { postId: string }[]).map((l) => l.postId),
+    );
+    const parentBookmarkSet = new Set(
+      (parentBookmarks as { postId: string }[]).map((b) => b.postId),
+    );
+    const parentRepostSet = new Set(
+      (parentReposts as { postId: string }[]).map((r) => r.postId),
+    );
+    const followSet = new Set(
+      (parentFollows as { followingId: string }[]).map((f) => f.followingId),
+    );
+
+    const enrichedParentChain = parentChain.map((parent) => ({
+      ...parent,
+      isLiked: parentLikeSet.has(parent.id),
+      isBookmarked: parentBookmarkSet.has(parent.id),
+      isReposted: parentRepostSet.has(parent.id),
+      user: {
+        ...parent.user,
+        followStatus:
+          parent.user.id === userId
+            ? null
+            : followSet.has(parent.user.id)
+              ? 'following'
+              : 'none',
+      },
+    }));
 
     return {
       ...post,
       isLiked: !!liked,
       isBookmarked: !!bookmarked,
       isReposted: !!reposted,
-      rootPost: post.rootPost
-        ? {
-            ...post.rootPost,
-            user: {
-              ...post.rootPost.user,
-              followStatus:
-                post.rootPost.user.id === userId
-                  ? null
-                  : rootFollow
-                    ? 'following'
-                    : 'none',
-              isFollowedByAuthor: !!authorFollowsMe,
-            },
-          }
-        : null,
+      parentChain: enrichedParentChain,
       user: {
         ...post.user,
-        isFollowedByAuthor: !!authorFollowsMe,
+        isFollowedByAuthor: !!(authorFollowsMe as any[]).length,
         followStatus:
-          post.user.id === userId ? null : follow ? 'following' : 'none',
+          post.user.id === userId
+            ? null
+            : followSet.has(post.user.id)
+              ? 'following'
+              : 'none',
       },
     };
   }

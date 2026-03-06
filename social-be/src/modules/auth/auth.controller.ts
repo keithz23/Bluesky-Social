@@ -15,8 +15,11 @@ import {
   Req,
   UnauthorizedException,
   UseGuards,
+  UseInterceptors,
   ConflictException,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -40,6 +43,7 @@ import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
+import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -233,15 +237,31 @@ export class AuthController {
     return this.authService.getProfile(userId);
   }
 
-  @Patch('me')
+  @Patch('update-profile')
   @ApiBearerAuth()
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'avatar', maxCount: 1 },
+      { name: 'cover', maxCount: 1 },
+    ]),
+  )
   @ApiOperation({ summary: 'Update current user profile' })
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   async updateProfile(
     @CurrentUser('id') userId: string,
     @Body() updateDto: UpdateProfileDto,
+    @UploadedFiles()
+    files: {
+      avatar?: Express.Multer.File[];
+      cover?: Express.Multer.File[];
+    },
   ) {
-    return this.authService.updateProfile(userId, updateDto);
+    return this.authService.updateProfile(
+      userId,
+      updateDto,
+      files?.avatar,
+      files?.cover,
+    );
   }
 
   @Patch('change-password')
