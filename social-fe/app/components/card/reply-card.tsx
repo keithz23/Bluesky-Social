@@ -24,6 +24,7 @@ import { PostMedia } from "@/app/interfaces/post.interface";
 import ReplyPostModal from "../dialog/reply-post-dialog";
 import PostDropDown from "../dropdown/post-dropdown";
 import { dropdownItems } from "@/app/constants/dropdown.constant";
+import { PostContent } from "../post-content";
 
 interface ReplyCardProps {
   reply: Feed;
@@ -140,9 +141,10 @@ export default function ReplyCard({
               </div>
             </div>
 
-            <p className="text-[15px] leading-snug text-gray-900 wrap-break-words mb-2 mt-0.5">
-              {reply.content}
-            </p>
+            <PostContent
+              content={reply.content}
+              className="text-[15px] leading-snug text-gray-900 wrap-break-words mb-2 mt-0.5"
+            />
 
             {/* Media Carousel */}
             {reply?.media?.length > 0 && (

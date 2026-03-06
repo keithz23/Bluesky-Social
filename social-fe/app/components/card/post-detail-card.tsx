@@ -50,6 +50,12 @@ export default function PostDetailCard({
     currentIndex: number;
   } | null>(null);
 
+  const handlePostClick = () => {
+    if (role === "parent") {
+      router.push(`/profile/${post.user.username}/post/${post.id}`);
+    }
+  };
+
   const handleProfileClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     router.push(`/profile/${post.user.username}`);
@@ -125,13 +131,13 @@ export default function PostDetailCard({
 
   return (
     <>
-      {post?.rootPost && <PostDetailCard post={post.rootPost} role="parent" />}
       <div
         className={`relative px-4 py-3 cursor-pointer transition ${
           role === "parent"
             ? "hover:bg-gray-50/30 z-0"
             : "border-b border-gray-100 hover:bg-gray-50/30 z-10"
         }`}
+        onClick={handlePostClick}
       >
         <div className="flex gap-3">
           {/* Avatar Section */}
@@ -227,58 +233,62 @@ export default function PostDetailCard({
               </Carousel>
             )}
 
-            <div className="flex items-center flex-wrap gap-1.5 text-[14px] text-gray-500 mb-3 mt-1">
-              <span>
-                {new Date(post.createdAt || "").toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </span>
-
-              <span>·</span>
-
-              <span>
-                {new Date(post.createdAt || "").toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-
-              {/* Reply Policy */}
-              <div className="flex items-center gap-1 ml-1">
-                <PolicyIcon size={14} />
+            {role === "main" && (
+              <div className="flex items-center flex-wrap gap-1.5 text-[14px] text-gray-500 mb-3 mt-1">
                 <span>
-                  <span>{policyConfig.text}</span>
+                  {new Date(post.createdAt || "").toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
                 </span>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-4 py-3 border-y border-gray-100 text-[14px]">
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">
-                  {post.repostCount}
+                <span>·</span>
+
+                <span>
+                  {new Date(post.createdAt || "").toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
                 </span>
-                <span className="text-gray-500">reposts</span>
+
+                {/* Reply Policy */}
+                <div className="flex items-center gap-1 ml-1">
+                  <PolicyIcon size={14} />
+                  <span>
+                    <span>{policyConfig.text}</span>
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">0</span>
-                <span className="text-gray-500">quotes</span>
+            )}
+
+            {role === "main" && (
+              <div className="flex items-center gap-4 py-3 border-y border-gray-100 text-[14px]">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-gray-900">
+                    {post.repostCount}
+                  </span>
+                  <span className="text-gray-500">reposts</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-gray-900">0</span>
+                  <span className="text-gray-500">quotes</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-gray-900">
+                    {post.likeCount}
+                  </span>
+                  <span className="text-gray-500">likes</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-gray-900">
+                    {post.bookmarkCount}
+                  </span>
+                  <span className="text-gray-500">saves</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">
-                  {post.likeCount}
-                </span>
-                <span className="text-gray-500">likes</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-900">
-                  {post.bookmarkCount}
-                </span>
-                <span className="text-gray-500">saves</span>
-              </div>
-            </div>
+            )}
 
             {/* Reaction Icons */}
             <div

@@ -21,5 +21,6 @@ export interface Feed {
   createdAt?: Date;
   parentPostId?: string;
   rootPost?: Feed;
+  parentChain?: Feed[];
   post?: any;
 }

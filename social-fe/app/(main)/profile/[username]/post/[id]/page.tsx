@@ -58,6 +58,10 @@ export default function PostDetailPage() {
         </div>
       )}
 
+      {post?.parentChain?.map((parent: any) => (
+        <PostDetailCard key={parent.id} post={parent} role="parent" />
+      ))}
+
       {/* Post detail */}
       {post && (
         <PostDetailCard post={post} role="main" disabled={disableReply} />
