@@ -13,6 +13,7 @@ export class UsersService {
       select: {
         id: true,
         username: true,
+        displayName: true,
         avatarUrl: true,
         coverUrl: true,
         bio: true,
@@ -60,14 +61,22 @@ export class UsersService {
 
     const users = await this.prisma.$queryRaw<User[]>`
       SELECT 
-        id, username, bio,
+        id, username, bio, verified,
         avatar_url AS "avatarUrl",
-        cover_url AS "coverUrl"
+        cover_url AS "coverUrl",
+        display_name AS "displayName"
       FROM users
-      WHERE username ILIKE ${`%${q}%`}
+      WHERE (
+        username ILIKE ${`%${q}%`}
+        OR display_name ILIKE ${`%${q}%`}
+      )
       AND id != ${userId}
       ORDER BY
-        CASE WHEN username ILIKE ${`${q}%`} THEN 0 ELSE 1 END
+        CASE 
+          WHEN username ILIKE ${`${q}%`} THEN 0      -- exact prefix match username
+          WHEN display_name ILIKE ${`${q}%`} THEN 1  -- exact prefix match display_name
+          ELSE 2
+        END
       LIMIT ${Prisma.sql`${limit}::int`}
     `;
 

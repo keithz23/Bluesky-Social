@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/app/hooks/use-auth";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function EditProfileModal() {
   const { updateProfileMutation, isUpdating } = useAuth();
@@ -82,7 +83,7 @@ export default function EditProfileModal() {
 
   const handleSave = () => {
     const data = {
-      username: displayName,
+      displayName,
       bio: description,
       ...(avatarFile && { avatarFile }),
       ...(coverFile && { coverFile }),
@@ -98,7 +99,7 @@ export default function EditProfileModal() {
     setIsOpen(false);
   };
 
-  const isSaveDisabled = displayName.trim() === "";
+  const isSaveDisabled = displayName.trim() === "" && !avatar && !coverPhoto;
 
   return (
     <>
@@ -143,7 +144,14 @@ export default function EditProfileModal() {
                   : "text-blue-600 hover:text-blue-700 cursor-pointer"
               }`}
             >
-              Save
+              {isUpdating ? (
+                <div className="flex items-center gap-x-1">
+                  <Spinner />
+                  Saving
+                </div>
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogHeader>
 

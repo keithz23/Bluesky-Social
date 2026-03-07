@@ -109,6 +109,7 @@ export class PostsService {
               select: {
                 id: true,
                 username: true,
+                displayName: true,
                 bio: true,
                 avatarUrl: true,
                 coverUrl: true,
@@ -193,6 +194,7 @@ export class PostsService {
               select: {
                 id: true,
                 username: true,
+                displayName: true,
                 avatarUrl: true,
               },
             },
@@ -278,6 +280,7 @@ export class PostsService {
                 select: {
                   id: true,
                   username: true,
+                  displayName: true,
                   avatarUrl: true,
                   verified: true,
                 },
@@ -366,6 +369,7 @@ export class PostsService {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             verified: true,
             followersCount: true,
@@ -473,6 +477,7 @@ export class PostsService {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             verified: true,
             bio: true,
@@ -522,6 +527,7 @@ export class PostsService {
               select: {
                 id: true,
                 username: true,
+                displayName: true,
                 avatarUrl: true,
                 verified: true,
                 bio: true,
@@ -551,10 +557,7 @@ export class PostsService {
 
     const parentIds = parentChain.map((p) => p.id);
     const allUserIds = [
-      ...new Set([
-        post.user.id,
-        ...parentChain.map((p) => p.user.id),
-      ]),
+      ...new Set([post.user.id, ...parentChain.map((p) => p.user.id)]),
     ];
 
     const [
@@ -816,6 +819,7 @@ export class PostsService {
               select: {
                 id: true,
                 username: true,
+                displayName: true,
                 avatarUrl: true,
                 verified: true,
               },
@@ -876,6 +880,7 @@ export class PostsService {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             verified: true,
           },

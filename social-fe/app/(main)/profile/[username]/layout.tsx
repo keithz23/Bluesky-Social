@@ -109,7 +109,7 @@ export default function ProfileLayout({
       <div className="px-4 mt-2 mb-4">
         <div className="flex items-center gap-1">
           <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
-            {profile?.username}
+            {profile?.displayName}
           </h1>
           {profile?.verified && (
             <BadgeCheck className="w-5 h-5 text-blue-500" />

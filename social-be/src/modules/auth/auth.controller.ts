@@ -43,7 +43,31 @@ import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
-import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
+
+// ─── Cookie Options ───────────────────────────────────────────────────────────
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: (isProduction ? 'strict' : 'lax') as 'lax' | 'strict',
+  path: '/',
+  domain: isProduction ? '.th-red.app' : 'localhost',
+};
+
+const accessTokenCookieOptions = {
+  ...cookieOptions,
+  maxAge: 15 * 60 * 1000, // 15 mins
+};
+
+const refreshTokenCookieOptions = {
+  ...cookieOptions,
+  path: '/api/v1/auth',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -55,6 +79,7 @@ export class AuthController {
   ) {}
 
   // ============= PUBLIC ROUTES =============
+
   @Public()
   @Post('register')
   @Throttle({ default: { ttl: 3600, limit: 3 } })
@@ -83,20 +108,13 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto, ipAddress, userAgent);
 
-    response.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', //Https only in production
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    });
-
+    response.cookie(
+      'accessToken',
+      result.accessToken,
+      accessTokenCookieOptions,
+    );
     response.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/v1/auth',
+      ...refreshTokenCookieOptions,
     });
 
     return result;
@@ -123,24 +141,18 @@ export class AuthController {
 
     const result = await this.authService.refreshTokens(refreshToken);
 
-    // Set new access token cookie
-    response.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-    });
+    response.cookie(
+      'accessToken',
+      result.accessToken,
+      accessTokenCookieOptions,
+    );
+    response.cookie(
+      'refreshToken',
+      result.refreshToken,
+      refreshTokenCookieOptions,
+    );
 
-    response.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/api/v1/auth',
-    });
-
-    return {
-      user: result.user,
-    };
+    return { user: result.user };
   }
 
   @Public()
@@ -195,17 +207,17 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    // Get refresh token from cookie
     const refreshToken = request.cookies['refreshToken'];
 
     if (refreshToken) {
-      // Delete refresh token from database
       await this.authService.logout(userId, refreshToken);
     }
 
-    // Clear cookie from client
-    response.clearCookie('accessToken', { path: '/' });
-    response.clearCookie('refreshToken', { path: '/api/v1/auth' });
+    response.clearCookie('accessToken', cookieOptions);
+    response.clearCookie('refreshToken', {
+      ...cookieOptions,
+      path: '/api/v1/auth',
+    });
 
     return { message: 'Logged out successfully' };
   }
@@ -219,12 +231,13 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    // Delete all refresh toekn from database
     await this.authService.logoutAll(userId);
 
-    // Clear cookie from client
-    response.clearCookie('accessToken', { path: '/' });
-    response.clearCookie('refreshToken', { path: '/api/v1/auth' });
+    response.clearCookie('accessToken', cookieOptions);
+    response.clearCookie('refreshToken', {
+      ...cookieOptions,
+      path: '/api/v1/auth',
+    });
 
     return { message: 'Logged out from all devices' };
   }
@@ -410,21 +423,16 @@ export class AuthController {
         userAgent,
       );
 
-      response.cookie('accessToken', result.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000,
-        path: '/',
-      });
-
-      response.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/api/v1/auth',
-      });
+      response.cookie(
+        'accessToken',
+        result.accessToken,
+        accessTokenCookieOptions,
+      );
+      response.cookie(
+        'refreshToken',
+        result.refreshToken,
+        refreshTokenCookieOptions,
+      );
 
       response.redirect(frontendUrl);
     } catch (error) {

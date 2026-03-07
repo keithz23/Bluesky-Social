@@ -15,7 +15,7 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  username?: string;
+  displayName?: string;
 
   @ApiPropertyOptional({
     example: 'Software Developer | Coffee Lover ☕',
