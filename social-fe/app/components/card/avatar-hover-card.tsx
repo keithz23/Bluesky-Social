@@ -57,7 +57,7 @@ export default function AvatarHoverCard({
         <div className="mb-2">
           <div className="flex items-center gap-1">
             <p className="font-extrabold text-[16px] text-gray-900">
-              {data.user.username}
+              {data.user.displayName}
             </p>
             {data.user.verified && (
               <BadgeCheck className="w-4 h-4 text-blue-500" />

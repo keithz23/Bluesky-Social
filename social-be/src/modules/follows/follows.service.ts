@@ -195,6 +195,7 @@ export class FollowsService {
           select: {
             id: true,
             username: true,
+            displayName: true,
             bio: true,
             avatarUrl: true,
             coverUrl: true,
@@ -247,6 +248,7 @@ export class FollowsService {
             bio: true,
             verified: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             coverUrl: true,
           },

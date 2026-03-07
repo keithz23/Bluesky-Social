@@ -1,25 +1,36 @@
 "use client";
+import NewChatDialog from "@/app/components/dialog/new-chat-dialog";
 import { Settings, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ChatsPage() {
+  const router = useRouter();
+  const handleSettingsPage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push("/chat/settings");
+  };
+
   return (
-    <div className="flex flex-col w-full bg-white min-h-screen pb-20">
+    <>
       {/* --- HEADER --- */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-center justify-between p-4">
         <h1 className="text-xl font-bold text-gray-900">Chats</h1>
 
         <div className="flex items-center gap-3">
-          <button className="p-2 hover:bg-gray-100 rounded-full transition cursor-pointer">
+          <button
+            className="p-2 hover:bg-gray-100 rounded-full transition cursor-pointer"
+            onClick={handleSettingsPage}
+          >
             <Settings className="w-5 h-5 text-gray-600" />
           </button>
 
-          <button className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[14px] px-4 py-1.5 rounded-full transition cursor-pointer shadow-sm">
+          {/* <button className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[14px] px-4 py-1.5 rounded-full transition cursor-pointer shadow-sm">
             <Plus className="w-4 h-4" strokeWidth={2.5} />
             New chat
-          </button>
+          </button> */}
+          <NewChatDialog />
         </div>
       </div>
-
       {/* --- EMPTY STATE --- */}
       <div className="flex flex-col items-center justify-center mt-32 px-4">
         <div className="mb-4 text-blue-600">
@@ -47,6 +58,6 @@ export default function ChatsPage() {
           You have no conversations yet. Start one!
         </p>
       </div>
-    </div>
+    </>
   );
 }

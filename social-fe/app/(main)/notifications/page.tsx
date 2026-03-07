@@ -115,7 +115,7 @@ export default function NotificationsPage() {
                     className="font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
                     onClick={(e) => handleProfileClick(e, noti.actor.username)}
                   >
-                    {noti.actor?.username}
+                    {noti.actor?.displayName}
                     {noti.actor?.verified && (
                       <BadgeCheck className="w-4 h-4 fill-blue-500 text-white" />
                     )}

@@ -97,7 +97,7 @@ export default function MainLayout({
 
                     <div className="flex flex-col items-start overflow-hidden text-left opacity-0 transition-opacity duration-300 delay-75 group-hover:opacity-100 w-30 xl:w-37.5">
                       <span className="text-base font-bold text-gray-900 truncate w-full">
-                        {user?.username}
+                        {user?.displayName}
                       </span>
                       <span className="text-sm text-gray-500 truncate w-full">
                         @{user?.username}

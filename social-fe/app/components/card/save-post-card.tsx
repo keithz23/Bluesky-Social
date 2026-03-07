@@ -12,12 +12,17 @@ import {
 import { useBookmark } from "@/app/hooks/use-bookmark";
 import { useLike } from "@/app/hooks/use-like";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Carousel,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
 import { PostMedia } from "../../interfaces/post.interface";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
@@ -37,6 +42,8 @@ import {
 } from "lucide-react";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
+import { enUS } from "date-fns/locale";
+import { formatDistanceToNow } from "date-fns";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
@@ -73,8 +80,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
     },
     [zoomData],
   );
-  const handleProfileClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleProfileClick = () => {
     router.push(`/profile/${post.user.username}`);
   };
 
@@ -99,6 +105,40 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [zoomData, handleNextImage, handlePrevImage]);
 
+  const formattedDate = useMemo(() => {
+    const distance = formatDistanceToNow(
+      new Date(post.createdAt || new Date()),
+      {
+        addSuffix: false,
+        locale: enUS,
+      },
+    );
+
+    return distance
+      .replace(/^about\s/, "")
+      .replace(/^almost\s/, "")
+      .replace(/^over\s/, "")
+      .replace("less than a minute", "now")
+      .replace(/\s?minutes?/, "m")
+      .replace(/\s?hours?/, "h")
+      .replace(/\s?days?/, "d")
+      .replace(/\s?months?/, "mo")
+      .replace(/\s?years?/, "y");
+  }, [post.createdAt]);
+
+  const fullDate = useMemo(
+    () =>
+      new Date(post.createdAt || new Date()).toLocaleString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    [post.createdAt],
+  );
+
   return (
     <>
       <div
@@ -109,9 +149,27 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
         <AvatarHoverCard data={bookmark} />
 
         {/* Content */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="font-bold text-[15px] hover:underline cursor-pointer">
-            <UserHoverCard data={bookmark} />
+        <div className="flex-1">
+          <div className="flex items-center gap-x-1">
+            <div className="font-bold text-[15px]">
+              <UserHoverCard
+                data={post}
+                handleProfileClick={handleProfileClick}
+              />
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="text-gray-500 text-sm cursor-pointer"
+                  suppressHydrationWarning
+                >
+                  {formattedDate}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p suppressHydrationWarning>{fullDate}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <PostContent content={post.content} />

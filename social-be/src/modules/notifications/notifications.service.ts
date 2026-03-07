@@ -100,6 +100,7 @@ export class NotificationsService implements OnModuleInit {
           select: {
             id: true,
             username: true,
+            displayName: true,
             bio: true,
             avatarUrl: true,
             coverUrl: true,
@@ -145,6 +146,7 @@ export class NotificationsService implements OnModuleInit {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             verified: true,
             followersCount: true,

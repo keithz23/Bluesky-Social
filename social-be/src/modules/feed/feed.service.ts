@@ -42,6 +42,7 @@ export class FeedService {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             verified: true,
             followersCount: true,

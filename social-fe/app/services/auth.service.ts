@@ -30,8 +30,8 @@ export const AuthService = {
 
   updateProfile: async (updateProfileData: UpdateProfileData) => {
     const formData = new FormData();
-    if (updateProfileData.username) {
-      formData.append("username", updateProfileData.username);
+    if (updateProfileData.displayName) {
+      formData.append("displayName", updateProfileData.displayName);
     }
     if (updateProfileData.bio !== undefined) {
       formData.append("bio", updateProfileData.bio);

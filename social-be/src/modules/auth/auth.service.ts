@@ -77,6 +77,7 @@ export class AuthService {
           username,
           passwordHash,
           dateOfBirth,
+          displayName: username,
         },
       });
 
@@ -656,6 +657,7 @@ export class AuthService {
         dateOfBirth: '',
         avatarUrl: googleUser.picture,
         verified: true,
+        displayName: username,
       },
     });
 

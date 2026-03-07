@@ -16,11 +16,11 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         {data?.avatarUrl ? (
           <img
             src={data.avatarUrl}
-            alt={data.username}
+            alt={data.displayName}
             className="w-full h-full object-cover pointer-events-none"
           />
         ) : (
-          data?.username?.charAt(0).toUpperCase()
+          data?.displayName?.charAt(0).toUpperCase()
         )}
       </div>
     );
