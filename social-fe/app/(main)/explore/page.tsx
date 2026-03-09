@@ -104,7 +104,7 @@ export default function ExplorePage() {
   return (
     <div className="flex flex-col w-full bg-white pb-20">
       {/* --- STICKY HEADER --- */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 pt-3 pb-3 px-4">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-100 pt-3 pb-3 px-4">
         <div className="relative group mb-3">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500" />

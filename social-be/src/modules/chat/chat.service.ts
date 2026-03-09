@@ -350,7 +350,6 @@ export class ChatService {
     const messages = await this.prisma.message.findMany({
       where: {
         conversationId,
-        isDeleted: false,
         // Exclude messages deleted for this user
         NOT: {
           deletedFor: { some: { userId } },

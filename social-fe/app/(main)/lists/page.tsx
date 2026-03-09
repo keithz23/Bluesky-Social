@@ -1,6 +1,6 @@
 "use client";
+import NewListDialog from "@/app/components/dialog/new-list-dialog";
 import { ArrowLeft, Plus } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function ListsPage() {
@@ -8,7 +8,7 @@ export default function ListsPage() {
   return (
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* --- HEADER --- */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-center justify-between p-4">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-100 flex items-center justify-between p-4">
         <div className="flex items-center">
           <button
             onClick={() => router.back()}
@@ -19,10 +19,7 @@ export default function ListsPage() {
           <h1 className="text-xl font-bold text-gray-900 ml-4">Lists</h1>
         </div>
 
-        <button className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[15px] px-4 py-1.5 rounded-full transition cursor-pointer">
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          New
-        </button>
+        <NewListDialog />
       </div>
 
       {/* --- EMPTY STATE --- */}
