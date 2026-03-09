@@ -12,13 +12,19 @@ import { useAuth } from "@/app/hooks/use-auth";
 import { useGetFollowingLists } from "@/app/hooks/use-follow";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import Avatar from "../avatar";
-import Link from "next/link";
 import { useSearchUsers } from "@/app/hooks/use-user";
 import { User } from "@/app/interfaces/user.interface";
+import { ChatService } from "@/app/services/chat.service";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function NewChatDialog() {
   const { user } = useAuth();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   // Fetch search results when typing
   const { data: searchResults, isFetching: isSearching } = useSearchUsers(
@@ -41,9 +47,28 @@ export default function NewChatDialog() {
     enabled: !hasQuery && following?.length > 0,
   });
 
+  const handleStartChat = async (targetUser: User) => {
+    if (isCreating) return;
+    setIsCreating(true);
+    try {
+      const conversation = await ChatService.createConversation({
+        type: "DIRECT",
+        participantIds: [targetUser.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      setOpen(false);
+      setSearchQuery("");
+      router.push(`/chat/${conversation.id}`);
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <>
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
@@ -96,10 +121,12 @@ export default function NewChatDialog() {
 
             {!isSearching &&
               displayUsers.map((u: User) => (
-                <div
-                  className="p-4 border-b border-gray-100 hover:bg-gray-50 transition"
+                <button
+                  className="w-full p-4 border-b border-gray-100 hover:bg-gray-50 transition text-left cursor-pointer"
                   key={u.id}
                   ref={!hasQuery ? ref : undefined}
+                  onClick={() => handleStartChat(u)}
+                  disabled={isCreating}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex gap-x-3">
@@ -108,24 +135,21 @@ export default function NewChatDialog() {
 
                       {/* User info */}
                       <div className="flex flex-col">
-                        <Link
-                          href={`/profile/${u.username}`}
-                          className="flex items-center gap-x-1 group"
-                        >
-                          <p className="font-bold text-[15px] text-gray-900 group-hover:underline">
+                        <div className="flex items-center gap-x-1">
+                          <p className="font-bold text-[15px] text-gray-900">
                             {u.displayName}
                           </p>
                           {u.verified && (
                             <BadgeCheck className="w-4 h-4 fill-blue-500 text-white" />
                           )}
-                        </Link>
+                        </div>
                         <p className="text-gray-500 text-[15px]">
                           @{u.username}
                         </p>
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
 
             {/* Loading state for infinite scroll */}

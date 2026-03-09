@@ -116,4 +116,31 @@ export const API_ENDPOINT = {
     REPOST: (postId: string) => `/reposts/${postId}`,
     UNREPOST: (postId: string) => `/reposts/${postId}`,
   },
+
+  CHAT: {
+    GET_CONVERSATIONS: (params?: { cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs ? `/conversations?${qs}` : "/conversations";
+    },
+    CREATE_CONVERSATION: "/conversations",
+    GET_CONVERSATION: (id: string) => `/conversations/${id}`,
+    DELETE_CONVERSATION: (id: string) => `/conversations/${id}`,
+    UPDATE_CONVERSATION: (id: string) => `/conversations/${id}`,
+    GET_MESSAGES: (
+      id: string,
+      params?: { cursor?: string; limit?: number },
+    ) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs
+        ? `/conversations/${id}/messages?${qs}`
+        : `/conversations/${id}/messages`;
+    },
+    SEND_MESSAGE: (id: string) => `/conversations/${id}/messages`,
+  },
 };
