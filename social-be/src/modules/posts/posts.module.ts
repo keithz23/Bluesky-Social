@@ -5,11 +5,15 @@ import { BullModule } from '@nestjs/bull';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { UploadModule } from 'src/uploads/upload.module';
 import { S3Service } from 'src/uploads/s3.service';
+import { SocketModule } from '../socket/socket.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
     UploadModule,
+    SocketModule,
+    NotificationsModule,
     BullModule.registerQueue({
       name: 'posts',
     }),
@@ -17,4 +21,4 @@ import { S3Service } from 'src/uploads/s3.service';
   controllers: [PostsController],
   providers: [PostsService, S3Service],
 })
-export class PostsModule { }
+export class PostsModule {}

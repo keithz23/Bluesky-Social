@@ -8,9 +8,10 @@ import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useProfile } from "@/app/hooks/use-profile";
 import { ArrowLeft, BadgeCheck, UserX } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 export default function FollowsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { username } = useParams<{ username: string }>();
   const { data: profile } = useProfile(username);
@@ -33,12 +34,14 @@ export default function FollowsPage() {
       <div className="flex flex-col w-full bg-white pb-20 min-h-screen">
         {/* --- HEADER --- */}
         <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-2">
-          <Link
-            href="/"
+          <button
+            onClick={() => {
+              router.back();
+            }}
             className="p-2 mr-4 hover:bg-gray-100 rounded-full transition cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5 text-gray-900" />
-          </Link>
+          </button>
           <div className="flex flex-col">
             <h1 className="text-xl font-extrabold text-gray-900">
               {profile?.username}

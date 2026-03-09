@@ -13,7 +13,8 @@ datasource db {
 
 model User {
   id           String  @id @default(cuid())
-  username     String  @unique
+  username     String  @unique //Handle name
+  displayName  String  @unique @map("display_name") // Displayname
   email        String  @unique
   passwordHash String? @map("password_hash")
   bio          String? @db.Text
@@ -69,6 +70,8 @@ model User {
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  messageMentions         MessageMention[]
+  messageDeletedFors      MessageDeletedFor[]
 
   @@index([username])
   @@index([email])
@@ -237,6 +240,7 @@ model Bookmark {
 
 model Mention {
   id        String   @id @default(cuid())
+  userId    String
   postId    String   @map("post_id")
   username  String
   createdAt DateTime @default(now()) @map("created_at")
@@ -345,8 +349,9 @@ model Conversation {
   participants   ConversationParticipant[]
   messages       Message[]
   lastMessage    Message?                  @relation("LastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
-  typingStatus   TypingStatus[]
   pinnedMessages PinnedMessage[]
+
+  typingStatuses TypingStatus[]
 
   @@index([type])
   @@index([lastMessageAt(sort: Desc)])
@@ -355,20 +360,23 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  id                String          @id @default(cuid())
-  conversationId    String          @map("conversation_id")
-  userId            String          @map("user_id")
-  role              ParticipantRole @default(MEMBER)
-  nickname          String?
-  lastReadMessageId String?         @map("last_read_message_id")
-  lastReadAt        DateTime?       @map("last_read_at")
-  unreadCount       Int             @default(0) @map("unread_count")
-  mentionCount      Int             @default(0) @map("mention_count")
-  isMuted           Boolean         @default(false) @map("is_muted")
-  mutedUntil        DateTime?       @map("muted_until")
-  isPinned          Boolean         @default(false) @map("is_pinned")
-  joinedAt          DateTime        @default(now()) @map("joined_at")
-  leftAt            DateTime?       @map("left_at")
+  id             String          @id @default(cuid())
+  conversationId String          @map("conversation_id")
+  userId         String          @map("user_id")
+  role           ParticipantRole @default(MEMBER)
+  nickname       String?
+
+  lastReadMessageId String?   @map("last_read_message_id")
+  lastReadAt        DateTime? @map("last_read_at")
+  unreadCount       Int       @default(0) @map("unread_count")
+  mentionCount      Int       @default(0) @map("mention_count")
+
+  isMuted    Boolean   @default(false) @map("is_muted")
+  mutedUntil DateTime? @map("muted_until")
+  isPinned   Boolean   @default(false) @map("is_pinned")
+
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
 
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -377,7 +385,7 @@ model ConversationParticipant {
   @@unique([conversationId, userId])
   @@index([userId])
   @@index([conversationId])
-  @@index([userId, isPinned, lastReadAt(sort: Desc)])
+  @@index([userId, leftAt, isPinned])
   @@map("conversation_participants")
 }
 
@@ -386,33 +394,24 @@ model Message {
   conversationId String @map("conversation_id")
   senderId       String @map("sender_id")
 
-  // Content
-  content String?       @db.Text
-  type    MessageType   @default(TEXT)
-  status  MessageStatus @default(SENT)
+  content String?     @db.Text
+  type    MessageType @default(TEXT)
 
-  // Reply & Forward
+  status MessageStatus @default(SENT)
+
   replyToId       String? @map("reply_to_id")
   forwardedFromId String? @map("forwarded_from_id")
 
-  // Metadata
   metadata Json?
 
-  // Flags
   isDeleted Boolean   @default(false) @map("is_deleted")
   isEdited  Boolean   @default(false) @map("is_edited")
   editedAt  DateTime? @map("edited_at")
-  isPinned  Boolean   @default(false) @map("is_pinned")
 
-  // Mentions
-  mentions String[]
-
-  // Timestamps
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  // Relations
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
@@ -427,6 +426,10 @@ model Message {
   readReceipts MessageReadReceipt[]
   pinnedIn     PinnedMessage[]
 
+  mentions MessageMention[]
+
+  deletedFor MessageDeletedFor[]
+
   lastReadBy    ConversationParticipant[] @relation("LastReadMessage")
   lastMessageIn Conversation?             @relation("LastMessage")
 
@@ -434,9 +437,37 @@ model Message {
   @@index([senderId])
   @@index([replyToId])
   @@index([forwardedFromId])
-  @@index([conversationId, status])
   @@index([conversationId, isDeleted, createdAt])
   @@map("messages")
+}
+
+model MessageMention {
+  id        String   @id @default(cuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+  @@map("message_mentions")
+}
+
+model MessageDeletedFor {
+  id        String   @id @default(cuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  deletedAt DateTime @default(now()) @map("deleted_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("message_deleted_for")
 }
 
 model MessageAttachment {
@@ -672,4 +703,7 @@ enum ReplyPolicy {
   ANYONE
   NOBODY
   CUSTOM
+  FOLLOWERS // Your followers
+  FOLLOWING // People you follow
+  MENTIONED // People you mention
 }

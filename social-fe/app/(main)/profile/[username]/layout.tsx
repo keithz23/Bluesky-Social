@@ -5,6 +5,7 @@ import { ArrowLeft, MoreHorizontal, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { FollowButton } from "@/app/components/button/follow-button";
+import EditProfileModal from "@/app/components/dialog/edit-profile-dialog";
 
 export default function ProfileLayout({
   children,
@@ -51,7 +52,8 @@ export default function ProfileLayout({
 
   if (
     pathname === `/profile/${username}/follows` ||
-    pathname === `/profile/${username}/followers`
+    pathname === `/profile/${username}/followers` ||
+    pathname.startsWith(`/profile/${username}/post/`)
   ) {
     return children;
   }
@@ -91,9 +93,10 @@ export default function ProfileLayout({
       {/* --- ACTION BUTTONS --- */}
       <div className="flex justify-end gap-2 px-4 pt-3">
         {profile?.isOwner ? (
-          <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
-            Edit Profile
-          </button>
+          // <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
+          //   Edit Profile
+          // </button>
+          <EditProfileModal />
         ) : (
           <FollowButton targetUserId={profile?.id} />
         )}
@@ -106,7 +109,7 @@ export default function ProfileLayout({
       <div className="px-4 mt-2 mb-4">
         <div className="flex items-center gap-1">
           <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
-            {profile?.username}
+            {profile?.displayName}
           </h1>
           {profile?.verified && (
             <BadgeCheck className="w-5 h-5 text-blue-500" />

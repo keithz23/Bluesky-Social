@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Share, ChevronLeft, ChevronRight } from "lucide-react";
+import { Share, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Carousel,
@@ -25,12 +25,16 @@ import PostDropDown from "../dropdown/post-dropdown";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useMemo } from "react";
+import ReplyPostModal from "../dialog/reply-post-dialog";
+import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import { PostContent } from "../post-content";
 
 interface PostCardProps {
   post: Feed;
+  dropdownItems: DropdownItem[];
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, dropdownItems }: PostCardProps) {
   const router = useRouter();
 
   const [zoomData, setZoomData] = useState<{
@@ -38,9 +42,13 @@ export default function PostCard({ post }: PostCardProps) {
     currentIndex: number;
   } | null>(null);
 
-  const handleProfileClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleProfileClick = () => {
     router.push(`/profile/${post.user.username}`);
+  };
+
+  const handlePostDetailClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/profile/${post.user.username}/post/${post.id}`);
   };
 
   const handleNextImage = (e: React.MouseEvent) => {
@@ -95,16 +103,22 @@ export default function PostCard({ post }: PostCardProps) {
     <>
       <div
         className="p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer"
-        onClick={handleProfileClick}
+        onClick={handlePostDetailClick}
       >
         <div className="flex gap-3">
-          <AvatarHoverCard data={post} />
+          <AvatarHoverCard
+            data={post}
+            handleProfileClick={handleProfileClick}
+          />
 
           {/* Post Content */}
           <div className="flex-1">
             <div className="flex items-center gap-x-1">
-              <div className="font-bold text-[15px] cursor-pointer">
-                <UserHoverCard data={post} />
+              <div className="font-bold text-[15px]">
+                <UserHoverCard
+                  data={post}
+                  handleProfileClick={handleProfileClick}
+                />
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -121,49 +135,34 @@ export default function PostCard({ post }: PostCardProps) {
               </Tooltip>
             </div>
 
-            <p className="mt-1 text-[15px] leading-normal text-gray-900">
-              {post.content}
-            </p>
+            <PostContent content={post.content} />
 
             {/* Media Carousel */}
             {post.media?.length > 0 && (
-              <Carousel
-                opts={{ align: "start" }}
-                className="w-full max-w-full mt-3"
-              >
+              <Carousel opts={{ align: "start" }} className="w-full mb-3">
                 <CarouselContent>
-                  {post.media.map((m: PostMedia, i: number) => {
-                    const isSingleImage = post.media.length === 1;
-
-                    return (
-                      <CarouselItem
-                        key={m.id}
-                        className={
-                          isSingleImage
-                            ? "basis-full"
-                            : "basis-4/5 sm:basis-1/2 lg:basis-1/3"
-                        }
+                  {post.media.map((m: PostMedia, i: number) => (
+                    <CarouselItem
+                      key={m.id}
+                      className={
+                        post.media.length === 1 ? "basis-full" : "basis-[85%]"
+                      }
+                    >
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setZoomData({ media: post.media, currentIndex: i });
+                        }}
+                        className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${post.media.length === 1 ? "aspect-video" : "h-64"}`}
                       >
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setZoomData({ media: post.media, currentIndex: i });
-                          }}
-                          className={`w-full rounded-xl overflow-hidden bg-gray-100 cursor-pointer group ${
-                            isSingleImage
-                              ? "h-64 sm:h-80 md:h-100 lg:h-125"
-                              : "h-56 sm:h-64 md:h-72 lg:h-80"
-                          }`}
-                        >
-                          <img
-                            src={m.mediaUrl}
-                            alt={m.altText ?? "Post image"}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        </div>
-                      </CarouselItem>
-                    );
-                  })}
+                        <img
+                          src={m.mediaUrl}
+                          alt={m.altText ?? ""}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))}
                 </CarouselContent>
               </Carousel>
             )}
@@ -175,13 +174,7 @@ export default function PostCard({ post }: PostCardProps) {
             >
               <div className="flex items-center gap-8">
                 <div className="flex items-center gap-1 group cursor-pointer">
-                  <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <MessageSquare
-                      size={18}
-                      strokeWidth={2.2}
-                      className="group-hover:text-blue-500 transition-colors"
-                    />
-                  </div>
+                  <ReplyPostModal post={post} />
                   <span className="group-hover:text-blue-500 transition-colors">
                     {post.replyCount}
                   </span>
@@ -210,7 +203,7 @@ export default function PostCard({ post }: PostCardProps) {
                   <Share size={18} strokeWidth={2.2} />
                 </div>
                 <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
-                  <PostDropDown post={post} />
+                  <PostDropDown post={post} items={dropdownItems} />
                 </div>
               </div>
             </div>

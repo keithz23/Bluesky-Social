@@ -9,6 +9,7 @@ export const API_ENDPOINT = {
     RESET: "/auth/reset-password",
     UPDATE_PROFILE: "/auth/update-profile",
     UPDATE_PASSWORD: "/auth/update-password",
+    SOCKET_TOKEN: "/auth/socket-token",
   },
 
   POSTS: {
@@ -16,6 +17,10 @@ export const API_ENDPOINT = {
     UPDATE_POST: (id: string) => `/posts/update-post/${id}`,
     DELETE_POST: (id: string) => `/posts/delete-post/${id}`,
     GET_BY_USERNAME: (username: string) => `/posts/users/${username}`,
+    GET_BY_ID: (postId: string) => `/posts/post-detail/${postId}`,
+
+    CREATE_REPLY: (postId: string) => `/posts/${postId}/replies`,
+    GET_REPLIES: (postId: string) => `/posts/${postId}/replies`,
   },
 
   FEED: {
@@ -25,6 +30,23 @@ export const API_ENDPOINT = {
       if (params?.limit) query.set("limit", String(params.limit));
       const qs = query.toString();
       return qs ? `/feed?${qs}` : "/feed";
+    },
+  },
+
+  NOTIFICATIONS: {
+    GET_NOTIFICATIONS: (params: {
+      cursor?: string;
+      limit?: number;
+      filter?: "all" | "mention";
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.filter) query.set("filter", params.filter);
+      const qs = query.toString();
+      return qs
+        ? `/notifications/get-notifications?${qs}`
+        : "/notifications/get-notifications";
     },
   },
 
@@ -71,6 +93,12 @@ export const API_ENDPOINT = {
 
   USERS: {
     GET_PROFILE: (username: string) => `/users/${username}`,
+    SEARCH: (q: string, limit: number) => {
+      const params = new URLSearchParams();
+      params.set("q", q);
+      params.set("limit", String(limit));
+      return `/users/search?${params.toString()}`;
+    },
   },
 
   LIKES: {
@@ -87,5 +115,32 @@ export const API_ENDPOINT = {
   REPOSTS: {
     REPOST: (postId: string) => `/reposts/${postId}`,
     UNREPOST: (postId: string) => `/reposts/${postId}`,
+  },
+
+  CHAT: {
+    GET_CONVERSATIONS: (params?: { cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs ? `/conversations?${qs}` : "/conversations";
+    },
+    CREATE_CONVERSATION: "/conversations",
+    GET_CONVERSATION: (id: string) => `/conversations/${id}`,
+    DELETE_CONVERSATION: (id: string) => `/conversations/${id}`,
+    UPDATE_CONVERSATION: (id: string) => `/conversations/${id}`,
+    GET_MESSAGES: (
+      id: string,
+      params?: { cursor?: string; limit?: number },
+    ) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs
+        ? `/conversations/${id}/messages?${qs}`
+        : `/conversations/${id}/messages`;
+    },
+    SEND_MESSAGE: (id: string) => `/conversations/${id}/messages`,
   },
 };

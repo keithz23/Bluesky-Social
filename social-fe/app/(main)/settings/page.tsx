@@ -88,12 +88,12 @@ export default function SettingsPage() {
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* --- HEADER --- */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-center p-4">
-        <Link
-          href="/"
+        <button
+          onClick={() => router.back()}
           className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"
         >
           <ArrowLeft className="w-6 h-6 text-gray-900" />
-        </Link>
+        </button>
         <h1 className="text-xl font-bold text-gray-900 ml-4">Settings</h1>
       </div>
 

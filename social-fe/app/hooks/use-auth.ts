@@ -6,6 +6,7 @@ import {
   LoginCredentials,
   RegisterData,
   ResetPasswordData,
+  UpdateProfileData,
 } from "../interfaces/auth.interface";
 import { AxiosError } from "axios";
 
@@ -15,6 +16,7 @@ export function useAuth() {
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       try {
         const { data } = await AuthService.me();
         return data;
@@ -103,28 +105,49 @@ export function useAuth() {
     },
   });
 
+  const updateProfile = useMutation({
+    mutationFn: async ({
+      updateProfileData,
+    }: {
+      updateProfileData: UpdateProfileData;
+    }) => {
+      return AuthService.updateProfile(updateProfileData);
+    },
+
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      toast.success("Profile updated successfully");
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
   return {
     // User Info
     user: meQuery.data,
-    isLoadingProfile: meQuery.isLoading,
+    isLoadingProfile: meQuery.isFetching,
     isAuthenticated: !!meQuery.data,
     refetchMe: meQuery.refetch,
 
     loginMutation: login,
     signupMutation: signup,
     logoutMutation: logout,
+    updateProfileMutation: updateProfile,
     forgotPasswordMutation: forgotPassword,
     resetPasswordMutation: resetPassword,
 
     isLoggingIn: login.isPending,
     isRegistering: signup.isPending,
     isLoggingOut: logout.isPending,
+    isUpdating: updateProfile.isPending,
     isResettingPassword: resetPassword.isPending,
     isForgotPassword: forgotPassword.isPending,
 
     loginError: login.error,
     registerError: signup.error,
     logoutError: logout.error,
+    updateProfileErorr: updateProfile.error,
     forgotPasswordError: forgotPassword.error,
     resetPasswordError: resetPassword.error,
     resetPasswordSuccess: resetPassword.isSuccess,

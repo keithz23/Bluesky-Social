@@ -14,13 +14,6 @@ export const PostService = {
     );
   },
 
-  deletePost: (postId: string) => {
-    return axiosInstance.delete(
-      `${API_ENDPOINT.POSTS.DELETE_POST(postId)}`,
-      {},
-    );
-  },
-
   getPostsByUsername: async (
     username: string,
     filter: string,
@@ -35,5 +28,20 @@ export const PostService = {
     );
 
     return data;
+  },
+
+  getPostById: async (postId: string) => {
+    const { data } = await axiosInstance.get(
+      API_ENDPOINT.POSTS.GET_BY_ID(postId),
+    );
+
+    return data;
+  },
+
+  deletePost: (postId: string) => {
+    return axiosInstance.delete(
+      `${API_ENDPOINT.POSTS.DELETE_POST(postId)}`,
+      {},
+    );
   },
 };

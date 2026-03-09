@@ -29,6 +29,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import NewPostModal from "../components/dialog/new-post-dialog";
 import BackToTop from "../components/back-to-top";
+import Loading from "../components/loading";
 
 export default function MainLayout({
   children,
@@ -37,7 +38,7 @@ export default function MainLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, user, logoutMutation } = useAuth();
+  const { isAuthenticated, user, logoutMutation, isLoadingProfile } = useAuth();
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -76,6 +77,10 @@ export default function MainLayout({
     { icon: LogOut, label: "Sign out", href: "", onClick: handleLogout },
   ];
 
+  if (isLoadingProfile) {
+    return <Loading />;
+  }
+
   return (
     <div className="min-h-screen bg-white flex justify-center text-slate-900 font-sans">
       {isAuthenticated ? (
@@ -92,7 +97,7 @@ export default function MainLayout({
 
                     <div className="flex flex-col items-start overflow-hidden text-left opacity-0 transition-opacity duration-300 delay-75 group-hover:opacity-100 w-30 xl:w-37.5">
                       <span className="text-base font-bold text-gray-900 truncate w-full">
-                        {user?.username}
+                        {user?.displayName}
                       </span>
                       <span className="text-sm text-gray-500 truncate w-full">
                         @{user?.username}

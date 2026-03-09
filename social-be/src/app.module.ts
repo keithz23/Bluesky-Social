@@ -20,6 +20,11 @@ import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { RepostsModule } from './modules/reposts/reposts.module';
+import { RepliesModule } from './modules/replies/replies.module';
+import { SocketModule } from './modules/socket/socket.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -89,6 +94,10 @@ import { RepostsModule } from './modules/reposts/reposts.module';
     LikesModule,
     BookmarksModule,
     RepostsModule,
+    SocketModule,
+    NotificationsModule,
+    ChatModule,
+    EventEmitterModule.forRoot(),
   ],
   providers: [
     // Global guards
