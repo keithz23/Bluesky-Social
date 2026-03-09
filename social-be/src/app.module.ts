@@ -24,6 +24,7 @@ import { RepliesModule } from './modules/replies/replies.module';
 import { SocketModule } from './modules/socket/socket.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     RepostsModule,
     SocketModule,
     NotificationsModule,
+    ChatModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [

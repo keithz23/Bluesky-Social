@@ -1,8 +1,12 @@
 "use client";
 
-export default function layout({ children }: { children: React.ReactNode }) {
+export default function ChatLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col w-full bg-white min-h-screen pb-20">
+    <div className="w-full bg-white h-screen overflow-hidden">
       {children}
     </div>
   );
