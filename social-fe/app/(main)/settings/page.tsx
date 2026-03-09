@@ -87,7 +87,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* --- HEADER --- */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-center p-4">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-100 flex items-center p-4">
         <button
           onClick={() => router.back()}
           className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"

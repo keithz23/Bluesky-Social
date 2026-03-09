@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import "../globals.css";
 import {
@@ -40,6 +41,10 @@ export default function MainLayout({
   const pathname = usePathname();
   const { isAuthenticated, user, logoutMutation, isLoadingProfile } = useAuth();
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
@@ -67,6 +72,18 @@ export default function MainLayout({
     { icon: Settings, label: "Settings", href: "/settings" },
   ];
 
+  const mobileNavItems = [
+    { icon: Home, label: "Home", href: "/" },
+    { icon: Search, label: "Explore", href: "/explore" },
+    { icon: MessageCircle, label: "Chat", href: "/chat" },
+    { icon: Bell, label: "Notifications", href: "/notifications" },
+    {
+      icon: User,
+      label: "Profile",
+      href: user ? `/profile/${user.username}` : "/profile",
+    },
+  ];
+
   const dropdownItems = [
     {
       icon: CircleUser,
@@ -81,10 +98,27 @@ export default function MainLayout({
     return <Loading />;
   }
 
+  const sidebarBaseClasses = `
+    fixed inset-y-0 left-0 z-50 bg-white h-screen p-4 border-r border-gray-100 overflow-y-auto 
+    transition-transform duration-300 ease-in-out flex flex-col w-75 xl:w-87.5
+    lg:sticky lg:top-0 lg:translate-x-0
+  `;
+
   return (
-    <div className="min-h-screen bg-white flex justify-center text-slate-900 font-sans">
+    <div className="min-h-screen bg-white flex justify-center text-slate-900 font-sans relative">
+      {/* --- MOBILE OVERLAY BACKDROP --- */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      {/* --- SIDEBAR LEFT --- */}
       {isAuthenticated ? (
-        <aside className="hidden lg:flex w-75 xl:w-87.5 flex-col sticky top-0 h-screen p-4 border-r border-gray-100 overflow-y-auto">
+        <aside
+          className={`${sidebarBaseClasses} ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
+        >
           {/* Logo */}
           <div className="mb-4 pt-2 w-full px-2">
             <DropdownMenu>
@@ -131,7 +165,11 @@ export default function MainLayout({
                     }
 
                     return (
-                      <Link href={di.href} key={di.label}>
+                      <Link
+                        href={di.href}
+                        key={di.label}
+                        onClick={closeMobileMenu}
+                      >
                         <DropdownMenuItem className="cursor-pointer py-3 px-4 flex items-center gap-3">
                           <di.icon
                             className="w-5 h-5 text-black"
@@ -159,6 +197,7 @@ export default function MainLayout({
               <Link
                 key={item.label}
                 href={item.href}
+                onClick={closeMobileMenu}
                 className="flex items-center gap-5 p-3 rounded-full hover:bg-gray-100 transition max-w-xl pr-8"
               >
                 <item.icon
@@ -178,8 +217,10 @@ export default function MainLayout({
           <NewPostModal buttonName="New Post" />
         </aside>
       ) : (
-        <aside className="hidden lg:flex w-75 xl:w-87.5 flex-col sticky top-0 h-screen p-6 border-r border-gray-100 overflow-y-auto">
-          <div className="mb-6 text-sky-500">
+        <aside
+          className={`${sidebarBaseClasses} ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} p-6 z-50`}
+        >
+          <div className="mb-6 text-blue-500">
             <svg
               width="40"
               height="40"
@@ -197,12 +238,12 @@ export default function MainLayout({
               conversation
             </h1>
             <div className="flex flex-col gap-3">
-              <Link href={"/signup"}>
+              <Link href={"/signup"} onClick={closeMobileMenu}>
                 <Button className="cursor-pointer w-full rounded-full">
                   Create account
                 </Button>
               </Link>
-              <Link href={"/login"}>
+              <Link href={"/login"} onClick={closeMobileMenu}>
                 <Button
                   variant="outline"
                   className="cursor-pointer w-full rounded-full"
@@ -217,14 +258,17 @@ export default function MainLayout({
 
       {/* --- MAIN CONTENT --- */}
       <main className="w-full max-w-150 border-r border-gray-100 min-h-screen pb-20 md:pb-0">
-        <header className="lg:hidden sticky top-0 z-50 flex items-center justify-center w-full h-14 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4">
-          <button className="absolute left-4 p-2 -ml-2 rounded-full hover:bg-gray-100 transition text-sky-500 cursor-pointer">
+        <header className="lg:hidden sticky top-0 z-40 flex items-center justify-center w-full h-14 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="absolute left-4 p-2 -ml-2 rounded-full hover:bg-gray-100 transition text-blue-500 cursor-pointer"
+          >
             <Menu className="w-7 h-7" />
           </button>
 
           {/* Logo */}
           <div
-            className="text-sky-500 curso%r-pointer"
+            className="text-blue-500 cursor-pointer"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           >
             <svg
@@ -236,8 +280,6 @@ export default function MainLayout({
               <path d="M100 100 Q 250 400 400 100 T 250 400 Z" />
             </svg>
           </div>
-
-          {/* <div className="absolute right-4 text-sky-500 font-bold text-sm">Sign in</div> */}
         </header>
 
         {children}
@@ -306,37 +348,62 @@ export default function MainLayout({
         </div>
       </aside>
 
-      {/* --- BOTTOM CALL TO ACTION (Mobile Only) --- */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 safe-area-bottom">
-        <div className="flex items-center justify-between max-w-150 mx-auto">
-          {/* Logo + Brand */}
-          <div className="flex items-center gap-2">
-            <div className="text-sky-500">
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 500 500"
-                fill="currentColor"
-              >
-                <path d="M100 100 Q 250 400 400 100 T 250 400 Z" />
-              </svg>
-            </div>
-            <span className="font-bold text-xl tracking-tight">Bluesky</span>
-          </div>
+      {/* MOBILE BOTTOM NAV */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-50 pb-safe">
+        <div className="w-full max-w-md mx-auto px-4 h-14 flex items-center justify-center">
+          {isAuthenticated ? (
+            <div className="w-full flex items-center justify-between px-2">
+              {mobileNavItems.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href));
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Link href="/signup">
-              <button className="bg-blue-600 text-white text-sm font-bold py-2 px-4 rounded-full">
-                Create account
-              </button>
-            </Link>
-            <Link href="/login">
-              <button className="bg-gray-100 text-gray-900 text-sm font-bold py-2 px-4 rounded-full">
-                Sign in
-              </button>
-            </Link>
-          </div>
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center justify-center p-2.5 rounded-full hover:bg-gray-100 transition-colors"
+                    aria-label={item.label}
+                  >
+                    <item.icon
+                      className="w-6.5 h-6.5 text-gray-900"
+                      strokeWidth={isActive ? 2.5 : 1.5}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="w-full flex items-center justify-between">
+              {/* Logo */}
+              <div className="flex items-center gap-2">
+                <div className="text-[#1185fe]">
+                  <svg
+                    width="28"
+                    height="28"
+                    viewBox="0 0 500 500"
+                    fill="currentColor"
+                  >
+                    <path d="M100 100 Q 250 400 400 100 T 250 400 Z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2.5">
+                <Link href="/signup">
+                  <button className="bg-[#1185fe] hover:bg-blue-600 transition-colors text-white text-[14px] font-bold py-1.5 px-4 rounded-full">
+                    Create account
+                  </button>
+                </Link>
+                <Link href="/login">
+                  <button className="bg-gray-100 hover:bg-gray-200 transition-colors text-gray-900 text-[14px] font-bold py-1.5 px-4 rounded-full">
+                    Sign in
+                  </button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

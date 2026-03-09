@@ -20,11 +20,11 @@ import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { RepostsModule } from './modules/reposts/reposts.module';
-import { RepliesModule } from './modules/replies/replies.module';
 import { SocketModule } from './modules/socket/socket.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ChatModule } from './modules/chat/chat.module';
+import { ListsModule } from './modules/lists/lists.module';
 
 @Module({
   imports: [
@@ -97,6 +97,7 @@ import { ChatModule } from './modules/chat/chat.module';
     SocketModule,
     NotificationsModule,
     ChatModule,
+    ListsModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [

@@ -72,6 +72,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   messageMentions         MessageMention[]
   messageDeletedFors      MessageDeletedFor[]
+  lists                   List[]
 
   @@index([username])
   @@index([email])
@@ -126,6 +127,8 @@ model Post {
   hashtags      PostHashtag[]
   notifications Notification[]
   reports       Report[]
+  lists         List[]
+  listItems     ListItem[]
 
   @@index([userId])
   @@index([parentPostId])
@@ -278,6 +281,37 @@ model PostHashtag {
   @@index([hashtagId])
   @@index([postId])
   @@map("post_hashtags")
+}
+
+model List {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String
+  description String?
+  listPhoto   String?  @map("list_photo")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  ListItem[] // Danh sách các bài post nằm trong list này
+  post   Post?      @relation(fields: [postId], references: [id])
+  postId String?
+
+  @@map("lists")
+}
+
+model ListItem {
+  id      String   @id @default(cuid())
+  listId  String   @map("list_id")
+  postId  String   @map("post_id")
+  addedAt DateTime @default(now()) @map("added_at")
+
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, postId])
+  @@index([listId])
+  @@index([postId])
+  @@map("list_items")
 }
 
 model Notification {
