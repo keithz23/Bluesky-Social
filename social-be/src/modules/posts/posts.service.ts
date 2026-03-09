@@ -9,7 +9,7 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { S3Service } from 'src/uploads/s3.service';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
-import { MediaType, ReplyPolicy } from '@prisma/client';
+import { MediaType, NotificationType, ReplyPolicy } from '@prisma/client';
 import {
   CleanupJobData,
   JOB_NAMES,
@@ -18,6 +18,10 @@ import {
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bull';
 import { PostQueryDto } from './dto/post-query.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
+import { extractMentions } from 'src/common/utils/extract.util';
+import { NotificationsService } from '../notifications/notifications.service';
+import { SocketGateway } from '../socket/socket.gateway';
 
 @Injectable()
 export class PostsService {
@@ -25,6 +29,8 @@ export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
+    private readonly notificationService: NotificationsService,
+    private readonly socketGateway: SocketGateway,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
     @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
@@ -39,6 +45,7 @@ export class PostsService {
     const { content, replyPrivacy, gifUrl } = createPostDto;
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
+    const mentionedUsernames = extractMentions(content ?? '');
 
     if (images && images.length > 0) {
       try {
@@ -85,7 +92,40 @@ export class PostsService {
             replyPolicy: replyPrivacy?.type
               ? (replyPrivacy.type.toUpperCase() as ReplyPolicy)
               : 'ANYONE',
+            replyFollowers:
+              replyPrivacy?.type === 'custom' &&
+              replyPrivacy?.custom?.followers === true,
+            replyFollowing:
+              replyPrivacy?.type === 'custom' &&
+              replyPrivacy?.custom?.following === true,
+            replyMentioned:
+              replyPrivacy?.type === 'custom' &&
+              replyPrivacy?.custom?.mentioned === true,
+
             userId,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                bio: true,
+                avatarUrl: true,
+                coverUrl: true,
+              },
+            },
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
+            },
           },
         });
 
@@ -120,30 +160,73 @@ export class PostsService {
           });
         }
 
-        return tx.post.findUnique({
+        let mentionedUsers: { id: string; username: string }[] = [];
+        if (mentionedUsernames.length > 0) {
+          mentionedUsers = await tx.user.findMany({
+            where: {
+              username: { in: mentionedUsernames },
+              id: { not: userId },
+            },
+            select: { id: true, username: true },
+          });
+
+          await tx.mention.createMany({
+            data: mentionedUsers.map((user) => ({
+              postId: created.id,
+              userId: user.id,
+              username: user.username,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        const post = await tx.post.findUnique({
           where: { id: created.id },
-          include: {
-            media: { orderBy: { orderIndex: 'asc' } },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            likeCount: true,
+            replyCount: true,
+            repostCount: true,
+            bookmarkCount: true,
             user: {
               select: {
                 id: true,
                 username: true,
+                displayName: true,
                 avatarUrl: true,
               },
             },
-            _count: {
+            media: {
+              orderBy: { orderIndex: 'asc' },
               select: {
-                likes: true,
-                replies: true,
-                reposts: true,
-                bookmarks: true,
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
               },
             },
           },
         });
+
+        return { post, mentionedUsers };
       });
 
-      return fullPost;
+      if (fullPost.mentionedUsers.length > 0) {
+        fullPost.mentionedUsers.forEach((user) => {
+          this.notificationService.sendNotification({
+            type: NotificationType.MENTION,
+            postId: fullPost.post?.id,
+            actorId: userId,
+            userId: user.id,
+          });
+        });
+      }
+
+      return fullPost.post;
     } catch (error) {
       // Cleanup S3 if transaction fail
       if (uploadedKeys.length > 0) {
@@ -189,10 +272,15 @@ export class PostsService {
               replyCount: true,
               repostCount: true,
               bookmarkCount: true,
+              replyPolicy: true,
+              replyFollowers: true,
+              replyFollowing: true,
+              replyMentioned: true,
               user: {
                 select: {
                   id: true,
                   username: true,
+                  displayName: true,
                   avatarUrl: true,
                   verified: true,
                 },
@@ -273,10 +361,15 @@ export class PostsService {
         replyCount: true,
         repostCount: true,
         bookmarkCount: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
         user: {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             verified: true,
             followersCount: true,
@@ -361,6 +454,221 @@ export class PostsService {
     };
   }
 
+  async getPostDetail(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
+        allowQuote: true,
+        parentPostId: true,
+        rootPostId: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+            bio: true,
+            followersCount: true,
+            followingCount: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            width: true,
+            height: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+
+    // Build parent chain (root → ... → immediate parent)
+    const parentChain: any[] = [];
+    if (post.parentPostId) {
+      let currentParentId: string | null = post.parentPostId;
+      const maxDepth = 20;
+      let depth = 0;
+      while (currentParentId && depth < maxDepth) {
+        const parent = await this.prisma.post.findUnique({
+          where: { id: currentParentId, isDeleted: false },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            parentPostId: true,
+            likeCount: true,
+            replyCount: true,
+            repostCount: true,
+            bookmarkCount: true,
+            replyPolicy: true,
+            replyFollowers: true,
+            replyFollowing: true,
+            replyMentioned: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                verified: true,
+                bio: true,
+                followersCount: true,
+                followingCount: true,
+              },
+            },
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
+            },
+          },
+        });
+        if (!parent) break;
+        parentChain.unshift(parent);
+        currentParentId = parent.parentPostId;
+        depth++;
+      }
+    }
+
+    const parentIds = parentChain.map((p) => p.id);
+    const allUserIds = [
+      ...new Set([post.user.id, ...parentChain.map((p) => p.user.id)]),
+    ];
+
+    const [
+      follow,
+      liked,
+      bookmarked,
+      reposted,
+      authorFollowsMe,
+      parentLikes,
+      parentBookmarks,
+      parentReposts,
+      parentFollows,
+    ] = await Promise.all([
+      this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: userId,
+            followingId: post.user.id,
+          },
+        },
+      }),
+      this.prisma.like.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.bookmark.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.repost.findUnique({
+        where: { userId_postId: { userId, postId } },
+      }),
+      this.prisma.follow.findMany({
+        where: {
+          followerId: post.user?.id,
+          followingId: userId,
+        },
+      }),
+      parentIds.length > 0
+        ? this.prisma.like.findMany({
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
+        : [],
+      parentIds.length > 0
+        ? this.prisma.bookmark.findMany({
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
+        : [],
+      parentIds.length > 0
+        ? this.prisma.repost.findMany({
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
+        : [],
+      this.prisma.follow.findMany({
+        where: {
+          followerId: userId,
+          followingId: { in: allUserIds },
+        },
+        select: { followingId: true },
+      }),
+    ]);
+
+    const parentLikeSet = new Set(
+      (parentLikes as { postId: string }[]).map((l) => l.postId),
+    );
+    const parentBookmarkSet = new Set(
+      (parentBookmarks as { postId: string }[]).map((b) => b.postId),
+    );
+    const parentRepostSet = new Set(
+      (parentReposts as { postId: string }[]).map((r) => r.postId),
+    );
+    const followSet = new Set(
+      (parentFollows as { followingId: string }[]).map((f) => f.followingId),
+    );
+
+    const enrichedParentChain = parentChain.map((parent) => ({
+      ...parent,
+      isLiked: parentLikeSet.has(parent.id),
+      isBookmarked: parentBookmarkSet.has(parent.id),
+      isReposted: parentRepostSet.has(parent.id),
+      user: {
+        ...parent.user,
+        followStatus:
+          parent.user.id === userId
+            ? null
+            : followSet.has(parent.user.id)
+              ? 'following'
+              : 'none',
+      },
+    }));
+
+    return {
+      ...post,
+      isLiked: !!liked,
+      isBookmarked: !!bookmarked,
+      isReposted: !!reposted,
+      parentChain: enrichedParentChain,
+      user: {
+        ...post.user,
+        isFollowedByAuthor: !!(authorFollowsMe as any[]).length,
+        followStatus:
+          post.user.id === userId
+            ? null
+            : followSet.has(post.user.id)
+              ? 'following'
+              : 'none',
+      },
+    };
+  }
+
   async delete(userId: string, postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
@@ -401,6 +709,232 @@ export class PostsService {
       const keys = post.media.map((m) => this.extractKeyFromUrl(m.mediaUrl));
       await this.scheduleCleanup(keys, 'post_deleted');
     }
+  }
+
+  async createReply(
+    userId: string,
+    postId: string,
+    createReplyDto: CreateReplyDto,
+    images?: Express.Multer.File[],
+  ) {
+    const { content, gifUrl } = createReplyDto;
+
+    const parentPost = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      select: { id: true, rootPostId: true, userId: true },
+    });
+
+    if (!parentPost) throw new NotFoundException('Post not found');
+
+    const rootPostId = parentPost.rootPostId ?? postId;
+
+    let uploadResults: UploadResult[] = [];
+    const uploadedKeys: string[] = [];
+
+    if (images && images.length > 0) {
+      try {
+        uploadResults = await this.s3Service.uploadImages(
+          images,
+          `public/posts/${userId}/images`,
+          { resize: true, quality: 85 },
+        );
+        uploadedKeys.push(...uploadResults.map((r) => r.key));
+      } catch (error) {
+        this.logger.error('Error uploading images', error);
+        throw new Error('Failed to upload images');
+      }
+    }
+
+    let gifUploadResult: UploadResult | null = null;
+    if (!images?.length && gifUrl) {
+      try {
+        const response = await fetch(gifUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to download GIF: ${response.statusText}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        gifUploadResult = await this.s3Service.uploadBuffer(
+          buffer,
+          `public/posts/${userId}/gifs`,
+          'gif',
+          'image/gif',
+        );
+        uploadedKeys.push(gifUploadResult.key);
+      } catch (error) {
+        this.logger.error('Error uploading GIF to S3', error);
+        throw new Error('Failed to upload GIF');
+      }
+    }
+
+    try {
+      const reply = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.post.create({
+          data: {
+            content: content ?? '',
+            parentPostId: postId,
+            rootPostId,
+            userId,
+          },
+        });
+
+        await tx.post.update({
+          where: { id: postId },
+          data: { replyCount: { increment: 1 } },
+        });
+
+        await tx.user.update({
+          where: { id: userId },
+          data: { postsCount: { increment: 1 } },
+        });
+
+        if (uploadResults.length > 0) {
+          await tx.postMedia.createMany({
+            data: uploadResults.map((u, idx) => ({
+              postId: created.id,
+              mediaUrl: u.url,
+              mediaType: MediaType.IMAGE,
+              fileSize: u.size,
+              orderIndex: idx,
+            })),
+          });
+        }
+
+        if (gifUploadResult) {
+          await tx.postMedia.create({
+            data: {
+              postId: created.id,
+              mediaUrl: gifUploadResult.url,
+              mediaType: MediaType.GIF,
+              fileSize: gifUploadResult.size,
+              orderIndex: 0,
+            },
+          });
+        }
+
+        return tx.post.findUnique({
+          where: { id: created.id },
+          include: {
+            media: { orderBy: { orderIndex: 'asc' } },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                verified: true,
+              },
+            },
+          },
+        });
+      });
+
+      this.socketGateway.emitToPost(postId, 'new-reply', reply);
+
+      if (parentPost.userId !== userId) {
+        this.notificationService.sendNotification({
+          type: NotificationType.REPLY,
+          postId,
+          actorId: userId,
+          userId: parentPost.userId,
+        });
+      }
+
+      return reply;
+    } catch (error) {
+      if (uploadedKeys.length > 0) {
+        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+      }
+      throw error;
+    }
+  }
+
+  async getReplies(
+    userId: string,
+    postId: string,
+    cursor?: string,
+    limit: number = 20,
+  ) {
+    const cursorDate = cursor ? new Date(cursor) : null;
+
+    const replies = await this.prisma.post.findMany({
+      where: {
+        parentPostId: postId,
+        isDeleted: false,
+        ...(cursorDate &&
+          !isNaN(cursorDate.getTime()) && {
+            createdAt: { gt: cursorDate },
+          }),
+      },
+      take: limit + 1,
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        parentPostId: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = replies.length > limit;
+    if (hasMore) replies.pop();
+
+    const nextCursor = hasMore
+      ? replies[replies.length - 1].createdAt.toISOString()
+      : null;
+
+    const replyIds = replies.map((r) => r.id);
+
+    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
+      this.prisma.like.findMany({
+        where: { userId, postId: { in: replyIds } },
+        select: { postId: true },
+      }),
+      this.prisma.bookmark.findMany({
+        where: { userId, postId: { in: replyIds } },
+        select: { postId: true },
+      }),
+      this.prisma.repost.findMany({
+        where: { userId, postId: { in: replyIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedSet = new Set(likedPosts.map((l) => l.postId));
+    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
+    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
+
+    return {
+      replies: replies.map((r) => ({
+        ...r,
+        isLiked: likedSet.has(r.id),
+        isBookmarked: bookmarkedSet.has(r.id),
+        isReposted: repostedSet.has(r.id),
+      })),
+      nextCursor,
+      hasMore,
+    };
   }
 
   private async scheduleCleanup(

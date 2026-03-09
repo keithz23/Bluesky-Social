@@ -33,7 +33,11 @@ export interface UploadImagesJobData {
 
 export interface CleanupJobData {
   keys: string[];
-  reason: 'transaction_failed' | 'post_deleted' | 'orphaned';
+  reason:
+    | 'transaction_failed'
+    | 'post_deleted'
+    | 'orphaned'
+    | 'replaced_by_new_upload';
   retryCount?: number;
 }
 

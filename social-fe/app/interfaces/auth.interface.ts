@@ -19,7 +19,8 @@ export interface ResetPasswordData {
 }
 
 export interface UpdateProfileData {
-  email: string;
-  password: string;
-  dateOfBirth: string;
+  displayName?: string;
+  bio?: string;
+  avatarFile?: File;
+  coverFile?: File;
 }

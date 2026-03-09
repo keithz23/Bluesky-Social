@@ -9,14 +9,30 @@ import Avatar from "../avatar";
 
 interface UserHoverCardProps {
   data: any;
+  handleProfileClick?: () => void;
 }
 
-export default function UserHoverCard({ data }: UserHoverCardProps) {
+export default function UserHoverCard({
+  data,
+  handleProfileClick,
+}: UserHoverCardProps) {
   const { follow } = useFollow(data.user.id);
   return (
-    <HoverCard>
+    <HoverCard openDelay={400} closeDelay={150}>
       <HoverCardTrigger asChild>
-        <span>{data.user.username} </span>
+        <button
+          type="button"
+          className="cursor-pointer flex items-center gap-x-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleProfileClick?.();
+          }}
+        >
+          {data.user.displayName}
+          <span className="text-gray-400 font-medium">
+            @{data.user.username}
+          </span>
+        </button>
       </HoverCardTrigger>
 
       <HoverCardContent className="w-72 p-4 rounded-2xl shadow-xl border border-gray-100">
@@ -47,7 +63,7 @@ export default function UserHoverCard({ data }: UserHoverCardProps) {
         <div className="mb-2">
           <div className="flex items-center gap-1">
             <p className="font-extrabold text-[16px] text-gray-900">
-              {data.user.username}
+              {data.user.displayName}
             </p>
             {data.user.verified && (
               <BadgeCheck className="w-4 h-4 text-blue-500" />

@@ -1,30 +1,24 @@
 "use client";
 import SavedPostCard from "@/app/components/card/save-post-card";
 import { useGetBookmarks } from "@/app/hooks/use-bookmark";
-import {
-  ArrowLeft,
-  MessageSquare,
-  Repeat2,
-  Heart,
-  Bookmark,
-  Share,
-  MoreHorizontal,
-} from "lucide-react";
+import { ArrowLeft, Bookmark } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function SavedPostsPage() {
+  const router = useRouter();
   const { data: bookmarks = [], isLoading } = useGetBookmarks();
 
   return (
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-4">
-        <Link
-          href="/"
+        <button
+          onClick={() => router.back()}
           className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"
         >
           <ArrowLeft className="w-6 h-6 text-gray-900" />
-        </Link>
+        </button>
         <h1 className="text-xl font-bold text-gray-900 ml-4">Saved Posts</h1>
       </div>
 

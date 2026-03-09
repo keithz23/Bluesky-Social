@@ -145,3 +145,13 @@
   }
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+.mention-highlight {
+  background-color: rgba(0, 102, 255, 0.1);
+  color: transparent;
+  border-radius: 4px;
+  padding: 2px 0;
+}

@@ -26,57 +26,9 @@ export class UpdateProfileDto {
   @MaxLength(500)
   bio?: string;
 
-  @ApiPropertyOptional({ example: 'https://example.com' })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      const v = value.trim();
-      return v === '' ? undefined : v;
-    }
-    return value;
-  })
-  @ValidateIf((o) => o.website !== undefined)
-  @IsUrl()
-  website?: string;
+  avatarUrl: string;
 
-  @ApiPropertyOptional({ example: 'San Francisco, CA' })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  location?: string;
-
-  @ApiPropertyOptional({
-    example: false,
-    description: 'Make account private (requires approval for follows)',
-  })
-  @IsOptional()
-  @IsBoolean()
-  isPrivate?: boolean;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  @Transform(({ value }) =>
-    typeof value === 'string' && value.trim() === '' ? undefined : value,
-  )
-  linkTitle?: string;
-
-  @ApiPropertyOptional({ example: 'https://example.com' })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      const v = value.trim();
-      return v === '' ? undefined : v;
-    }
-    return value;
-  })
-  @ValidateIf((o) => o.link !== undefined)
-  @IsUrl()
-  link?: string;
-
-  @ApiPropertyOptional({ example: ['music', 'coding', 'chilling'] })
-  @IsArray()
-  @IsOptional()
-  interests?: string[];
+  coverUrl: string;
 }

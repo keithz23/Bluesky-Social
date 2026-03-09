@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 
 export class PostQueryDto {
   @IsOptional()
-  cursor?: string; // post_id cuối của page trước
+  cursor?: string;
 
   @IsOptional()
   @Type(() => Number)

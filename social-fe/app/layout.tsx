@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "@/providers/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SocketProvider } from "@/providers/socket.provider";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -28,7 +29,9 @@ export default function RootLayout({
       >
         <Providers>
           <Toaster richColors position="top-center" />
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <SocketProvider>{children}</SocketProvider>
+          </TooltipProvider>
         </Providers>
       </body>
     </html>

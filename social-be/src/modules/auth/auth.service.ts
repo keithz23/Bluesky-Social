@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { addMinutes } from 'date-fns';
 import { randomBytes } from 'crypto';
@@ -22,16 +23,29 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PasswordResetToken, User } from '@prisma/client';
 import * as crypto from 'crypto';
 import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
+import { S3Service } from 'src/uploads/s3.service';
+import { UploadResult } from 'src/common/interfaces/file-upload.interface';
+import {
+  CleanupJobData,
+  JOB_NAMES,
+  QUEUE_NAMES,
+} from 'src/common/constants/queue.constant';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 const RESET_TTL_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
+  private logger = new Logger(AuthService.name);
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
+    private s3Service: S3Service,
+    @InjectQueue(QUEUE_NAMES.CLEANUP)
+    private cleanupQueue: Queue<CleanupJobData>,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<User> {
@@ -63,6 +77,7 @@ export class AuthService {
           username,
           passwordHash,
           dateOfBirth,
+          displayName: username,
         },
       });
 
@@ -213,15 +228,91 @@ export class AuthService {
     return this.transformUser(user);
   }
 
-  async updateProfile(userId: string, updateDto: UpdateProfileDto) {
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: updateDto,
-    });
+  async updateProfile(
+    userId: string,
+    updateDto: UpdateProfileDto,
+    avatar?: Express.Multer.File[],
+    cover?: Express.Multer.File[],
+  ) {
+    const uploadedKeys: string[] = [];
 
-    const profile = this.transformUser(user);
+    try {
+      // Upload avatar
+      if (avatar?.length) {
+        const results = await this.s3Service
+          .uploadImages(avatar, `public/avatar/${userId}`, {
+            resize: true,
+            quality: 85,
+          })
+          .catch((error) => {
+            this.logger.error('Error uploading avatar', error);
+            throw new BadRequestException('Failed to upload avatar');
+          });
 
-    return profile;
+        uploadedKeys.push(...results.map((r) => r.key));
+        updateDto.avatarUrl = results[0].url;
+      }
+
+      // Upload cover
+      if (cover?.length) {
+        const results = await this.s3Service
+          .uploadImages(cover, `public/cover/${userId}`, {
+            resize: true,
+            quality: 85,
+          })
+          .catch((error) => {
+            this.logger.error('Error uploading cover', error);
+            throw new BadRequestException('Failed to upload cover');
+          });
+
+        uploadedKeys.push(...results.map((r) => r.key));
+        updateDto.coverUrl = results[0].url;
+      }
+
+      // Get old image before update to delete later
+      const oldUser = uploadedKeys.length
+        ? await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { avatarUrl: true, coverUrl: true },
+          })
+        : null;
+
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data: updateDto,
+      });
+
+      // Deleted old image after update db
+      if (oldUser) {
+        const oldKeys = [
+          updateDto.avatarUrl && oldUser.avatarUrl
+            ? this.s3Service.extractKeyFromUrl(oldUser.avatarUrl)
+            : null,
+          updateDto.coverUrl && oldUser.coverUrl
+            ? this.s3Service.extractKeyFromUrl(oldUser.coverUrl)
+            : null,
+        ].filter(Boolean);
+
+        if (oldKeys.length) {
+          this.scheduleCleanup(
+            oldKeys as string[],
+            'replaced_by_new_upload',
+          ).catch((err) =>
+            this.logger.warn('Failed to schedule old image cleanup', err),
+          );
+        }
+      }
+
+      return this.transformUser(user);
+    } catch (error) {
+      if (uploadedKeys.length) {
+        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+        this.logger.warn(
+          `Scheduled cleanup for ${uploadedKeys.length} orphaned files`,
+        );
+      }
+      throw error;
+    }
   }
 
   async changePassword(
@@ -566,6 +657,7 @@ export class AuthService {
         dateOfBirth: '',
         avatarUrl: googleUser.picture,
         verified: true,
+        displayName: username,
       },
     });
 
@@ -609,5 +701,23 @@ export class AuthService {
       postsCount: user.postsCount,
       createdAt: user.createdAt,
     };
+  }
+
+  private async scheduleCleanup(
+    keys: string[],
+    reason: CleanupJobData['reason'],
+  ) {
+    await this.cleanupQueue.add(
+      JOB_NAMES.CLEANUP_FAILED_UPLOAD,
+      { keys, reason },
+      {
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        delay: 1000, // Delay 1s before cleanup
+      },
+    );
   }
 }

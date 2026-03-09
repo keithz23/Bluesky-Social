@@ -15,10 +15,8 @@ import {
   Layers,
   BadgeCheck,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
-  const router = useRouter();
   const { data: users = [], isLoading } = useSuggestedUsers(20);
   // --- MOCK DATA ---
   const trendingTopics = [
@@ -264,7 +262,7 @@ export default function ExplorePage() {
                   <div className="flex flex-col truncate pr-4">
                     <div className="flex items-center gap-1">
                       <span className="font-bold text-gray-900 truncate hover:underline cursor-pointer">
-                        {user.username}
+                        {user.displayName}
                       </span>
                       {user.verified && (
                         <BadgeCheck className="w-4 h-4 text-blue-500 shrink-0" />
