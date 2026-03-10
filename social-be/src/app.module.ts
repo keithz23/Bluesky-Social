@@ -25,6 +25,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ChatModule } from './modules/chat/chat.module';
 import { ListsModule } from './modules/lists/lists.module';
+import { ListsMemberModule } from './modules/lists-member/lists-member.module';
 
 @Module({
   imports: [
@@ -98,6 +99,7 @@ import { ListsModule } from './modules/lists/lists.module';
     NotificationsModule,
     ChatModule,
     ListsModule,
+    ListsMemberModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [
