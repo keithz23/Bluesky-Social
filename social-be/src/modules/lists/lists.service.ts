@@ -101,6 +101,24 @@ export class ListsService {
         listPhoto: true,
         createdAt: true,
         userId: true,
+        members: {
+          select: {
+            id: true,
+            listId: true,
+            memberId: true,
+            addedBy: true,
+            addedAt: true,
+            user: {
+              select: {
+                id: true,
+                bio: true,
+                username: true,
+                avatarUrl: true,
+                coverUrl: true,
+              },
+            },
+          },
+        },
         user: {
           select: {
             id: true,

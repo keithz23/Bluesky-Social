@@ -73,6 +73,7 @@ model User {
   messageMentions         MessageMention[]
   messageDeletedFors      MessageDeletedFor[]
   lists                   List[]
+  listMembers             ListMember[]
 
   @@index([username])
   @@index([email])
@@ -291,12 +292,32 @@ model List {
   listPhoto   String?  @map("list_photo")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items  ListItem[] // Danh sách các bài post nằm trong list này
-  post   Post?      @relation(fields: [postId], references: [id])
-  postId String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items ListItem[]
+
+  members ListMember[]
+  post    Post?        @relation(fields: [postId], references: [id])
+  postId  String?
 
   @@map("lists")
+}
+
+model ListMember {
+  id     String @id @default(cuid())
+  listId String @map("list_id")
+
+  memberId String   @map("member_id")
+  addedBy  String   @map("added_by")
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, memberId])
+  @@index([listId])
+  @@map("list_members")
 }
 
 model ListItem {
