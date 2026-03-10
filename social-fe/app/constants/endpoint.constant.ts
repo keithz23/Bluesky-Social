@@ -143,4 +143,15 @@ export const API_ENDPOINT = {
     },
     SEND_MESSAGE: (id: string) => `/conversations/${id}/messages`,
   },
+
+  LISTS: {
+    CREATE_LIST: `/lists/create-list`,
+    GET_LISTS: (params?: { cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
+    },
+  },
 };

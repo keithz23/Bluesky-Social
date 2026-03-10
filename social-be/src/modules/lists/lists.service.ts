@@ -12,6 +12,7 @@ import {
 } from 'src/common/constants/queue.constant';
 import { Queue } from 'bullmq';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
+import { FeedQueryDto } from '../feed/dto/feed-query.dto';
 
 @Injectable()
 export class ListsService {
@@ -30,17 +31,17 @@ export class ListsService {
   async createList(
     userId: string,
     createListDto: CreateListDto,
-    listPhotos?: Express.Multer.File[],
+    listFile: Express.Multer.File,
   ) {
     const { name, description } = createListDto;
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
     let photoUrl: string | undefined = undefined;
 
-    if (listPhotos && listPhotos.length > 0) {
+    if (listFile) {
       try {
         uploadResults = await this.s3Service.uploadImages(
-          listPhotos,
+          [listFile],
           `public/list/${userId}`,
           { resize: true, quality: 85 },
         );
@@ -78,7 +79,9 @@ export class ListsService {
     }
   }
 
-  async getLists(userId: string, cursorId?: string, limit: number = 20) {
+  async getLists(userId: string, query: FeedQueryDto) {
+    const limit = query.limit ?? 20;
+    const cursorId = query.cursor;
     const lists = await this.prisma.list.findMany({
       where: {
         userId,
@@ -98,6 +101,15 @@ export class ListsService {
         listPhoto: true,
         createdAt: true,
         userId: true,
+        user: {
+          select: {
+            id: true,
+            bio: true,
+            username: true,
+            avatarUrl: true,
+            coverUrl: true,
+          },
+        },
       },
     });
 
@@ -109,7 +121,83 @@ export class ListsService {
 
     return {
       lists,
+      hasMore,
       nextCursor,
+    };
+  }
+
+  async getListById(userId: string, listId: string) {
+    const list = await this.prisma.list.findUnique({
+      where: {
+        id: listId,
+        userId,
+      },
+
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        listPhoto: true,
+        createdAt: true,
+
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+
+        items: {
+          orderBy: { addedAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            post: {
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                likeCount: true,
+                replyCount: true,
+                repostCount: true,
+                bookmarkCount: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                    verified: true,
+                  },
+                },
+                media: {
+                  orderBy: { orderIndex: 'asc' },
+                  select: {
+                    id: true,
+                    mediaUrl: true,
+                    mediaType: true,
+                    width: true,
+                    height: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!list) return null;
+
+    const mappedPosts = list.items.map((item) => item.post);
+
+    const { items, ...listData } = list;
+
+    return {
+      ...listData,
+      posts: mappedPosts,
     };
   }
 
