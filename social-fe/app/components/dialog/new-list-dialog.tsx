@@ -1,5 +1,4 @@
 "use client";
-
 import { useRef, useState } from "react";
 import {
   Dialog,
@@ -11,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Users, Camera, Plus } from "lucide-react";
+import { useLists } from "@/app/hooks/use-list";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function NewListDialog({
   children,
@@ -23,9 +24,10 @@ export default function NewListDialog({
   const [listPhoto, setListPhoto] = useState<string | undefined>(undefined);
   const [listFile, setListFile] = useState<File | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-
+  const { createListMutation, isCreating } = useLists();
   const listInputRef = useRef<HTMLInputElement>(null);
-  const isSaveEnabled = name.trim().length > 0;
+
+  const isSaveEnabled = name.trim().length > 0 && !isCreating;
 
   const hasChanges =
     name.trim().length > 0 || description.trim().length > 0 || listPhoto;
@@ -43,20 +45,38 @@ export default function NewListDialog({
 
   const handleSave = () => {
     if (!isSaveEnabled) return;
+    const data = {
+      name,
+      description,
+      listFile,
+    };
 
-    console.log({ name, description, listFile });
-
-    setIsOpen(false);
+    createListMutation.mutate(
+      {
+        payload: data,
+      },
+      {
+        onSuccess: () => {
+          setIsOpen(false);
+          resetForm();
+        },
+        onError: (error) => {
+          console.error("Failed to create list", error);
+        },
+      },
+    );
   };
 
   const resetForm = () => {
-    setName("")
+    setName("");
     setDescription("");
-    setListPhoto("");
+    setListPhoto(undefined);
     setListFile(undefined);
   };
 
   const handleCloseAttempt = () => {
+    if (isCreating) return;
+
     if (hasChanges) {
       setShowExitConfirm(true);
     } else {
@@ -104,7 +124,12 @@ export default function NewListDialog({
             <button
               type="button"
               onClick={handleCloseAttempt}
-              className="text-[15px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              disabled={isCreating}
+              className={`text-[15px] font-medium transition-colors ${
+                isCreating
+                  ? "text-gray-400 cursor-not-allowed"
+                  : "text-blue-600 hover:text-blue-700 cursor-pointer"
+              }`}
             >
               Cancel
             </button>
@@ -123,7 +148,13 @@ export default function NewListDialog({
                   : "text-gray-400 cursor-not-allowed"
               }`}
             >
-              Save
+              {isCreating ? (
+                <div className="flex items-center gap-x-1.5 opacity-80">
+                  <Spinner className="w-4 h-4" /> <span>Saving...</span>
+                </div>
+              ) : (
+                <span>Save</span>
+              )}
             </button>
           </div>
 
@@ -141,11 +172,18 @@ export default function NewListDialog({
                 ref={listInputRef}
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleListPhotoUpload}
+                disabled={isCreating}
               />
 
               <div
-                onClick={() => listInputRef.current?.click()}
-                className="relative w-20 h-20 bg-[#1185fe] rounded-2xl flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity bg-cover bg-center border border-gray-100 shadow-sm"
+                onClick={() => {
+                  if (!isCreating) listInputRef.current?.click();
+                }}
+                className={`relative w-20 h-20 bg-[#1185fe] rounded-2xl flex items-center justify-center transition-all bg-cover bg-center border border-gray-100 shadow-sm ${
+                  isCreating
+                    ? "opacity-60 cursor-not-allowed"
+                    : "cursor-pointer hover:opacity-90"
+                }`}
                 style={{
                   backgroundImage: listPhoto ? `url(${listPhoto})` : "none",
                 }}
@@ -174,7 +212,8 @@ export default function NewListDialog({
                 placeholder="e.g. Great Posters"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="text-[15px] py-6 bg-transparent border-gray-300 rounded-xl focus-visible:ring-0 focus-visible:border focus-visible:border-[#1185fe] transition-all"
+                disabled={isCreating}
+                className="text-[15px] py-6 bg-transparent border-gray-300 rounded-xl focus-visible:ring-0 focus-visible:border focus-visible:border-[#1185fe] transition-all disabled:bg-gray-50 disabled:text-gray-500"
                 autoFocus
               />
             </div>
@@ -192,7 +231,8 @@ export default function NewListDialog({
                 placeholder="e.g. The posters who never miss."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="text-[15px] min-h-25 resize-none bg-gray-50/50 border-gray-200 rounded-xl focus-visible:bg-white focus-visible:ring-0 focus-visible:border focus-visible:border-[#1185fe] transition-all"
+                disabled={isCreating}
+                className="text-[15px] min-h-25 resize-none bg-gray-50/50 border-gray-200 rounded-xl focus-visible:bg-white focus-visible:ring-0 focus-visible:border focus-visible:border-[#1185fe] transition-all disabled:opacity-70"
               />
             </div>
           </div>

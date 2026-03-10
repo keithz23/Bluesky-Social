@@ -37,7 +37,10 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // I map the userId from the database to the socket.id.
     // By using Rooms, I can bridge the gap between a persistent User identity and their temporary physical connections.
     try {
-      const token = client.handshake.auth?.token;
+      const token =
+        client.handshake.auth?.token ||
+        client.handshake.headers?.authorization?.replace('Bearer ', '') || // for Headers (Postman)
+        client.handshake.query?.token; // For params (postman)
       if (!token) throw new Error("Can't find token in auth handshake");
 
       const payload = this.jwtService.verify(token, {
@@ -80,9 +83,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     client.leave(`post:${data.postId}`);
-    this.logger.log(
-      `User ${client.data.userId} left room post:${data.postId}`,
-    );
+    this.logger.log(`User ${client.data.userId} left room post:${data.postId}`);
   }
 
   // ── Broadcast helpers ─────────────────────────────────────
