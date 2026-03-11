@@ -174,15 +174,20 @@ export class FollowsService {
   async getFollowingLists(query: FollowQueryDto) {
     const limit = query.limit ?? 20;
     const username = query.username;
+    const listId = query.listId;
 
     const user = await this.prisma.user.findFirst({
       where: { username },
       select: { id: true },
     });
 
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const follows = await this.prisma.follow.findMany({
       where: {
-        followerId: user?.id,
+        followerId: user.id,
       },
       take: limit + 1,
       ...(query.cursor && {
@@ -190,7 +195,9 @@ export class FollowsService {
         skip: 1,
       }),
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        createdAt: true,
         following: {
           select: {
             id: true,
@@ -200,6 +207,12 @@ export class FollowsService {
             avatarUrl: true,
             coverUrl: true,
             verified: true,
+            ...(listId && {
+              listMembers: {
+                where: { listId: listId },
+                select: { id: true },
+              },
+            }),
           },
         },
       },
@@ -210,11 +223,16 @@ export class FollowsService {
 
     const nextCursor = hasMore ? follows[follows.length - 1].id : null;
 
-    const formattedFollowing = follows.map((f) => ({
-      followId: f.id,
-      followedAt: f.createdAt,
-      ...f.following,
-    }));
+    const formattedFollowing = follows.map((f) => {
+      const { listMembers, ...userData } = f.following as any;
+
+      return {
+        followId: f.id,
+        followedAt: f.createdAt,
+        ...userData,
+        isAdded: listId ? listMembers && listMembers.length > 0 : false,
+      };
+    });
 
     return {
       following: formattedFollowing,

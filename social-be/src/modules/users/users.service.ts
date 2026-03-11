@@ -57,29 +57,37 @@ export class UsersService {
   }
 
   async searchUser(userId: string, searchUserDto: SearchUserDto) {
-    const { q, limit = 10 } = searchUserDto;
+    const { q, limit = 10, listId } = searchUserDto;
 
-    const users = await this.prisma.$queryRaw<User[]>`
-      SELECT 
-        id, username, bio, verified,
-        avatar_url AS "avatarUrl",
-        cover_url AS "coverUrl",
-        display_name AS "displayName"
-      FROM users
-      WHERE (
-        username ILIKE ${`%${q}%`}
-        OR display_name ILIKE ${`%${q}%`}
-      )
-      AND id != ${userId}
-      ORDER BY
-        CASE 
-          WHEN username ILIKE ${`${q}%`} THEN 0      -- exact prefix match username
-          WHEN display_name ILIKE ${`${q}%`} THEN 1  -- exact prefix match display_name
-          ELSE 2
-        END
-      LIMIT ${Prisma.sql`${limit}::int`}
-    `;
+    const isAddedSelect = listId
+      ? Prisma.sql`, EXISTS(SELECT 1 FROM list_members lm WHERE lm.member_id = users.id AND lm.list_id = ${listId}) AS "isAdded"`
+      : Prisma.sql`, false AS "isAdded"`;
 
-    return users;
+    const users = await this.prisma.$queryRaw<any[]>`
+    SELECT 
+      id, username, bio, verified,
+      avatar_url AS "avatarUrl",
+      cover_url AS "coverUrl",
+      display_name AS "displayName"
+      ${isAddedSelect} 
+    FROM users
+    WHERE (
+      username ILIKE ${`%${q}%`}
+      OR display_name ILIKE ${`%${q}%`}
+    )
+    AND id != ${userId}
+    ORDER BY
+      CASE 
+        WHEN username ILIKE ${`${q}%`} THEN 0      -- exact prefix match username
+        WHEN display_name ILIKE ${`${q}%`} THEN 1  -- exact prefix match display_name
+        ELSE 2
+      END
+    LIMIT ${Prisma.sql`${limit}::int`}
+  `;
+
+    return users.map((user) => ({
+      ...user,
+      isAdded: Boolean(user.isAdded),
+    }));
   }
 }

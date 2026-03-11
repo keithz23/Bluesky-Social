@@ -53,7 +53,8 @@ export default function ProfileLayout({
   if (
     pathname === `/profile/${username}/follows` ||
     pathname === `/profile/${username}/followers` ||
-    pathname.startsWith(`/profile/${username}/post/`)
+    pathname.startsWith(`/profile/${username}/post/`) ||
+    pathname.startsWith(`/profile/${username}/lists/`)
   ) {
     return children;
   }

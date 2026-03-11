@@ -13,4 +13,7 @@ export class FollowQueryDto {
   @Min(1)
   @Max(50)
   limit?: number = 20;
+
+  @IsOptional()
+  listId?: string;
 }

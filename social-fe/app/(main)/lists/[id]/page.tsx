@@ -7,13 +7,32 @@ import {
   MoreHorizontal,
   Hash,
   UserPlus,
+  Radio,
   Users,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useGetListById } from "@/app/hooks/use-list";
+import { useAuth } from "@/app/hooks/use-auth";
+import Loading from "@/app/components/loading";
 
 export default function ListDetailPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"posts" | "people">("posts");
+  const { id } = useParams<{ id: string }>();
+  const { data, isLoading } = useGetListById(id);
+
+  const list = data?.data;
+
+  const isOwner = list
+    ? user?.id === list.userId
+      ? "List by you"
+      : `List by ${list.user?.username || "Unknown"}`
+    : "";
+
+  if (isLoading) {
+    return <Loading />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-white pb-20">
@@ -38,28 +57,35 @@ export default function ListDetailPage() {
 
       <div className="px-4 py-2 flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 shrink-0 bg-[#1185fe] rounded-xl flex items-center justify-center">
-            <Users className="w-8 h-8 text-white" strokeWidth={2} />
-          </div>
+          {list?.listPhoto ? (
+            <div className="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center overflow-hidden">
+              <Users className="w-7 h-7 text-white" strokeWidth={2.5} />
+              <img src={list?.listPhoto} alt="list photo" />
+            </div>
+          ) : (
+            <div className="w-12 h-12 shrink-0 bg-[#1185fe] rounded-xl flex items-center justify-center overflow-hidden">
+              <Users className="w-7 h-7 text-white" strokeWidth={2.5} />
+            </div>
+          )}
 
           <div className="flex flex-col justify-center">
             <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">
-              devandbug
+              {isLoading ? "Loading..." : list?.name}
             </h1>
             <p className="text-[15px] text-gray-500 leading-tight mt-0.5">
-              List by you
+              {isOwner}
             </p>
           </div>
         </div>
 
-        {/* Mô tả */}
-        <p className="text-[15px] text-gray-900 whitespace-pre-wrap">
-          devandbug
-        </p>
+        {list?.description && (
+          <p className="text-[15px] text-gray-900 whitespace-pre-wrap">
+            {list.description}
+          </p>
+        )}
       </div>
 
       <div className="sticky top-14 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2">
-        {/* Tab Posts */}
         <button
           onClick={() => setActiveTab("posts")}
           className="flex-1 flex items-center justify-center h-12 relative hover:bg-gray-50 transition-colors cursor-pointer"
@@ -74,7 +100,6 @@ export default function ListDetailPage() {
           )}
         </button>
 
-        {/* Tab People */}
         <button
           onClick={() => setActiveTab("people")}
           className="flex-1 flex items-center justify-center h-12 relative hover:bg-gray-50 transition-colors cursor-pointer"
@@ -91,34 +116,29 @@ export default function ListDetailPage() {
       </div>
 
       <div className="flex-1 flex flex-col items-center pt-24 px-4">
-        {activeTab === "posts" ? (
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 text-gray-400">
-              <Hash className="w-12 h-12" strokeWidth={1} />
-            </div>
-            <p className="text-[15px] text-gray-600 mb-6 font-medium">
-              This feed is empty.
-            </p>
-            <button className="flex items-center gap-2 bg-[#1185fe] hover:bg-blue-600 transition-colors text-white font-bold text-[15px] px-6 py-2.5 rounded-full shadow-sm cursor-pointer">
-              <UserPlus className="w-4 h-4" strokeWidth={2.5} />
-              Start adding people!
-            </button>
-          </div>
+        {isLoading ? (
+          <div className="text-gray-400">Loading feed...</div>
         ) : (
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 text-gray-400">
-              <Hash className="w-12 h-12" strokeWidth={1} />
-            </div>
-            <p className="text-[15px] text-gray-600 mb-6 font-medium">
-              This feed is empty.
-            </p>
-            <button className="flex items-center gap-2 bg-[#1185fe] hover:bg-blue-600 transition-colors text-white font-bold text-[15px] px-6 py-2.5 rounded-full shadow-sm cursor-pointer">
-              <UserPlus className="w-4 h-4" strokeWidth={2.5} />
-              Start adding people!
-            </button>
-          </div>
+          <EmptyFeedState />
         )}
       </div>
+    </div>
+  );
+}
+
+function EmptyFeedState() {
+  return (
+    <div className="flex flex-col items-center text-center animate-in fade-in duration-300">
+      <div className="mb-4 text-gray-400">
+        <Hash className="w-12 h-12" strokeWidth={1} />
+      </div>
+      <p className="text-[15px] text-gray-600 mb-6 font-medium">
+        This feed is empty.
+      </p>
+      <button className="flex items-center gap-2 bg-[#1185fe] hover:bg-blue-600 transition-colors text-white font-bold text-[15px] px-6 py-2.5 rounded-full shadow-sm cursor-pointer">
+        <UserPlus className="w-4 h-4" strokeWidth={2.5} />
+        Start adding people!
+      </button>
     </div>
   );
 }

@@ -55,6 +55,7 @@ export const API_ENDPOINT = {
       username: string;
       cursor?: string;
       limit?: number;
+      listId?: string;
     }) => {
       const query = new URLSearchParams();
 
@@ -62,6 +63,7 @@ export const API_ENDPOINT = {
 
       if (params.cursor) query.set("cursor", params.cursor);
       if (params.limit) query.set("limit", String(params.limit));
+      if (params.listId) query.set("listId", params.listId);
 
       return `/follows/following-lists?${query.toString()}`;
     },
@@ -146,12 +148,33 @@ export const API_ENDPOINT = {
 
   LISTS: {
     CREATE_LIST: `/lists/create-list`,
+    UPDATE_LIST: `/lists/update-list`,
+    DELETE_LIST: (id: string) => `/lists/delete-list/${id}`,
     GET_LISTS: (params?: { cursor?: string; limit?: number }) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
       const qs = query.toString();
       return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
+    },
+    GET_LIST_BY_ID: (id: string) => `lists/get-list-by-id/${id}`,
+  },
+  LISTS_MEMBER: {
+    ADD_MEMBER: (listId: string, participantId: string) =>
+      `/lists-member/${listId}/members/${participantId}`,
+    REMOVE_MEMBER: (listId: string, userIdToRemove: string) =>
+      `/lists-member/${listId}/members/${userIdToRemove}`,
+    GET_LIST_MEMBER: (
+      listId: string,
+      params?: { cursor?: string; limit?: number },
+    ) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs
+        ? `/lists-member/${listId}/get-list-members?${qs}`
+        : `lists-member/${listId}/members`;
     },
   },
 };

@@ -1,5 +1,6 @@
 "use client";
-import { useRef, useState } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,24 +14,59 @@ import { Users, Camera, Plus } from "lucide-react";
 import { useLists } from "@/app/hooks/use-list";
 import { Spinner } from "@/components/ui/spinner";
 
-export default function NewListDialog({
-  children,
-}: {
+interface ListFormDialogProps {
   children?: React.ReactNode;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
+  list?: any;
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function ListFormDialog({
+  children,
+  list,
+  isOpen: externalIsOpen,
+  onClose: externalOnClose,
+}: ListFormDialogProps) {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+
+  const handleOpenChange = (open: boolean) => {
+    if (externalIsOpen !== undefined && externalOnClose) {
+      if (!open) externalOnClose();
+    } else {
+      setInternalIsOpen(open);
+    }
+  };
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [listPhoto, setListPhoto] = useState<string | undefined>(undefined);
   const [listFile, setListFile] = useState<File | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const { createListMutation, isCreating } = useLists();
+
+  const { createListMutation, updateListMutation, isCreating, isUpdating } =
+    useLists();
   const listInputRef = useRef<HTMLInputElement>(null);
 
-  const isSaveEnabled = name.trim().length > 0 && !isCreating;
+  const isEditing = !!list;
+  const isSaving = isEditing ? isUpdating : isCreating;
 
-  const hasChanges =
-    name.trim().length > 0 || description.trim().length > 0 || listPhoto;
+  const hasChanges = isEditing
+    ? name !== list.name ||
+      description !== (list.description || "") ||
+      !!listFile
+    : name.trim().length > 0 || description.trim().length > 0 || !!listPhoto;
+
+  const isSaveEnabled = name.trim().length > 0 && hasChanges && !isSaving;
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(list?.name || "");
+      setDescription(list?.description || "");
+      setListPhoto(list?.listPhoto || undefined);
+      setListFile(undefined);
+    }
+  }, [isOpen, list]);
 
   const handleListPhotoUpload = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -45,26 +81,28 @@ export default function NewListDialog({
 
   const handleSave = () => {
     if (!isSaveEnabled) return;
-    const data = {
-      name,
-      description,
-      listFile,
-    };
+    const data = { name, description, listFile, listId: list.id };
 
-    createListMutation.mutate(
-      {
-        payload: data,
-      },
-      {
-        onSuccess: () => {
-          setIsOpen(false);
-          resetForm();
+    if (isEditing) {
+      updateListMutation.mutate(
+        { payload: data },
+        {
+          onSuccess: () => {
+            handleOpenChange(false);
+          },
         },
-        onError: (error) => {
-          console.error("Failed to create list", error);
+      );
+    } else {
+      createListMutation.mutate(
+        { payload: data },
+        {
+          onSuccess: () => {
+            handleOpenChange(false);
+            resetForm();
+          },
         },
-      },
-    );
+      );
+    }
   };
 
   const resetForm = () => {
@@ -75,38 +113,42 @@ export default function NewListDialog({
   };
 
   const handleCloseAttempt = () => {
-    if (isCreating) return;
+    if (isSaving) return;
 
     if (hasChanges) {
       setShowExitConfirm(true);
     } else {
-      setIsOpen(false);
-      resetForm();
+      handleOpenChange(false);
+      if (!isEditing) resetForm();
     }
   };
 
   const handleConfirmDiscard = () => {
-    resetForm();
+    if (!isEditing) resetForm();
     setShowExitConfirm(false);
-    setIsOpen(false);
+    handleOpenChange(false);
   };
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          {children || (
-            <button
-              type="button"
-              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[15px] px-4 py-1.5 rounded-full transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" strokeWidth={2.5} />
-              New
-            </button>
-          )}
-        </DialogTrigger>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        {!externalIsOpen && (
+          <DialogTrigger asChild>
+            {children || (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[15px] px-4 py-1.5 rounded-full transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                New
+              </button>
+            )}
+          </DialogTrigger>
+        )}
 
-        <DialogTitle className="sr-only">Create user list</DialogTitle>
+        <DialogTitle className="sr-only">
+          {isEditing ? "Edit user list" : "Create user list"}
+        </DialogTitle>
 
         <DialogContent
           onInteractOutside={(e) => {
@@ -119,14 +161,14 @@ export default function NewListDialog({
           }}
           className="sm:max-w-125 p-0 gap-0 overflow-hidden [&>button]:hidden rounded-2xl"
         >
-          {/* --- CUSTOM HEADER --- */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white/90 backdrop-blur-md">
+          {/* --- HEADER --- */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
             <button
               type="button"
               onClick={handleCloseAttempt}
-              disabled={isCreating}
+              disabled={isSaving}
               className={`text-[15px] font-medium transition-colors ${
-                isCreating
+                isSaving
                   ? "text-gray-400 cursor-not-allowed"
                   : "text-blue-600 hover:text-blue-700 cursor-pointer"
               }`}
@@ -135,7 +177,7 @@ export default function NewListDialog({
             </button>
 
             <h2 className="text-[17px] font-bold text-gray-900">
-              Create user list
+              {isEditing ? "Edit user list" : "Create user list"}
             </h2>
 
             <button
@@ -148,7 +190,7 @@ export default function NewListDialog({
                   : "text-gray-400 cursor-not-allowed"
               }`}
             >
-              {isCreating ? (
+              {isSaving ? (
                 <div className="flex items-center gap-x-1.5 opacity-80">
                   <Spinner className="w-4 h-4" /> <span>Saving...</span>
                 </div>
@@ -159,28 +201,26 @@ export default function NewListDialog({
           </div>
 
           {/* --- FORM BODY --- */}
-          <div className="p-4 space-y-6 bg-white">
+          <div className="p-4 space-y-5 bg-white">
             {/* Avatar Section */}
             <div className="space-y-2">
               <Label className="text-[13px] font-medium text-gray-500">
                 List avatar
               </Label>
-
               <input
                 type="file"
                 hidden
                 ref={listInputRef}
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleListPhotoUpload}
-                disabled={isCreating}
+                disabled={isSaving}
               />
-
               <div
                 onClick={() => {
-                  if (!isCreating) listInputRef.current?.click();
+                  if (!isSaving) listInputRef.current?.click();
                 }}
-                className={`relative w-20 h-20 bg-[#1185fe] rounded-2xl flex items-center justify-center transition-all bg-cover bg-center border border-gray-100 shadow-sm ${
-                  isCreating
+                className={`relative w-18 h-18 bg-[#1185fe] rounded-2xl flex items-center justify-center transition-all bg-cover bg-center shadow-sm ${
+                  isSaving
                     ? "opacity-60 cursor-not-allowed"
                     : "cursor-pointer hover:opacity-90"
                 }`}
@@ -189,18 +229,22 @@ export default function NewListDialog({
                 }}
               >
                 {!listPhoto && (
-                  <Users className="w-10 h-10 text-white" strokeWidth={2} />
+                  <Users className="w-9 h-9 text-white" strokeWidth={2} />
                 )}
-
                 {/* Badge Camera */}
-                <div className="absolute -bottom-2 -right-2 bg-gray-900 rounded-full p-1.5 border-2 border-white">
-                  <Camera className="w-4 h-4 text-white" strokeWidth={2.5} />
+                <div className="absolute -bottom-1.5 -right-1.5 bg-white rounded-full p-1 shadow-sm">
+                  <div className="bg-gray-900 rounded-full p-1.5">
+                    <Camera
+                      className="w-3.5 h-3.5 text-white"
+                      strokeWidth={2.5}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* List Name Section */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label
                 htmlFor="list-name"
                 className="text-[13px] font-medium text-gray-500"
@@ -212,14 +256,14 @@ export default function NewListDialog({
                 placeholder="e.g. Great Posters"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={isCreating}
-                className="text-[15px] py-6 bg-transparent border-gray-300 rounded-xl focus-visible:ring-0 focus-visible:border focus-visible:border-[#1185fe] transition-all disabled:bg-gray-50 disabled:text-gray-500"
-                autoFocus
+                disabled={isSaving}
+                className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
+                autoFocus={!isEditing}
               />
             </div>
 
             {/* List Description Section */}
-            <div className="space-y-2">
+            <div className="space-y-1.5 pb-2">
               <Label
                 htmlFor="list-desc"
                 className="text-[13px] font-medium text-gray-500"
@@ -231,19 +275,20 @@ export default function NewListDialog({
                 placeholder="e.g. The posters who never miss."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                disabled={isCreating}
-                className="text-[15px] min-h-25 resize-none bg-gray-50/50 border-gray-200 rounded-xl focus-visible:bg-white focus-visible:ring-0 focus-visible:border focus-visible:border-[#1185fe] transition-all disabled:opacity-70"
+                disabled={isSaving}
+                className="text-[15px] min-h-25 resize-none bg-[#F1F5F9] border-transparent rounded-xl focus-visible:bg-white focus-visible:ring-0 focus-visible:border-[#1185fe] transition-all"
               />
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* --- CONFIRM DISCARD MODAL --- */}
       {showExitConfirm && (
         <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-          <DialogTitle className="sr-only"></DialogTitle>
+          <DialogTitle className="sr-only">Discard</DialogTitle>
           <DialogContent
-            className="w-full max-w-62.5 rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-100 [&>button]:hidden"
+            className="w-full max-w-[320px] rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-1000 [&>button]:hidden"
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
@@ -262,7 +307,6 @@ export default function NewListDialog({
                 >
                   Discard
                 </button>
-
                 <button
                   onClick={() => setShowExitConfirm(false)}
                   className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0]"

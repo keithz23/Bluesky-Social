@@ -45,14 +45,15 @@ export const useFollow = (targetUserId: string) => {
   return { follow, unfollow };
 };
 
-export const useGetFollowingLists = (username: string) => {
+export const useGetFollowingLists = (username: string, listId?: string) => {
   return useInfiniteQuery({
-    queryKey: ["followings", username],
+    queryKey: ["followings", username, listId],
 
     queryFn: ({ pageParam }) =>
       FollowService.getFollowingLists(
         username,
         pageParam as string | undefined,
+        listId,
       ),
 
     initialPageParam: undefined,

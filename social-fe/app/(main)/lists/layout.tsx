@@ -1,5 +1,5 @@
 "use client";
-import NewListDialog from "@/app/components/dialog/new-list-dialog";
+import ListFormDialog from "@/app/components/dialog/list-dialog";
 import { ArrowLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import React from "react";
@@ -31,7 +31,7 @@ export default function ListsLayout({
             </h1>
           </div>
 
-          <NewListDialog />
+          <ListFormDialog />
         </div>
       )}
 
