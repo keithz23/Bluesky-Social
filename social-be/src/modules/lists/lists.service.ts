@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { CreateListDto } from './dto/create-list.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -13,6 +18,8 @@ import {
 import { Queue } from 'bullmq';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import { FeedQueryDto } from '../feed/dto/feed-query.dto';
+import { UpdateListDto } from './dto/update-list.dto';
+import { boolean } from 'joi';
 
 @Injectable()
 export class ListsService {
@@ -79,6 +86,120 @@ export class ListsService {
     }
   }
 
+  async updateList(
+    userId: string,
+    updateListDto: UpdateListDto,
+    listFile?: Express.Multer.File,
+  ) {
+    const { name, description, listId } = updateListDto;
+
+    const existingList = await this.prisma.list.findUnique({
+      where: { id: listId, userId },
+    });
+
+    if (!existingList) {
+      throw new ForbiddenException('List not found or you are not the owner');
+    }
+
+    if (name && name !== existingList.name) {
+      const nameTaken = await this.prisma.list.findFirst({
+        where: {
+          name,
+          id: { not: listId },
+        },
+      });
+
+      if (nameTaken) {
+        throw new BadRequestException('List name already exists');
+      }
+    }
+
+    let photoUrl: string | undefined = undefined;
+    let newUploadedKey: string | null = null;
+
+    if (listFile) {
+      try {
+        const uploadResults = await this.s3Service.uploadImages(
+          [listFile],
+          `public/list/${userId}`,
+          { resize: true, quality: 85 },
+        );
+
+        photoUrl = uploadResults[0]?.url;
+        newUploadedKey = uploadResults[0]?.key;
+      } catch (error) {
+        this.logger.error('Error uploading images', error);
+        throw new Error('Failed to upload image');
+      }
+    }
+
+    try {
+      const updatedList = await this.prisma.list.update({
+        where: { id: listId, userId },
+        data: {
+          ...(name && { name }),
+          ...(description !== undefined && { description }),
+          ...(photoUrl && { listPhoto: photoUrl }),
+        },
+      });
+
+      if (photoUrl && existingList.listPhoto) {
+        const oldKey = this.s3Service.extractKeyFromUrl(existingList.listPhoto);
+        if (oldKey) {
+          this.scheduleCleanup([oldKey], 'replaced_by_new_upload').catch(
+            (err) =>
+              this.logger.warn('Failed to schedule old image cleanup', err),
+          );
+        }
+      }
+
+      return updatedList;
+    } catch (error) {
+      if (newUploadedKey) {
+        this.scheduleCleanup([newUploadedKey], 'db_update_failed').catch(
+          (err) =>
+            this.logger.warn('Failed to cleanup new image after DB error', err),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async deleteList(userId: string, listId: string) {
+    const existingList = await this.prisma.list.findUnique({
+      where: { id: listId, userId },
+    });
+
+    if (!existingList) {
+      throw new ForbiddenException('List not found or you are not the owner');
+    }
+
+    const deletedList = await this.prisma.list.delete({
+      where: { id: listId, userId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (existingList.listPhoto) {
+      const photoKey = this.s3Service.extractKeyFromUrl(existingList.listPhoto);
+      if (photoKey) {
+        this.scheduleCleanup([photoKey], 'list_deleted').catch((err) =>
+          this.logger.warn(
+            `Failed to cleanup image for deleted list ${listId}`,
+            err,
+          ),
+        );
+      }
+    }
+
+    return {
+      message: `List "${deletedList.name}" deleted successfully`,
+      id: deletedList.id,
+    };
+  }
+
   async getLists(userId: string, query: FeedQueryDto) {
     const limit = query.limit ?? 20;
     const cursorId = query.cursor;
@@ -113,6 +234,7 @@ export class ListsService {
                 id: true,
                 bio: true,
                 username: true,
+                displayName: true,
                 avatarUrl: true,
                 coverUrl: true,
               },
@@ -124,6 +246,7 @@ export class ListsService {
             id: true,
             bio: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
             coverUrl: true,
           },
@@ -157,6 +280,7 @@ export class ListsService {
         description: true,
         listPhoto: true,
         createdAt: true,
+        userId: true,
 
         user: {
           select: {

@@ -79,7 +79,6 @@ export class MailProcessor extends WorkerHost {
 
   async process(job: Job<SendMailDto, any, string>) {
     const { to, type, context } = job.data;
-    console.log(type)
 
     try {
       let subject = job.data.subject?.trim();
@@ -117,8 +116,11 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect ? `?redirect=${encodeURIComponent(context.redirect)}` : ''
-              }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${
+              context.redirect
+                ? `?redirect=${encodeURIComponent(context.redirect)}`
+                : ''
+            }`,
           });
           break;
         }

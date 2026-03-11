@@ -18,4 +18,8 @@ export class SearchUserDto {
   @Min(1)
   @Max(20)
   limit?: number = 10;
+
+  @IsString()
+  @MaxLength(50)
+  listId: string;
 }

@@ -5,10 +5,11 @@ export const FollowService = {
   getFollowingLists: async (
     username: string,
     cursor?: string,
+    listId?: string,
     limit?: number,
   ) => {
     const { data } = await axiosInstance.get(
-      API_ENDPOINT.FOLLOWS.FOLLOWING_LISTS({ cursor, limit, username }),
+      API_ENDPOINT.FOLLOWS.FOLLOWING_LISTS({ cursor, limit, username, listId }),
     );
     return data;
   },

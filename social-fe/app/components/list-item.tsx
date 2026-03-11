@@ -1,13 +1,22 @@
+"use client";
 import { Radio } from "lucide-react";
 import { List } from "../interfaces/list.interface";
+import { useRouter } from "next/navigation";
 
 interface ListItemProps {
   item: List;
 }
 
 export default function ListItem({ item }: ListItemProps) {
+  const router = useRouter();
+  const handleClickDetailList = () => {
+    router.push(`/profile/${item.user.username}/lists/${item.id}`);
+  };
   return (
-    <div className="flex flex-col gap-2.5 p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
+    <div
+      className="flex flex-col gap-2.5 p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer"
+      onClick={handleClickDetailList}
+    >
       <div className="flex items-center gap-3">
         {/* Avatar */}
         {item.listPhoto ? (

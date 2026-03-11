@@ -6,7 +6,12 @@ export interface CreateListData {
   listFile?: File;
 }
 
+export interface UpdateList extends CreateListData {
+  listId: string;
+}
+
 export interface List {
+  id: string;
   name: string;
   description: string;
   listPhoto: string;

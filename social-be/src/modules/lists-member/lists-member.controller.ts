@@ -1,15 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { ListsMemberService } from './lists-member.service';
-import { CreateListsMemberDto } from './dto/create-lists-member.dto';
-import { UpdateListsMemberDto } from './dto/update-lists-member.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AddMembersDto } from './dto/add-member.dto';
 
@@ -17,16 +7,37 @@ import { AddMembersDto } from './dto/add-member.dto';
 export class ListsMemberController {
   constructor(private readonly listsMemberService: ListsMemberService) {}
 
-  @Post(':listId/members')
-  async addMembers(
+  @Post(':listId/members/:userIdToAdd')
+  addMember(
     @Param('listId') listId: string,
-    @CurrentUser('id') userId: string,
-    @Body() addMembersDto: AddMembersDto,
+    @Param('userIdToAdd') userIdToAdd: string,
+    @CurrentUser('id') currentUserId: string,
   ) {
-    return this.listsMemberService.addUsersToList(
+    return this.listsMemberService.addUserToList(
       listId,
-      userId,
-      addMembersDto.participantIds,
+      currentUserId,
+      userIdToAdd,
     );
+  }
+
+  @Delete(':listId/members/:userIdToRemove')
+  removeMember(
+    @Param('listId') listId: string,
+    @Param('userIdToRemove') userIdToRemove: string,
+    @CurrentUser('id') currentUserId: string,
+  ) {
+    return this.listsMemberService.removeUserFromList(
+      listId,
+      currentUserId,
+      userIdToRemove,
+    );
+  }
+
+  @Get(':listId/members')
+  getListMembers(
+    @Param('listId') listId: string,
+    @CurrentUser('id') currentUserId: string,
+  ) {
+    return this.listsMemberService.getListMember(listId, currentUserId);
   }
 }
