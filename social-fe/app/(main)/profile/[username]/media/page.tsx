@@ -53,7 +53,7 @@ export default function MediaPage() {
     <>
       <div className="flex flex-col">
         {posts.map((post) => (
-          <PostCard post={post} key={post.id} />
+          <PostCard post={post} key={post.id} dropdownItems={[]} />
         ))}
       </div>
 

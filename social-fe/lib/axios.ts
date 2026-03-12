@@ -51,7 +51,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 axiosInstance.interceptors.request.use(
   (config) => {
     if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
+      config.headers.set("Authorization", `Bearer ${accessToken}`);
     }
     return config;
   },
@@ -63,6 +63,8 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response.data,
   async (error: AxiosError) => {
+    if (!error.config) return Promise.reject(error);
+
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
@@ -80,7 +82,7 @@ axiosInstance.interceptors.response.use(
       return new Promise<string>((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        originalRequest.headers.set("Authorization", `Bearer ${token}`);
         return axiosInstance(originalRequest);
       });
     }
@@ -94,8 +96,14 @@ axiosInstance.interceptors.response.use(
       );
 
       const { accessToken: newToken } = response.data;
+
+      if (!newToken) {
+        throw new Error("Can't get accessToken from server");
+      }
+
       accessToken = newToken;
-      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+      originalRequest.headers.set("Authorization", `Bearer ${newToken}`);
 
       processQueue(null, newToken);
 
