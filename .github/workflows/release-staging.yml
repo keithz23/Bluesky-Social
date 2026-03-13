@@ -80,10 +80,11 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/social
-            # mv .env.backend .env 
 
-            docker-compose pull
+            sudo docker-compose down -v
 
-            docker-compose up -d
+            sudo docker-compose pull
 
-            docker image prune -f
+            sudo docker-compose up -d
+
+            sudo docker image prune -f
