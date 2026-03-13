@@ -35,7 +35,7 @@ export default function ListDetailPage() {
   } = useGetListMembers(id);
 
   const isOwner = list
-    ? user?.id === list.userId
+    ? user?.id === list?.userId
       ? "List by you"
       : `List by ${list.user?.username || "Unknown"}`
     : "";
@@ -45,7 +45,7 @@ export default function ListDetailPage() {
 
   const confirmDelete = () => {
     if (!list) return;
-    deleteMutation.mutate(list.id, {
+    deleteMutation.mutate(list?.id, {
       onSuccess: () => {
         setIsDeleteDialogOpen(false);
         router.push("/lists");
@@ -98,8 +98,8 @@ export default function ListDetailPage() {
             {list.listPhoto ? (
               <div className="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center overflow-hidden bg-gray-100">
                 <img
-                  src={list.listPhoto}
-                  alt={list.name || "list photo"}
+                  src={list?.listPhoto}
+                  alt={list?.name || "list photo"}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -111,7 +111,7 @@ export default function ListDetailPage() {
 
             <div className="flex flex-col justify-center">
               <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">
-                {list.name}
+                {list?.name}
               </h1>
               <p className="text-[15px] text-gray-500 leading-tight mt-0.5">
                 {isOwner}
@@ -121,7 +121,7 @@ export default function ListDetailPage() {
 
           {list.description && (
             <p className="text-[15px] text-gray-900 whitespace-pre-wrap">
-              {list.description}
+              {list?.description}
             </p>
           )}
         </div>
@@ -175,15 +175,15 @@ export default function ListDetailPage() {
               ) : currentListMembers.length === 0 ? (
                 <div className="pt-24 px-4 w-full">
                   <EmptyFeedState
-                    listId={list.id}
+                    listId={list?.id}
                     currentListMembers={currentListMembers}
                   />
                 </div>
               ) : (
                 <PeopleTab
-                  listId={list.id}
+                  listId={list?.id}
                   members={currentListMembers}
-                  isOwner={user?.id === list.userId}
+                  isOwner={user?.id === list?.userId}
                   // --- TRUYỀN PROPS VÀO ĐÂY ---
                   scrollRef={ref}
                   isFetchingNextPage={isFetchingNextPage}
