@@ -13,8 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bluesky Clone",
-  description: "Demo",
+  title: "Konekt",
 };
 
 export default function RootLayout({

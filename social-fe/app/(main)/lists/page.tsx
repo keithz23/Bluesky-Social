@@ -3,10 +3,8 @@
 import ListItem from "@/app/components/list-item";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetlists } from "@/app/hooks/use-list";
-import { useRouter } from "next/navigation";
 
 export default function ListsPage() {
-  const router = useRouter();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useGetlists();
 
