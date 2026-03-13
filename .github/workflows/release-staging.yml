@@ -70,7 +70,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "docker-compose.yml,.env"
-          target: "~/social-app"
+          target: "~/social"
 
       - name: Restart server
         uses: appleboy/ssh-action@v1.0.3
