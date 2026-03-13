@@ -184,7 +184,6 @@ export default function ListDetailPage() {
                   listId={list?.id}
                   members={currentListMembers}
                   isOwner={user?.id === list?.userId}
-                  // --- TRUYỀN PROPS VÀO ĐÂY ---
                   scrollRef={ref}
                   isFetchingNextPage={isFetchingNextPage}
                   hasNextPage={hasNextPage || false}
