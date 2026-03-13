@@ -26,7 +26,7 @@ jobs:
             --name "/prod/social/social-fe" \
             --with-decryption \
             --query "Parameter.Value" \
-            --output text > ./frontend/.env.production
+            --output text > ./social-fe/.env.production
 
       - name: Login docker hub
         uses: docker/login-action@v3
@@ -61,7 +61,7 @@ jobs:
             --name "/prod/social/social-be" \
             --with-decryption \
             --query "Parameter.Value" \
-            --output text > .env.backend
+            --output text > .env
 
       - name: Copy configure file and Deploy to EC2
         uses: appleboy/scp-action@v0.1.4
