@@ -36,7 +36,7 @@ jobs:
 
       - name: Build & Push Frontend Image
         run: |
-          docker build -t keith0309/social-fe:latest ./social-fe
+          docker build --build-arg NEXT_PUBLIC_API_URL=${{secrets.NEXT_PUBLIC_API_URL}} -t keith0309/social-fe:latest ./social-fe
           docker push keith0309/social-fe:latest
 
       - name: Build & Push Backend Image
