@@ -44,7 +44,7 @@ export default function ListsPage() {
       {!isLoading && lists.length > 0 && (
         <div className="flex flex-col w-full">
           {lists.map((list) => (
-            <ListItem item={list} key={list.id} />
+            <ListItem item={list} key={list?.id} />
           ))}
         </div>
       )}
