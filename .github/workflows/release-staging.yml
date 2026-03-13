@@ -1,0 +1,89 @@
+name: Deploy Social App to EC2
+
+on:
+  push:
+    branches:
+      - feat/add-staging
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: Get ENV
+        run: |
+          # Call AWS get file configure FE and save to .env.production
+          aws ssm get-parameter \
+            --name "/prod/social/social-fe" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text > ./frontend/.env.production
+
+      - name: Login docker hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push Frontend Image
+        run: |
+          docker build -t keith0309/social-fe:latest ./social-fe
+          docker push keith0309/social-fe:latest
+
+      - name: Build & Push Backend Image
+        run: |
+          docker build -t keith0309/social-be:latest ./social-be
+          docker push keith0309/social-be:latest
+
+  deploy-to-ec2:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: Get .env for Backend from AWS SSM
+        run: |
+          aws ssm get-parameter \
+            --name "/prod/social/social-be" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text > .env.backend
+
+      - name: Copy configure file and Deploy to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml,.env"
+          target: "~/social-app"
+
+      - name: Restart server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/social-app
+            # mv .env.backend .env 
+
+            docker compose pull
+
+            docker compose up -d
+
+            docker image prune -f
