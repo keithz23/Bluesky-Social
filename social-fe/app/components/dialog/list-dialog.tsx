@@ -81,7 +81,7 @@ export default function ListFormDialog({
 
   const handleSave = () => {
     if (!isSaveEnabled) return;
-    const data = { name, description, listFile, listId: list.id };
+    const data = { name, description, listFile, listId: list?.id };
 
     if (isEditing) {
       updateListMutation.mutate(
