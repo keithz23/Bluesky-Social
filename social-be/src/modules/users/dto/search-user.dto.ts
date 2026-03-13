@@ -5,7 +5,6 @@ import {
   Max,
   MaxLength,
   Min,
-  MinLength,
 } from 'class-validator';
 
 export class SearchUserDto {
@@ -19,7 +18,8 @@ export class SearchUserDto {
   @Max(20)
   limit?: number = 10;
 
+  @IsOptional()
   @IsString()
   @MaxLength(50)
-  listId: string;
+  listId?: string;
 }

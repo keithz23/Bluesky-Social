@@ -39,6 +39,7 @@ export default function AddPeopleDialog({
   const { data: searchResults, isFetching: isSearching } = useSearchUsers(
     searchQuery,
     10,
+    listId,
   );
 
   const { data, fetchNextPage, isFetchingNextPage, isLoading, hasNextPage } =
