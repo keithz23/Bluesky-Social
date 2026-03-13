@@ -79,7 +79,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/social-app
+            cd ~/social
             # mv .env.backend .env 
 
             docker compose pull
