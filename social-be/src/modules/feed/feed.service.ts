@@ -26,10 +26,13 @@ export class FeedService {
         isDeleted: false,
         parentPostId: null,
         ...(followingIds.length > 0 && { userId: { in: followingIds } }),
-        ...(query.cursor && { id: { lt: query.cursor } }),
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
       select: {
         id: true,
         content: true,
