@@ -19,7 +19,6 @@ import { Queue } from 'bullmq';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import { FeedQueryDto } from '../feed/dto/feed-query.dto';
 import { UpdateListDto } from './dto/update-list.dto';
-import { boolean } from 'joi';
 
 @Injectable()
 export class ListsService {
