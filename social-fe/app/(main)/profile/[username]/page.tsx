@@ -4,10 +4,10 @@ import { useParams } from "next/navigation";
 import { useProfile } from "@/app/hooks/use-profile";
 import { useUserPosts } from "@/app/hooks/use-post";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
-import PostCard from "@/app/components/card/post-card";
 import { Feed } from "@/app/interfaces/feed.interface";
 import NewPostModal from "@/app/components/dialog/new-post-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import VirtualPostList from "@/app/components/virtual-post-list";
 import {
   SquarePen,
   BookA,
@@ -79,9 +79,7 @@ export default function PostsPage() {
             </div>
           ))}
 
-        {posts.map((post: Feed) => (
-          <PostCard key={post.id} post={post} dropdownItems={dropdownItems} />
-        ))}
+        <VirtualPostList posts={posts as Feed[]} dropdownItems={dropdownItems} />
       </div>
 
       <div ref={ref} className="py-4 text-center text-sm text-gray-400">

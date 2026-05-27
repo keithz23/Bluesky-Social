@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useSocket } from "@/providers/socket.provider";
 import { NotificationService } from "../services/notification.service";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export const useNotifications = () => {
   const { notificationsSocket, isConnected } = useSocket();
@@ -132,5 +133,6 @@ export const useGetNotifications = (filter: "all" | "mention" = "all") => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    ...infiniteQueryOptions,
   });
 };

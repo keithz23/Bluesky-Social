@@ -31,7 +31,7 @@ import { ZoomData } from "../dialog/image-zoom-dialog";
 interface PostCardProps {
   post: Feed;
   dropdownItems: DropdownItem[];
-  onZoom: (data: ZoomData) => void;
+  onZoom?: (data: ZoomData) => void;
 }
 
 function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
@@ -52,7 +52,7 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
   const handleImageClick = useCallback(
     (e: React.MouseEvent, index: number) => {
       e.stopPropagation();
-      onZoom({ media: post.media, currentIndex: index });
+      onZoom?.({ media: post.media, currentIndex: index });
     },
     [onZoom, post.media],
   );

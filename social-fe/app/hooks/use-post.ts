@@ -7,6 +7,7 @@ import {
 import { CreatePostPayload } from "../interfaces/post.interface";
 import { PostService } from "../services/post.service";
 import { toast } from "sonner";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export function usePost() {
   const qc = useQueryClient();
@@ -111,6 +112,8 @@ export const useUserPosts = (username: string, filter: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: !!username,
+    ...infiniteQueryOptions,
   });
 };
 
