@@ -4,8 +4,11 @@ import { useInView } from "react-intersection-observer";
 interface UseInfiniteScrollOptions {
   hasNextPage: boolean | undefined;
   isFetchingNextPage: boolean;
-  fetchNextPage: () => void;
+  fetchNextPage: () => void | Promise<unknown>;
   enabled?: boolean;
+  root?: Element | null;
+  rootMargin?: string;
+  readyDelay?: number;
 }
 
 export function useInfiniteScroll({
@@ -13,28 +16,43 @@ export function useInfiniteScroll({
   isFetchingNextPage,
   fetchNextPage,
   enabled = true,
+  root = null,
+  rootMargin = "300px",
+  readyDelay = 100,
 }: UseInfiniteScrollOptions) {
   const [isReady, setIsReady] = useState(false);
 
   const { ref, inView } = useInView({
     threshold: 0,
-    rootMargin: "300px",
-    skip: !isReady,
+    root,
+    rootMargin,
+    skip: !enabled || !isReady,
   });
 
   // Enable observer after a short delay to skip initial mount
   useEffect(() => {
-    if (!enabled) return;
-    const timer = setTimeout(() => setIsReady(true), 100);
+    if (!enabled) {
+      setIsReady(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setIsReady(true), readyDelay);
     return () => clearTimeout(timer);
-  }, [enabled]);
+  }, [enabled, readyDelay]);
 
   // Fetch when scrolled into view
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage && isReady) {
-      fetchNextPage();
+    if (enabled && inView && hasNextPage && !isFetchingNextPage && isReady) {
+      void fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage, isReady]);
+  }, [
+    enabled,
+    inView,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    isReady,
+  ]);
 
   return { ref, inView, isReady };
 }

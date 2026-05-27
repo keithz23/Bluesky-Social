@@ -1,8 +1,9 @@
 "use client";
 
-import PostCard from "@/app/components/card/post-card";
+import VirtualPostList from "@/app/components/virtual-post-list";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useUserPosts } from "@/app/hooks/use-post";
+import { Feed } from "@/app/interfaces/feed.interface";
 import { useParams } from "next/navigation";
 
 export default function LikesPage() {
@@ -54,11 +55,7 @@ export default function LikesPage() {
 
   return (
     <>
-      <div className="flex flex-col">
-        {posts.map((post) => (
-          <PostCard post={post} key={post.id} dropdownItems={[]} />
-        ))}
-      </div>
+      <VirtualPostList posts={posts as Feed[]} dropdownItems={[]} />
 
       <div ref={ref} className="py-4 text-center text-sm text-gray-400">
         {isFetchingNextPage

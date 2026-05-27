@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { FeedService } from "../services/feed.service";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export const useFeed = () => {
   return useInfiniteQuery({
@@ -8,9 +9,6 @@ export const useFeed = () => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60 * 10,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    ...infiniteQueryOptions,
   });
 };

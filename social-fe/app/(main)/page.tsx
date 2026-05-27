@@ -4,7 +4,6 @@ import { useMemo, useCallback } from "react";
 import { useFeed } from "@/app/hooks/use-feed";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { Feed } from "../interfaces/feed.interface";
-import PostCard from "../components/card/post-card";
 import { useAuth } from "../hooks/use-auth";
 import { dropdownItems as staticDropdownItems } from "../constants/dropdown.constant";
 import { useGlobal } from "../hooks/use-global";
@@ -13,6 +12,7 @@ import { useState } from "react";
 import ImageZoomDialog, {
   ZoomData,
 } from "../components/dialog/image-zoom-dialog";
+import VirtualPostList from "../components/virtual-post-list";
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -107,14 +107,11 @@ export default function HomePage() {
             </div>
           ))}
 
-        {posts.map((post: Feed) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            dropdownItems={dropdownItems}
-            onZoom={setZoomData}
-          />
-        ))}
+        <VirtualPostList
+          posts={posts as Feed[]}
+          dropdownItems={dropdownItems}
+          onZoom={setZoomData}
+        />
 
         {/* Trigger infinite scroll */}
         <div ref={ref} className="py-4 text-center text-sm text-gray-400">

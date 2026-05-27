@@ -19,6 +19,7 @@ import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import 'multer';
 
 @Controller('posts')
 export class PostsController {

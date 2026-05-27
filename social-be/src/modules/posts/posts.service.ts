@@ -16,7 +16,7 @@ import {
   QUEUE_NAMES,
 } from 'src/common/constants/queue.constant';
 import { Queue } from 'bullmq';
-import { InjectQueue } from '@nestjs/bull';
+import { InjectQueue } from '@nestjs/bullmq';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { extractMentions } from 'src/common/utils/extract.util';
@@ -257,11 +257,15 @@ export class PostsService {
       const likes = await this.prisma.like.findMany({
         where: {
           userId: user.id,
-          ...(query.cursor && { postId: { lt: query.cursor } }),
         },
-        orderBy: { createdAt: 'desc' },
+        ...(query.cursor && {
+          cursor: { id: query.cursor },
+          skip: 1,
+        }),
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
         select: {
+          id: true,
           postId: true,
           post: {
             select: {
@@ -303,7 +307,7 @@ export class PostsService {
 
       const hasMore = likes.length > limit;
       if (hasMore) likes.pop();
-      const nextCursor = hasMore ? likes[likes.length - 1].postId : null;
+      const nextCursor = hasMore ? likes[likes.length - 1].id : null;
 
       const postIds = likes.map((l) => l.postId);
       const [bookmarkedPosts, repostedPosts] = await Promise.all([
@@ -335,7 +339,6 @@ export class PostsService {
     const baseWhere = {
       userId: user.id,
       isDeleted: false,
-      ...(query.cursor && { id: { lt: query.cursor } }),
     };
 
     const where = {
@@ -351,8 +354,12 @@ export class PostsService {
 
     const posts = await this.prisma.post.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
       select: {
         id: true,
         content: true,

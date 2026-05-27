@@ -8,6 +8,7 @@ import { CreateListData, UpdateList } from "../interfaces/list.interface";
 import { ListService } from "../services/list.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export const useLists = () => {
   const qc = useQueryClient();
@@ -73,6 +74,7 @@ export const useGetlists = () => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    ...infiniteQueryOptions,
   });
 };
 

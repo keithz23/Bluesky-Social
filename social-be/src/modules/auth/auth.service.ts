@@ -389,7 +389,8 @@ export class AuthService {
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    let { newPassword, code } = resetPasswordDto;
+    const { newPassword } = resetPasswordDto;
+    let { code } = resetPasswordDto;
 
     code = (code ?? '').trim().toUpperCase().replace(/\s/g, '');
     if (code.length === 10 && !code.includes('-')) {
