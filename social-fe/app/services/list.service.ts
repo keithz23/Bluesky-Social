@@ -52,9 +52,9 @@ export const ListService = {
     return data;
   },
 
-  getLists: async (cursor?: string, limit?: number) => {
+  getLists: async (cursor?: string, limit?: number, username?: string) => {
     const { data } = await axiosInstance.get(
-      API_ENDPOINT.LISTS.GET_LISTS({ cursor, limit }),
+      API_ENDPOINT.LISTS.GET_LISTS({ cursor, limit, username }),
     );
     return data;
   },

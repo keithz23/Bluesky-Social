@@ -26,6 +26,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ChatModule } from './modules/chat/chat.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { ListsMemberModule } from './modules/lists-member/lists-member.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { ModerationModule } from './modules/moderation/moderation.module';
 
 @Module({
   imports: [
@@ -100,6 +102,8 @@ import { ListsMemberModule } from './modules/lists-member/lists-member.module';
     ChatModule,
     ListsModule,
     ListsMemberModule,
+    MonitoringModule,
+    ModerationModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [

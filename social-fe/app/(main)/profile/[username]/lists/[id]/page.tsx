@@ -5,13 +5,18 @@ import { ArrowLeft, Pin, Hash, Users, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetListById, useLists } from "@/app/hooks/use-list";
 import { useAuth } from "@/app/hooks/use-auth";
-import Loading from "@/app/components/loading";
+import {
+  ListDetailSkeleton,
+  UserListSkeleton,
+} from "@/app/components/skeletons";
 import ListDropdown from "@/app/components/dropdown/list-dropdown";
 import ListFormDialog from "@/app/components/dialog/list-dialog";
 import AddPeopleDialog from "@/app/components/dialog/add-people-dialog";
 import { useGetListMembers } from "@/app/hooks/use-list-member";
 import PeopleTab from "@/app/components/tabs/people-tab";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
+import VirtualPostList from "@/app/components/virtual-post-list";
+import { Feed } from "@/app/interfaces/feed.interface";
 
 export default function ListDetailPage() {
   const router = useRouter();
@@ -25,6 +30,7 @@ export default function ListDetailPage() {
   const { deleteMutation, isDeleting } = useLists();
 
   const list = data?.data;
+  const listPosts = list?.posts ?? [];
 
   const {
     data: membersData,
@@ -61,7 +67,7 @@ export default function ListDetailPage() {
   });
 
   if (isLoading) {
-    return <Loading />;
+    return <ListDetailSkeleton />;
   }
 
   if (!list) return null;
@@ -160,17 +166,31 @@ export default function ListDetailPage() {
         <div className="flex-1 flex flex-col items-center">
           {/* TAB POSTS */}
           {activeTab === "posts" && (
-            <div className="w-full text-center py-20 text-gray-500">
-              Posts feed coming soon...
-            </div>
+            <>
+              {listPosts.length > 0 ? (
+                <div className="w-full">
+                  <VirtualPostList
+                    posts={listPosts as Feed[]}
+                    dropdownItems={[]}
+                  />
+                </div>
+              ) : (
+                <div className="pt-24 px-4 w-full">
+                  <EmptyFeedState
+                    listId={list?.id}
+                    currentListMembers={currentListMembers}
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {/* TAB PEOPLE */}
           {activeTab === "people" && (
             <>
               {isFetchingMemberlist && currentListMembers.length === 0 ? (
-                <div className="py-20 flex justify-center w-full">
-                  <Loader2 className="w-8 h-8 text-[#1185fe] animate-spin" />
+                <div className="w-full">
+                  <UserListSkeleton />
                 </div>
               ) : currentListMembers.length === 0 ? (
                 <div className="pt-24 px-4 w-full">

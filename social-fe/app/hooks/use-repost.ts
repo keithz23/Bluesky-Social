@@ -22,10 +22,12 @@ export const useRepost = (postId: string, isReposted: boolean) => {
       const previousBookmarks = qc.getQueryData(["bookmarks"]);
       const previousReposts = qc.getQueryData(["reposts"]);
       const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
+      const postDetailCache = qc.getQueriesData({ queryKey: ["post-detail"] });
 
       const allCacheKeys = [
         ["feed"],
         ["reposts"],
+        ...postDetailCache.map(([key]) => key as any[]),
         ...userPostsCache.map(([key]) => key as any[]),
       ];
 
@@ -46,6 +48,7 @@ export const useRepost = (postId: string, isReposted: boolean) => {
         previousBookmarks,
         previousReposts,
         userPostsCache,
+        postDetailCache,
       };
     },
 
@@ -56,6 +59,9 @@ export const useRepost = (postId: string, isReposted: boolean) => {
         qc.setQueryData(["bookmarks"], context.previousBookmarks);
       if (context?.previousReposts)
         qc.setQueryData(["reposts"], context.previousReposts);
+      context?.postDetailCache?.forEach(([queryKey, data]) => {
+        qc.setQueryData(queryKey, data);
+      });
       context?.userPostsCache?.forEach(([queryKey, data]) => {
         qc.setQueryData(queryKey, data);
       });

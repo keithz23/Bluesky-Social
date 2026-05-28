@@ -12,20 +12,43 @@ export class FeedService {
     const limit = query.limit ?? 20;
 
     let followingIds: string[] = [];
+    let excludedUserIds: string[] = [];
 
     if (currentUserId) {
-      const following = await this.prisma.follow.findMany({
-        where: { followerId: currentUserId },
-        select: { followingId: true },
-      });
+      const [following, blocks, mutes] = await Promise.all([
+        this.prisma.follow.findMany({
+          where: { followerId: currentUserId },
+          select: { followingId: true },
+        }),
+        this.prisma.block.findMany({
+          where: { blockerId: currentUserId },
+          select: { blockedId: true },
+        }),
+        this.prisma.mute.findMany({
+          where: { muterId: currentUserId },
+          select: { mutedId: true },
+        }),
+      ]);
       followingIds = following.map((f) => f.followingId);
+      excludedUserIds = [
+        ...blocks.map((block) => block.blockedId),
+        ...mutes.map((mute) => mute.mutedId),
+      ];
     }
+
+    const userIdFilter =
+      followingIds.length > 0 || excludedUserIds.length > 0
+        ? {
+            ...(followingIds.length > 0 && { in: followingIds }),
+            ...(excludedUserIds.length > 0 && { notIn: excludedUserIds }),
+          }
+        : undefined;
 
     const posts = await this.prisma.post.findMany({
       where: {
         isDeleted: false,
         parentPostId: null,
-        ...(followingIds.length > 0 && { userId: { in: followingIds } }),
+        ...(userIdFilter && { userId: userIdFilter }),
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,

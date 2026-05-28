@@ -32,9 +32,11 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
       const previousFeed = qc.getQueryData(["feed"]);
       const previousBookmarks = qc.getQueryData(["bookmarks"]);
       const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
+      const postDetailCache = qc.getQueriesData({ queryKey: ["post-detail"] });
 
       const allCacheKeys = [
         ["feed"],
+        ...postDetailCache.map(([key]) => key as any[]),
         ...userPostsCache.map(([key]) => key as any[]),
       ];
 
@@ -53,7 +55,7 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
           : old;
       });
 
-      return { previousFeed, previousBookmarks, userPostsCache };
+      return { previousFeed, previousBookmarks, userPostsCache, postDetailCache };
     },
 
     onSuccess: () => {
@@ -65,6 +67,9 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
         qc.setQueryData(["feed"], context.previousFeed);
       if (context?.previousBookmarks)
         qc.setQueryData(["bookmarks"], context.previousBookmarks);
+      context?.postDetailCache?.forEach(([queryKey, data]) => {
+        qc.setQueryData(queryKey, data);
+      });
       context?.userPostsCache?.forEach(([queryKey, data]) => {
         qc.setQueryData(queryKey, data);
       });

@@ -27,6 +27,7 @@ import ReplyPostModal from "../dialog/reply-post-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
 import { ZoomData } from "../dialog/image-zoom-dialog";
+import { toast } from "sonner";
 
 interface PostCardProps {
   post: Feed;
@@ -55,6 +56,22 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
       onZoom?.({ media: post.media, currentIndex: index });
     },
     [onZoom, post.media],
+  );
+
+  const handleShare = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const url = `${window.location.origin}/profile/${post.user.username}/post/${post.id}`;
+
+      if (navigator.share) {
+        await navigator.share({ text: post.content, url });
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+      toast.success("Post link copied");
+    },
+    [post.content, post.id, post.user.username],
   );
 
   const formattedDate = useMemo(() => {
@@ -181,9 +198,13 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
                 isBookmarked={post.isBookmarked}
                 bookmarkCount={post.bookmarkCount}
               />
-              <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
+              <button
+                type="button"
+                onClick={handleShare}
+                className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors"
+              >
                 <Share size={18} strokeWidth={2.2} />
-              </div>
+              </button>
               <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
                 <PostDropDown post={post} items={dropdownItems} />
               </div>

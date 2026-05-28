@@ -13,7 +13,9 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useGetListById } from "@/app/hooks/use-list";
 import { useAuth } from "@/app/hooks/use-auth";
-import Loading from "@/app/components/loading";
+import { ListDetailSkeleton } from "@/app/components/skeletons";
+import VirtualPostList from "@/app/components/virtual-post-list";
+import { Feed } from "@/app/interfaces/feed.interface";
 
 export default function ListDetailPage() {
   const router = useRouter();
@@ -23,6 +25,7 @@ export default function ListDetailPage() {
   const { data, isLoading } = useGetListById(id);
 
   const list = data?.data;
+  const listPosts = list?.posts ?? [];
 
   const isOwner = list
     ? user?.id === list.userId
@@ -31,7 +34,7 @@ export default function ListDetailPage() {
     : "";
 
   if (isLoading) {
-    return <Loading />;
+    return <ListDetailSkeleton />;
   }
 
   return (
@@ -70,7 +73,7 @@ export default function ListDetailPage() {
 
           <div className="flex flex-col justify-center">
             <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">
-              {isLoading ? "Loading..." : list?.name}
+              {list?.name}
             </h1>
             <p className="text-[15px] text-gray-500 leading-tight mt-0.5">
               {isOwner}
@@ -115,11 +118,25 @@ export default function ListDetailPage() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center pt-24 px-4">
-        {isLoading ? (
-          <div className="text-gray-400">Loading feed...</div>
-        ) : (
-          <EmptyFeedState />
+      <div className="flex-1 flex flex-col items-center">
+        {activeTab === "posts" &&
+          (listPosts.length > 0 ? (
+            <div className="w-full">
+              <VirtualPostList
+                posts={listPosts as Feed[]}
+                dropdownItems={[]}
+              />
+            </div>
+          ) : (
+            <div className="pt-24 px-4">
+              <EmptyFeedState />
+            </div>
+          ))}
+
+        {activeTab === "people" && (
+          <div className="pt-24 px-4">
+            <EmptyFeedState />
+          </div>
         )}
       </div>
     </div>

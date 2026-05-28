@@ -296,6 +296,7 @@ export default function MainLayout({
             <input
               type="text"
               placeholder="Search"
+              onFocus={() => router.push("/search")}
               className="w-full bg-gray-100 border-none rounded-full py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
             />
           </div>

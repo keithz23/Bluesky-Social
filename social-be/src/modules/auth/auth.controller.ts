@@ -36,7 +36,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Request, Response } from 'express';
+import { CookieOptions, Request, Response } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
@@ -48,12 +48,12 @@ import { JwtService } from '@nestjs/jwt';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const cookieOptions = {
+const cookieOptions: CookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: (isProduction ? 'strict' : 'lax') as 'lax' | 'strict',
+  sameSite: isProduction ? 'strict' : 'lax',
   path: '/',
-  domain: isProduction ? '.th-red.app' : 'localhost',
+  ...(isProduction ? { domain: '.th-red.app' } : {}),
 };
 
 const accessTokenCookieOptions = {
@@ -76,7 +76,7 @@ export class AuthController {
     private jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   // ============= PUBLIC ROUTES =============
 
@@ -152,7 +152,7 @@ export class AuthController {
       refreshTokenCookieOptions,
     );
 
-    return { user: result.user };
+    return result;
   }
 
   @Public()
@@ -385,12 +385,22 @@ export class AuthController {
       return res.redirect(
         `${frontendUrl}/login?status=success&message=Email_verified`,
       );
-    } catch (error) {
-      const errorMessage = error.message || 'Verification_failed';
+    } catch (error: unknown) {
+      let errorMessage = 'Verification_failed';
+
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String((error as any).message);
+      }
+
       return res.redirect(
         `${frontendUrl}/login?status=error&message=${encodeURIComponent(errorMessage)}`,
       );
     }
+
   }
 
   @Public()
@@ -398,7 +408,7 @@ export class AuthController {
   @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   @ApiResponse({ status: 302, description: 'Redirects to Google login page' })
-  async googleAuth() {}
+  async googleAuth() { }
 
   @Public()
   @Get('google/callback')

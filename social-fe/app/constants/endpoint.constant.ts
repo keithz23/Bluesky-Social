@@ -151,10 +151,15 @@ export const API_ENDPOINT = {
     CREATE_LIST: `/lists/create-list`,
     UPDATE_LIST: `/lists/update-list`,
     DELETE_LIST: (id: string) => `/lists/delete-list/${id}`,
-    GET_LISTS: (params?: { cursor?: string; limit?: number }) => {
+    GET_LISTS: (params?: {
+      cursor?: string;
+      limit?: number;
+      username?: string;
+    }) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.username) query.set("username", params.username);
       const qs = query.toString();
       return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
     },
@@ -177,5 +182,13 @@ export const API_ENDPOINT = {
         ? `/lists-member/${listId}/get-list-members?${qs}`
         : `lists-member/${listId}/members`;
     },
+  },
+
+  MODERATION: {
+    BLOCK_USER: (userId: string) => `/moderation/blocks/${userId}`,
+    UNBLOCK_USER: (userId: string) => `/moderation/blocks/${userId}`,
+    MUTE_USER: (userId: string) => `/moderation/mutes/${userId}`,
+    UNMUTE_USER: (userId: string) => `/moderation/mutes/${userId}`,
+    REPORT_POST: (postId: string) => `/moderation/reports/posts/${postId}`,
   },
 };

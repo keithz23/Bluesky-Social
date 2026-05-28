@@ -202,9 +202,21 @@ export class ListsService {
   async getLists(userId: string, query: FeedQueryDto) {
     const limit = query.limit ?? 20;
     const cursorId = query.cursor;
+    let ownerId = userId;
+
+    if (query.username) {
+      const owner = await this.prisma.user.findUnique({
+        where: { username: query.username },
+        select: { id: true },
+      });
+
+      if (!owner) return { lists: [], hasMore: false, nextCursor: null };
+      ownerId = owner.id;
+    }
+
     const lists = await this.prisma.list.findMany({
       where: {
-        userId,
+        userId: ownerId,
       },
       take: limit + 1,
 
@@ -270,7 +282,6 @@ export class ListsService {
     const list = await this.prisma.list.findUnique({
       where: {
         id: listId,
-        userId,
       },
 
       select: {
@@ -333,12 +344,39 @@ export class ListsService {
     if (!list) return null;
 
     const mappedPosts = list.items.map((item) => item.post);
+    const postIds = mappedPosts.map((post) => post.id);
+    const [likedPosts, bookmarkedPosts, repostedPosts] =
+      postIds.length > 0
+        ? await Promise.all([
+            this.prisma.like.findMany({
+              where: { userId, postId: { in: postIds } },
+              select: { postId: true },
+            }),
+            this.prisma.bookmark.findMany({
+              where: { userId, postId: { in: postIds } },
+              select: { postId: true },
+            }),
+            this.prisma.repost.findMany({
+              where: { userId, postId: { in: postIds } },
+              select: { postId: true },
+            }),
+          ])
+        : [[], [], []];
+
+    const likedSet = new Set(likedPosts.map((item) => item.postId));
+    const bookmarkedSet = new Set(bookmarkedPosts.map((item) => item.postId));
+    const repostedSet = new Set(repostedPosts.map((item) => item.postId));
 
     const { items, ...listData } = list;
 
     return {
       ...listData,
-      posts: mappedPosts,
+      posts: mappedPosts.map((post) => ({
+        ...post,
+        isLiked: likedSet.has(post.id),
+        isBookmarked: bookmarkedSet.has(post.id),
+        isReposted: repostedSet.has(post.id),
+      })),
     };
   }
 

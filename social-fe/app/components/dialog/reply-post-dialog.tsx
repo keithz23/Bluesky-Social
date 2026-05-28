@@ -6,7 +6,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, Smile, X, MessageSquare } from "lucide-react";
+import {
+  Image as ImageIcon,
+  Smile,
+  X,
+  MessageSquare,
+  Loader2,
+} from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { Grid } from "@giphy/react-components";
 import { GiphyFetch } from "@giphy/js-fetch-api";
@@ -16,6 +22,7 @@ import { useCreateReply } from "@/app/hooks/use-reply";
 import { useAuth } from "@/app/hooks/use-auth";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
+const MAX_REPLY_LENGTH = 300;
 
 interface ImagePreview {
   file: File;
@@ -38,6 +45,7 @@ export default function ReplyPostModal({
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const [selectedImages, setSelectedImages] = useState<ImagePreview[]>([]);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
@@ -48,6 +56,7 @@ export default function ReplyPostModal({
   const imageCount = selectedImages.length;
   const gifDisabled = hasImages;
   const imageDisabled = hasGif || imageCount >= 4;
+  const hasChanges = postText.trim().length > 0 || hasImages || hasGif;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -82,15 +91,39 @@ export default function ReplyPostModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const revokeImagePreviews = (images: ImagePreview[]) => {
+    images.forEach((img) => URL.revokeObjectURL(img.preview));
+  };
+
+  const handleTextChange = (value: string) => {
+    setPostText(value.slice(0, MAX_REPLY_LENGTH));
+  };
+
+  const appendText = (value: string) => {
+    setPostText((current) =>
+      `${current}${value}`.slice(0, MAX_REPLY_LENGTH),
+    );
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (hasGif) return;
+
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     const remaining = 4 - selectedImages.length;
-    const toAdd = files.slice(0, remaining).map((f) => ({
-      file: f,
-      preview: URL.createObjectURL(f),
-    }));
+    const toAdd = files
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, remaining)
+      .map((f) => ({
+        file: f,
+        preview: URL.createObjectURL(f),
+      }));
+
+    if (toAdd.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setSelectedImages((prev) => [...prev, ...toAdd]);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -112,12 +145,52 @@ export default function ReplyPostModal({
 
   const resetForm = () => {
     setPostText("");
-    selectedImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    revokeImagePreviews(selectedImages);
     setSelectedImages([]);
     setSelectedGif(null);
+    setShowEmojiPicker(false);
+    setShowGifPicker(false);
+    setShowExitConfirm(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const closeAndReset = () => {
+    resetForm();
+    setIsOpen(false);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setIsOpen(true);
+      return;
+    }
+
+    if (createReply.isPending) return;
+    if (hasChanges) {
+      setShowExitConfirm(true);
+      return;
+    }
+
+    closeAndReset();
+  };
+
+  const handleCancel = () => {
+    if (createReply.isPending) return;
+    if (hasChanges) {
+      setShowExitConfirm(true);
+      return;
+    }
+
+    closeAndReset();
+  };
+
+  const handleConfirmDiscard = () => {
+    closeAndReset();
   };
 
   const handleCreatePost = () => {
+    if (isSubmitDisabled) return;
+
     const payload = hasImages
       ? {
           content: postText,
@@ -130,19 +203,20 @@ export default function ReplyPostModal({
 
     createReply.mutate(payload, {
       onSuccess: () => {
-        setIsOpen(false);
-        resetForm();
+        closeAndReset();
       },
     });
   };
 
   const isSubmitDisabled =
-    createReply.isPending || (!postText.trim() && !hasImages && !hasGif);
+    createReply.isPending ||
+    (!postText.trim() && !hasImages && !hasGif) ||
+    postText.length > MAX_REPLY_LENGTH;
 
   return (
     <div className="px-2">
       {/* -------------------- MAIN REPLY MODAL -------------------- */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           {type === "avatar-with-input" ? (
             <button
@@ -191,11 +265,25 @@ export default function ReplyPostModal({
           )}
         </DialogTrigger>
 
-        <DialogContent className="max-w-150 p-0 border-none rounded-xl shadow-lg bg-white gap-0">
+        <DialogContent
+          className="max-w-150 max-h-[90vh] overflow-y-auto p-0 border-none rounded-xl shadow-lg bg-white gap-0"
+          onInteractOutside={(e) => {
+            if (createReply.isPending || hasChanges) {
+              e.preventDefault();
+              if (!createReply.isPending) setShowExitConfirm(true);
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (createReply.isPending || hasChanges) {
+              e.preventDefault();
+              if (!createReply.isPending) setShowExitConfirm(true);
+            }
+          }}
+        >
           <DialogTitle asChild>
             <div className="flex justify-between items-center p-4">
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={handleCancel}
                 className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer"
               >
                 Cancel
@@ -210,7 +298,11 @@ export default function ReplyPostModal({
                       : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
                   }`}
                 >
-                  {createReply.isPending ? "Processing..." : "Reply"}
+                  {createReply.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Reply"
+                  )}
                 </Button>
               </div>
             </div>
@@ -244,8 +336,8 @@ export default function ReplyPostModal({
               </div>
             </div>
 
-            {/* Mock Thumbnail Image */}
-            <div className="w-15 h-15 border border-gray-100 overflow-hidden shrink-0 bg-white flex flex-col justify-center">
+            {post.media.length > 0 && (
+              <div className="w-15 h-15 border border-gray-100 overflow-hidden shrink-0 bg-white flex flex-col justify-center">
               <div
                 className={`w-full h-full grid gap-px ${
                   post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
@@ -266,7 +358,8 @@ export default function ReplyPostModal({
                   </div>
                 ))}
               </div>
-            </div>
+              </div>
+            )}
           </div>
 
           <div className="mx-4 my-3 border-b border-gray-200"></div>
@@ -279,7 +372,7 @@ export default function ReplyPostModal({
             <div className="flex-1 pt-2">
               <textarea
                 value={postText}
-                onChange={(e) => setPostText(e.target.value)}
+                onChange={(e) => handleTextChange(e.target.value)}
                 className="w-full resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-400 min-h-20"
                 placeholder="Write your reply"
               />
@@ -349,7 +442,7 @@ export default function ReplyPostModal({
                 className="absolute bottom-full left-4 mb-2 z-50 shadow-xl rounded-lg"
               >
                 <EmojiPicker
-                  onEmojiClick={(e) => setPostText((prev) => prev + e.emoji)}
+                  onEmojiClick={(e) => appendText(e.emoji)}
                   searchDisabled
                   skinTonesDisabled
                 />
@@ -367,6 +460,7 @@ export default function ReplyPostModal({
                   fetchGifs={fetchGifs}
                   onGifClick={(gif, e) => {
                     e.preventDefault();
+                    revokeImagePreviews(selectedImages);
                     setSelectedGif(gif.images.original.url);
                     setSelectedImages([]);
                     setShowGifPicker(false);
@@ -451,6 +545,41 @@ export default function ReplyPostModal({
           </div>
         </DialogContent>
       </Dialog>
+      {showExitConfirm && (
+        <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+          <DialogTitle className="sr-only">Discard reply</DialogTitle>
+          <DialogContent
+            className="w-full max-w-62.5 rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-100 [&>button]:hidden"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
+            <div className="flex flex-col">
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Discard reply?
+              </h2>
+              <p className="text-[15px] leading-snug text-gray-600 mb-6">
+                This can't be undone and you'll lose your draft.
+              </p>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37]"
+                >
+                  Discard
+                </button>
+
+                <button
+                  onClick={() => setShowExitConfirm(false)}
+                  className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

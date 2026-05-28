@@ -2,6 +2,10 @@
 
 import Avatar from "@/app/components/avatar";
 import { FollowButton } from "@/app/components/button/follow-button";
+import {
+  InfiniteScrollFooter,
+  UserListSkeleton,
+} from "@/app/components/skeletons";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useGetFollowerLists } from "@/app/hooks/use-follow";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
@@ -52,28 +56,7 @@ export default function FollowersPage() {
 
         <div className="flex flex-col">
           {/* --- SKELETON LOADING --- */}
-          {isLoading &&
-            Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="p-4 border-b border-gray-100 animate-pulse flex flex-col gap-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-x-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0" />
-                    <div className="flex flex-col gap-2">
-                      <div className="h-4 bg-gray-200 rounded w-24" />
-                      <div className="h-3 bg-gray-200 rounded w-16" />
-                    </div>
-                  </div>
-                  <div className="w-24 h-8 bg-gray-200 rounded-full" />
-                </div>
-                <div className="ml-15 flex flex-col gap-2">
-                  <div className="h-3 bg-gray-200 rounded w-full" />
-                  <div className="h-3 bg-gray-200 rounded w-2/3" />
-                </div>
-              </div>
-            ))}
+          {isLoading && <UserListSkeleton />}
 
           {/* --- EMPTY STATE --- */}
           {!isLoading && follower.length === 0 && (
@@ -138,13 +121,12 @@ export default function FollowersPage() {
           ))}
 
           {/* Trigger infinite scroll */}
-          <div ref={ref} className="py-6 text-center text-[15px] text-gray-500">
-            {isFetchingNextPage
-              ? "Loading more..."
-              : !hasNextPage && follower.length > 0
-                ? ""
-                : null}
-          </div>
+          <InfiniteScrollFooter
+            refCallback={ref}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={hasNextPage}
+            hasItems={follower.length > 0}
+          />
         </div>
       </div>
     </>

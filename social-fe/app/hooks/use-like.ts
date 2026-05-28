@@ -21,9 +21,11 @@ export const useLike = (postId: string, isLiked: boolean) => {
       const previousFeed = qc.getQueryData(["feed"]);
       const previousBookmarks = qc.getQueryData(["bookmarks"]);
       const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
+      const postDetailCache = qc.getQueriesData({ queryKey: ["post-detail"] });
 
       const allCacheKeys = [
         ["feed"],
+        ...postDetailCache.map(([key]) => key as any[]),
         ...userPostsCache.map(([key]) => key as any[]),
       ];
 
@@ -39,7 +41,7 @@ export const useLike = (postId: string, isLiked: boolean) => {
         likeCount: !isLiked ? post.likeCount + 1 : post.likeCount - 1,
       }));
 
-      return { previousFeed, previousBookmarks, userPostsCache };
+      return { previousFeed, previousBookmarks, userPostsCache, postDetailCache };
     },
 
     onError: (_err, _vars, context) => {
@@ -47,6 +49,9 @@ export const useLike = (postId: string, isLiked: boolean) => {
         qc.setQueryData(["feed"], context.previousFeed);
       if (context?.previousBookmarks)
         qc.setQueryData(["bookmarks"], context.previousBookmarks);
+      context?.postDetailCache?.forEach(([queryKey, data]) => {
+        qc.setQueryData(queryKey, data);
+      });
       context?.userPostsCache?.forEach(([queryKey, data]) => {
         qc.setQueryData(queryKey, data);
       });
