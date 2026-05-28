@@ -10,7 +10,7 @@ export class SuggestionsService {
   async getSuggestedUsers(currentUserId: string, limit = 10) {
     // Get users that the current user is already following
     // and users that have pending follow requests
-    const [following, requested] = await Promise.all([
+    const [following, requested, muted] = await Promise.all([
       this.prisma.follow.findMany({
         where: { followerId: currentUserId },
         select: { followingId: true },
@@ -19,6 +19,10 @@ export class SuggestionsService {
       this.prisma.followRequest.findMany({
         where: { senderId: currentUserId },
         select: { receiverId: true },
+      }),
+      this.prisma.mute.findMany({
+        where: { muterId: currentUserId },
+        select: { mutedId: true },
       }),
     ]);
 
@@ -30,6 +34,7 @@ export class SuggestionsService {
       currentUserId,
       ...following.map((f) => f.followingId),
       ...requested.map((r) => r.receiverId),
+      ...muted.map((m) => m.mutedId),
     ];
 
     const users = await this.prisma.user.findMany({

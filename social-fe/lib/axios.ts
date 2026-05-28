@@ -1,132 +1,136 @@
+import { useAuthStore } from "@/app/store/use-auth.store";
 import axios, {
   AxiosError,
-  AxiosInstance,
+  AxiosRequestConfig,
   InternalAxiosRequestConfig,
 } from "axios";
+import { AuthResponse } from "@/app/interfaces/user.interface";
 
-// ─── Base URL ────────────────────────────────────────────────────────────────
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL!;
-
-if (!baseUrl) {
-  throw new Error("API URL environment variable is not defined");
-}
-
-// ─── Instances ───────────────────────────────────────────────────────────────
-
-export const axiosInstance: AxiosInstance = axios.create({
-  baseURL: baseUrl,
-  timeout: 10000,
-  withCredentials: true,
-});
-
-const refreshClient: AxiosInstance = axios.create({
-  baseURL: baseUrl,
-  timeout: 10000,
-  withCredentials: true,
-});
-
-// ─── Token State ─────────────────────────────────────────────────────────────
-
-let accessToken: string | null = null;
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
+type QueueItem = {
+  resolve: (session: RefreshResponse) => void;
   reject: (error: unknown) => void;
-}> = [];
+};
 
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token!);
-    }
+export type RefreshResponse = AuthResponse;
+
+type ApiEnvelope<T> = {
+  statusCode: number;
+  message: string;
+  data: T;
+  timestamp: string;
+};
+
+const baseURL = process.env.NEXT_PUBLIC_API_URL;
+
+const axiosInstance = axios.create({
+  baseURL,
+  withCredentials: true,
+});
+
+const refreshClient = axios.create({
+  baseURL,
+  withCredentials: true,
+});
+
+axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+let isRefreshing = false;
+let failedQueue: QueueItem[] = [];
+
+const processQueue = (
+  error: unknown,
+  session: RefreshResponse | null = null,
+) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error || !session) reject(error);
+    else resolve(session);
   });
   failedQueue = [];
 };
 
-// ─── Request Interceptor ─────────────────────────────────────────────────────
+const unwrapApiData = <T>(payload: T | ApiEnvelope<T>): T => {
+  if (payload && typeof payload === "object" && "data" in payload) {
+    return (payload as ApiEnvelope<T>).data;
+  }
 
-axiosInstance.interceptors.request.use(
-  (config) => {
-    if (accessToken) {
-      config.headers.set("Authorization", `Bearer ${accessToken}`);
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
+  return payload as T;
+};
 
-// ─── Response Interceptor ────────────────────────────────────────────────────
+export const refreshAuthSession = async (): Promise<RefreshResponse> => {
+  if (isRefreshing) {
+    return new Promise<RefreshResponse>((resolve, reject) => {
+      failedQueue.push({ resolve, reject });
+    });
+  }
+
+  isRefreshing = true;
+
+  try {
+    const res =
+      await refreshClient.post<ApiEnvelope<RefreshResponse>>("/auth/refresh");
+    const session = unwrapApiData(res.data);
+
+    useAuthStore
+      .getState()
+      .setAuth(
+        session.accessToken,
+        session.user.username,
+        session.user.email ?? "",
+      );
+    processQueue(null, session);
+
+    return session;
+  } catch (refreshError) {
+    processQueue(refreshError, null);
+    useAuthStore.getState().clearAuth();
+    throw refreshError;
+  } finally {
+    isRefreshing = false;
+  }
+};
 
 axiosInstance.interceptors.response.use(
   (response) => response.data,
   async (error: AxiosError) => {
-    if (!error.config) return Promise.reject(error);
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
+    const status = error.response?.status;
+    const requestUrl = originalRequest?.url ?? "";
+    const shouldSkipRefresh =
+      requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/forgot-password") ||
+      requestUrl.includes("/auth/reset-password");
 
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-    };
-
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    if (
+      !originalRequest ||
+      status !== 401 ||
+      originalRequest._retry ||
+      shouldSkipRefresh
+    ) {
       return Promise.reject(error);
-    }
-
-    const url = originalRequest.url ?? "";
-    if (url.includes("/auth/login") || url.includes("/auth/refresh")) {
-      return Promise.reject(error);
-    }
-
-    if (isRefreshing) {
-      return new Promise<string>((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      }).then((token) => {
-        originalRequest.headers.set("Authorization", `Bearer ${token}`);
-        return axiosInstance(originalRequest);
-      });
     }
 
     originalRequest._retry = true;
-    isRefreshing = true;
 
     try {
-      const response = await refreshClient.post<{ accessToken: string }>(
-        "/auth/refresh",
-      );
-
-      const { accessToken: newToken } = response.data;
-
-      if (!newToken) {
-        throw new Error("Can't get accessToken from server");
-      }
-
-      accessToken = newToken;
-
-      originalRequest.headers.set("Authorization", `Bearer ${newToken}`);
-
-      processQueue(null, newToken);
-
-      return axiosInstance(originalRequest);
+      const session = await refreshAuthSession();
+      originalRequest.headers.Authorization = `Bearer ${session.accessToken}`;
+      return axiosInstance(originalRequest as AxiosRequestConfig);
     } catch (refreshError) {
-      processQueue(refreshError, null);
-      accessToken = null;
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("auth:logout"));
-      }
-
       return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
     }
   },
 );
 
-// ─── Token Helpers ────────────────────────────────────────────────────────────
-
-export const setAccessToken = (token: string | null) => {
-  accessToken = token;
-};
-
-export const getAccessToken = () => accessToken;
+export { axiosInstance };

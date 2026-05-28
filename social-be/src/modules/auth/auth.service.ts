@@ -7,7 +7,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { addMinutes } from 'date-fns';
-import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RegisterDto } from './dto/register.dto';
@@ -24,7 +23,6 @@ import { PasswordResetToken, User } from '@prisma/client';
 import * as crypto from 'crypto';
 import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
 import { S3Service } from 'src/uploads/s3.service';
-import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import {
   CleanupJobData,
   JOB_NAMES,
@@ -46,7 +44,7 @@ export class AuthService {
     private s3Service: S3Service,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
@@ -272,9 +270,9 @@ export class AuthService {
       // Get old image before update to delete later
       const oldUser = uploadedKeys.length
         ? await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { avatarUrl: true, coverUrl: true },
-          })
+          where: { id: userId },
+          select: { avatarUrl: true, coverUrl: true },
+        })
         : null;
 
       const user = await this.prisma.user.update({

@@ -5,6 +5,10 @@ import {
   useNotifications,
 } from "@/app/hooks/use-notifications";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
+import {
+  InfiniteScrollFooter,
+  NotificationSkeleton,
+} from "@/app/components/skeletons";
 import { Notifications } from "@/app/interfaces/notification.interface";
 import { Settings, Bell, BadgeCheck, Circle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -76,11 +80,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Loading */}
-      {isLoading && (
-        <div className="flex justify-center mt-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      )}
+      {isLoading && <NotificationSkeleton />}
 
       {/* Empty */}
       {isEmpty && (
@@ -143,9 +143,12 @@ export default function NotificationsPage() {
           ))}
 
           {/* Infinite scroll trigger */}
-          <div ref={ref} className="py-4 text-center text-sm text-gray-400">
-            {isFetchingNextPage ? "Loading more..." : null}
-          </div>
+          <InfiniteScrollFooter
+            refCallback={ref}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={hasNextPage}
+            hasItems={notifications.length > 0}
+          />
         </div>
       )}
     </div>

@@ -4,6 +4,8 @@ import React, { useRef, useEffect, useMemo } from "react";
 import { Message } from "@/app/interfaces/chat.interface";
 import MessageBubble, { DateSeparator } from "./message-bubble";
 import { isSameDay } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { MessageSkeleton } from "@/app/components/skeletons";
 
 interface MessageListProps {
   messages: Message[];
@@ -138,14 +140,7 @@ export default function MessageList({
   }, [messages, currentUserId]);
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-gray-400">Loading messages...</span>
-        </div>
-      </div>
-    );
+    return <MessageSkeleton />;
   }
 
   return (
@@ -154,7 +149,7 @@ export default function MessageList({
       <div ref={topSentinelRef} className="h-1" />
       {isFetchingNextPage && (
         <div className="flex justify-center py-2">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
         </div>
       )}
 

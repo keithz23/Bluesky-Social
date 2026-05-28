@@ -67,10 +67,11 @@ export const useLists = () => {
   };
 };
 
-export const useGetlists = () => {
+export const useGetlists = (username?: string) => {
   return useInfiniteQuery({
-    queryKey: ["lists"],
-    queryFn: ({ pageParam }) => ListService.getLists(pageParam),
+    queryKey: ["lists", username ?? "me"],
+    queryFn: ({ pageParam }) =>
+      ListService.getLists(pageParam, undefined, username),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,

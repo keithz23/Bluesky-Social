@@ -1,6 +1,7 @@
 "use client";
 
 import { FollowButton } from "@/app/components/button/follow-button";
+import { UserListSkeleton } from "@/app/components/skeletons";
 import { useSuggestedUsers } from "@/app/hooks/use-suggestions";
 import { SuggestionsUser } from "@/app/interfaces/suggestion.interface";
 import {
@@ -249,7 +250,9 @@ export default function ExplorePage() {
         </div>
 
         <div className="flex flex-col mt-2 border-t border-gray-100">
-          {users.map((user: SuggestionsUser) => (
+          {isLoading && <UserListSkeleton count={4} />}
+
+          {!isLoading && users.map((user: SuggestionsUser) => (
             <div
               key={user.id}
               className="p-4 border-b border-gray-100 hover:bg-gray-50 transition flex items-start gap-3"

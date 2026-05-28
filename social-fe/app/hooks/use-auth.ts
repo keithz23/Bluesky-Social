@@ -9,14 +9,16 @@ import {
   UpdateProfileData,
 } from "../interfaces/auth.interface";
 import { AxiosError } from "axios";
+import { useAuthStore } from "../store/use-auth.store";
 
 export function useAuth() {
   const qc = useQueryClient();
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const clearAuth = useAuthStore((s) => s.clearAuth)
 
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       try {
         const { data } = await AuthService.me();
         return data;
@@ -37,9 +39,10 @@ export function useAuth() {
 
   const login = useMutation({
     mutationFn: async ({ loginDto }: { loginDto: LoginCredentials }) => {
-      return AuthService.login(loginDto);
+      return await AuthService.login(loginDto)
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      setAuth(data.accessToken, data.user.username, data.user.email || '')
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Glad to have you back.");
     },
@@ -68,6 +71,7 @@ export function useAuth() {
       return AuthService.logout();
     },
     onSuccess: () => {
+      clearAuth();
       qc.setQueryData(["me"], null);
     },
     onError: (err) => {
@@ -126,7 +130,7 @@ export function useAuth() {
   return {
     // User Info
     user: meQuery.data,
-    isLoadingProfile: meQuery.isFetching,
+    isLoadingProfile: meQuery.isLoading,
     isAuthenticated: !!meQuery.data,
     refetchMe: meQuery.refetch,
 

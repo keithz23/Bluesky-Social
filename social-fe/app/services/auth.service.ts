@@ -1,4 +1,4 @@
-import { axiosInstance } from "@/lib/axios";
+import { axiosInstance, refreshAuthSession } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
   LoginCredentials,
@@ -6,22 +6,24 @@ import {
   ResetPasswordData,
   UpdateProfileData,
 } from "../interfaces/auth.interface";
+import { AuthResponse } from "../interfaces/user.interface";
 
 export const AuthService = {
   register: (registerData: RegisterData) => {
     return axiosInstance.post(API_ENDPOINT.AUTH.REGISTER, registerData);
   },
 
-  login: (crendentials: LoginCredentials) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.LOGIN, crendentials);
+  login: async (crendentials: LoginCredentials): Promise<AuthResponse> => {
+    const response = await axiosInstance.post(API_ENDPOINT.AUTH.LOGIN, crendentials);
+    return response.data
   },
 
   logout: () => {
     return axiosInstance.post(API_ENDPOINT.AUTH.LOGOUT, {});
   },
 
-  refresh: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REFRESH);
+  refresh: async (): Promise<AuthResponse> => {
+    return refreshAuthSession();
   },
 
   me: () => {
