@@ -9,4 +9,9 @@ export interface Notifications {
   isRead: boolean;
   createdAt: string;
   actor: User;
+  post?: {
+    user?: {
+      username: string;
+    };
+  };
 }

@@ -124,3 +124,18 @@ export const useGetPostById = (postId: string) => {
     enabled: !!postId,
   });
 };
+
+export const useSearchPosts = (query: string) => {
+  const trimmedQuery = query.trim();
+
+  return useInfiniteQuery({
+    queryKey: ["posts", "search", trimmedQuery],
+    queryFn: ({ pageParam }) =>
+      PostService.searchPosts(trimmedQuery, pageParam, 20),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: trimmedQuery.length > 0,
+    ...infiniteQueryOptions,
+  });
+};
