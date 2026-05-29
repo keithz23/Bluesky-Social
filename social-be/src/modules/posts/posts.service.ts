@@ -19,9 +19,10 @@ import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
-import { extractMentions } from 'src/common/utils/extract.util';
+import { extractHashtags, extractMentions } from 'src/common/utils/extract.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SocketGateway } from '../socket/socket.gateway';
+import { SearchPostsDto } from './dto/search-posts.dto';
 
 @Injectable()
 export class PostsService {
@@ -46,6 +47,7 @@ export class PostsService {
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
     const mentionedUsernames = extractMentions(content ?? '');
+    const hashtagNames = extractHashtags(content ?? '');
 
     if (images && images.length > 0) {
       try {
@@ -179,6 +181,8 @@ export class PostsService {
             skipDuplicates: true,
           });
         }
+
+        await this.attachHashtags(tx, created.id, hashtagNames);
 
         const post = await tx.post.findUnique({
           where: { id: created.id },
@@ -461,6 +465,171 @@ export class PostsService {
     };
   }
 
+  async searchPosts(currentUserId: string, query: SearchPostsDto) {
+    const searchTerm = query.q.trim();
+    const limit = query.limit ?? 20;
+
+    if (!searchTerm) {
+      return { posts: [], nextCursor: null, hasMore: false };
+    }
+
+    const normalizedHashtag = searchTerm.startsWith('#')
+      ? searchTerm.slice(1).toLowerCase()
+      : searchTerm.toLowerCase();
+
+    const [blocks, mutes, blockedBy] = await Promise.all([
+      this.prisma.block.findMany({
+        where: { blockerId: currentUserId },
+        select: { blockedId: true },
+      }),
+      this.prisma.mute.findMany({
+        where: { muterId: currentUserId },
+        select: { mutedId: true },
+      }),
+      this.prisma.block.findMany({
+        where: { blockedId: currentUserId },
+        select: { blockerId: true },
+      }),
+    ]);
+
+    const excludedUserIds = [
+      ...blocks.map((block) => block.blockedId),
+      ...mutes.map((mute) => mute.mutedId),
+      ...blockedBy.map((block) => block.blockerId),
+    ];
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        isDeleted: false,
+        ...(excludedUserIds.length > 0 && {
+          userId: { notIn: excludedUserIds },
+        }),
+        OR: [
+          {
+            content: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+          },
+          {
+            hashtags: {
+              some: {
+                hashtag: {
+                  name: {
+                    contains: normalizedHashtag,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
+        parentPostId: true,
+        rootPostId: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+            followersCount: true,
+            followingCount: true,
+            bio: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            width: true,
+            height: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = posts.length > limit;
+    if (hasMore) posts.pop();
+    const nextCursor = hasMore ? posts[posts.length - 1].id : null;
+
+    if (posts.length === 0) {
+      return { posts: [], nextCursor: null, hasMore: false };
+    }
+
+    const postIds = posts.map((post) => post.id);
+    const authorIds = [...new Set(posts.map((post) => post.user.id))];
+
+    const [likedPosts, bookmarkedPosts, repostedPosts, following] =
+      await Promise.all([
+        this.prisma.like.findMany({
+          where: { userId: currentUserId, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+        this.prisma.bookmark.findMany({
+          where: { userId: currentUserId, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+        this.prisma.repost.findMany({
+          where: { userId: currentUserId, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+        this.prisma.follow.findMany({
+          where: { followerId: currentUserId, followingId: { in: authorIds } },
+          select: { followingId: true },
+        }),
+      ]);
+
+    const likedSet = new Set(likedPosts.map((like) => like.postId));
+    const bookmarkedSet = new Set(
+      bookmarkedPosts.map((bookmark) => bookmark.postId),
+    );
+    const repostedSet = new Set(repostedPosts.map((repost) => repost.postId));
+    const followingSet = new Set(following.map((follow) => follow.followingId));
+
+    return {
+      posts: posts.map((post) => ({
+        ...post,
+        isLiked: likedSet.has(post.id),
+        isBookmarked: bookmarkedSet.has(post.id),
+        isReposted: repostedSet.has(post.id),
+        user: {
+          ...post.user,
+          followStatus:
+            post.user.id === currentUserId
+              ? null
+              : followingSet.has(post.user.id)
+                ? 'following'
+                : 'none',
+        },
+      })),
+      nextCursor,
+      hasMore,
+    };
+  }
+
   async getPostDetail(userId: string, postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
@@ -690,6 +859,11 @@ export class PostsService {
       );
 
     await this.prisma.$transaction(async (tx) => {
+      const hashtags = await tx.postHashtag.findMany({
+        where: { postId },
+        select: { hashtagId: true },
+      });
+
       await tx.postMedia.deleteMany({ where: { postId } });
 
       if (post.parentPostId) {
@@ -709,6 +883,13 @@ export class PostsService {
       });
 
       await tx.post.delete({ where: { id: postId } });
+
+      if (hashtags.length > 0) {
+        await tx.hashtag.updateMany({
+          where: { id: { in: hashtags.map((hashtag) => hashtag.hashtagId) } },
+          data: { postCount: { decrement: 1 } },
+        });
+      }
     });
 
     // Schedule s3 cleanup
@@ -725,6 +906,7 @@ export class PostsService {
     images?: Express.Multer.File[],
   ) {
     const { content, gifUrl } = createReplyDto;
+    const hashtagNames = extractHashtags(content ?? '');
 
     const parentPost = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
@@ -817,6 +999,8 @@ export class PostsService {
             },
           });
         }
+
+        await this.attachHashtags(tx, created.id, hashtagNames);
 
         return tx.post.findUnique({
           where: { id: created.id },
@@ -960,6 +1144,33 @@ export class PostsService {
         delay: 1000, // Delay 1s before cleanup
       },
     );
+  }
+
+  private async attachHashtags(
+    tx: any,
+    postId: string,
+    hashtagNames: string[],
+  ) {
+    if (hashtagNames.length === 0) return;
+
+    const hashtags = await Promise.all(
+      hashtagNames.map((name) =>
+        tx.hashtag.upsert({
+          where: { name },
+          create: { name, postCount: 1 },
+          update: { postCount: { increment: 1 } },
+          select: { id: true },
+        }),
+      ),
+    );
+
+    await tx.postHashtag.createMany({
+      data: hashtags.map((hashtag) => ({
+        postId,
+        hashtagId: hashtag.id,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   private extractKeyFromUrl(url: string): string {

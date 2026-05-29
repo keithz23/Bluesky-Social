@@ -38,6 +38,14 @@ export const PostService = {
     return data;
   },
 
+  searchPosts: async (q: string, cursor?: string, limit?: number) => {
+    const { data } = await axiosInstance.get(
+      API_ENDPOINT.POSTS.SEARCH({ q, cursor, limit }),
+    );
+
+    return data;
+  },
+
   deletePost: (postId: string) => {
     return axiosInstance.delete(
       `${API_ENDPOINT.POSTS.DELETE_POST(postId)}`,

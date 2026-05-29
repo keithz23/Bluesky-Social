@@ -22,7 +22,7 @@ const TABS = [
 export default function NotificationsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<"all" | "mention">("all");
-  const { markAsRead, markAllAsRead } = useNotifications();
+  const { unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { data, fetchNextPage, isFetchingNextPage, hasNextPage, isLoading } =
     useGetNotifications(filter);
 
@@ -42,6 +42,19 @@ export default function NotificationsPage() {
     router.push(`/profile/${username}`);
   };
 
+  const handleNotificationClick = (noti: Notifications) => {
+    if (!noti.isRead) markAsRead(noti.id);
+
+    if (noti.postId && noti.post?.user?.username) {
+      router.push(`/profile/${noti.post.user.username}/post/${noti.postId}`);
+      return;
+    }
+
+    if (noti.actor?.username) {
+      router.push(`/profile/${noti.actor.username}`);
+    }
+  };
+
   return (
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* Header */}
@@ -51,7 +64,8 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={markAllAsRead}
-              className="text-sm font-medium text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-full transition cursor-pointer"
+              disabled={unreadCount === 0}
+              className="text-sm font-medium text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-full transition cursor-pointer disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
             >
               Mark all read
             </button>
@@ -98,9 +112,7 @@ export default function NotificationsPage() {
           {notifications.map((noti: Notifications) => (
             <div
               key={noti.id}
-              onClick={() => {
-                if (!noti.isRead) markAsRead(noti.id);
-              }}
+              onClick={() => handleNotificationClick(noti)}
               className={`flex gap-3 px-4 py-3 border-b border-gray-100 cursor-pointer transition hover:bg-gray-50 ${
                 !noti.isRead ? "bg-blue-50/40" : "bg-white"
               }`}

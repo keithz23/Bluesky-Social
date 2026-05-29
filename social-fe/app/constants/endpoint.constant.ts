@@ -18,6 +18,13 @@ export const API_ENDPOINT = {
     DELETE_POST: (id: string) => `/posts/delete-post/${id}`,
     GET_BY_USERNAME: (username: string) => `/posts/users/${username}`,
     GET_BY_ID: (postId: string) => `/posts/post-detail/${postId}`,
+    SEARCH: (params: { q: string; cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      query.set("q", params.q);
+      if (params.cursor) query.set("cursor", params.cursor);
+      if (params.limit) query.set("limit", String(params.limit));
+      return `/posts/search?${query.toString()}`;
+    },
 
     CREATE_REPLY: (postId: string) => `/posts/${postId}/replies`,
     GET_REPLIES: (postId: string) => `/posts/${postId}/replies`,
@@ -48,6 +55,10 @@ export const API_ENDPOINT = {
         ? `/notifications/get-notifications?${qs}`
         : "/notifications/get-notifications";
     },
+    UNREAD_COUNT: "/notifications/unread-count",
+    MARK_READ: (notificationId: string) =>
+      `/notifications/${notificationId}/read`,
+    MARK_ALL_READ: "/notifications/read-all",
   },
 
   FOLLOWS: {

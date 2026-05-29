@@ -31,6 +31,7 @@ import { useRouter, usePathname } from "next/navigation";
 import NewPostModal from "../components/dialog/new-post-dialog";
 import BackToTop from "../components/back-to-top";
 import Loading from "../components/loading";
+import { useNotifications } from "../hooks/use-notifications";
 
 export default function MainLayout({
   children,
@@ -40,6 +41,7 @@ export default function MainLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, user, logoutMutation, isLoadingProfile } = useAuth();
+  const { unreadCount } = useNotifications(isAuthenticated);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -200,10 +202,17 @@ export default function MainLayout({
                 onClick={closeMobileMenu}
                 className="flex items-center gap-5 p-3 rounded-full hover:bg-gray-100 transition max-w-xl pr-8"
               >
-                <item.icon
-                  className="w-7 h-7 text-black"
-                  strokeWidth={isActive ? 2.5 : 1.5}
-                />
+                <span className="relative">
+                  <item.icon
+                    className="w-7 h-7 text-black"
+                    strokeWidth={isActive ? 2.5 : 1.5}
+                  />
+                  {item.label === "Notifications" && unreadCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E42240] px-1 text-[11px] font-bold leading-none text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </span>
                 <span
                   className={`text-xl text-black ${isActive ? "font-bold" : ""}`}
                 >
@@ -366,10 +375,17 @@ export default function MainLayout({
                     className="flex items-center justify-center p-2.5 rounded-full hover:bg-gray-100 transition-colors"
                     aria-label={item.label}
                   >
-                    <item.icon
-                      className="w-6.5 h-6.5 text-gray-900"
-                      strokeWidth={isActive ? 2.5 : 1.5}
-                    />
+                    <span className="relative">
+                      <item.icon
+                        className="w-6.5 h-6.5 text-gray-900"
+                        strokeWidth={isActive ? 2.5 : 1.5}
+                      />
+                      {item.label === "Notifications" && unreadCount > 0 && (
+                        <span className="absolute -right-2 -top-2 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#E42240] px-1 text-[10px] font-bold leading-none text-white">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 );
               })}
