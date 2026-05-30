@@ -48,6 +48,7 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('welcome');
     this.loadTemplate('send-notification');
     this.loadTemplate('forgot');
+    this.loadTemplate('email-otp')
   }
 
   private loadTemplate(name: string): void {
@@ -116,12 +117,18 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${
-              context.redirect
-                ? `?redirect=${encodeURIComponent(context.redirect)}`
-                : ''
-            }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect
+              ? `?redirect=${encodeURIComponent(context.redirect)}`
+              : ''
+              }`,
           });
+          break;
+        }
+        case 'email-otp': {
+          subject ||= 'Email Update Requested';
+          html = this.renderTemplate('email-otp', {
+            ...context,
+          })
           break;
         }
         case 'welcome':

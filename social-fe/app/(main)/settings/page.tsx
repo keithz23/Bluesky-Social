@@ -20,45 +20,46 @@ import { useAuth } from "@/app/hooks/use-auth";
 import Link from "next/link";
 
 const settingSections = [
-  { id: "account", label: "Account", icon: User, href: "/account" },
+  { id: "account", label: "Account", icon: User, href: "/settings/account" },
   {
     id: "privacy",
     label: "Privacy and security",
     icon: Lock,
-    href: "/privacy",
+    href: "/settings/privacy",
   },
   {
     id: "moderation",
     label: "Moderation and content filters",
     icon: Hand,
+    href: "/settings/moderation",
   },
   {
     id: "notifications",
     label: "Notifications",
     icon: Bell,
-    href: "/notifications",
+    href: "/settings/notifications",
   },
   {
     id: "content",
     label: "Content and media",
     icon: MonitorPlay,
-    href: "/content",
+    href: "/settings/content",
   },
   {
     id: "appearance",
     label: "Appearance",
     icon: PaintRoller,
-    href: "/appearance",
+    href: "/settings/appearance",
   },
   {
     id: "accessibility",
     label: "Accessibility",
     icon: Accessibility,
-    href: "/accessibility",
+    href: "/settings/accessibility",
   },
-  { id: "languages", label: "Languages", icon: Globe, href: "/languages" },
-  { id: "help", label: "Help", icon: HelpCircle, href: "/help" },
-  { id: "about", label: "About", icon: MessageSquare, href: "/about" },
+  { id: "languages", label: "Languages", icon: Globe, href: "/settings/languages" },
+  { id: "help", label: "Help", icon: HelpCircle, href: "/settings/help" },
+  { id: "about", label: "About", icon: MessageSquare, href: "/settings/about" },
 ];
 
 export default function SettingsPage() {
@@ -72,10 +73,6 @@ export default function SettingsPage() {
     logoutMutation.mutate(undefined, {
       onSuccess: () => router.push("/login"),
     });
-  };
-
-  const handleOpenSection = (label: string) => {
-    toast.info(`${label} settings are not available yet`);
   };
 
   return (
@@ -125,7 +122,7 @@ export default function SettingsPage() {
           const Icon = item.icon;
 
           return (
-            <Link href={`settings/${item.href}`} key={item.id}>
+            <Link href={item.href} key={item.id}>
               <button
                 type="button"
                 className="flex h-12 w-full cursor-pointer items-center justify-between gap-4 px-5 text-left transition hover:bg-gray-50"

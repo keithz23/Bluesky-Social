@@ -43,6 +43,7 @@ import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
+import { UpdateEmailDto } from './dto/update-email.dto';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
@@ -306,6 +307,23 @@ export class AuthController {
   ) {
     await this.authService.requestPasswordReset(
       body.email,
+      userAgent,
+      ipAddress,
+    );
+
+    return { message: 'If the email exists, a reset link has been sent.' };
+  }
+
+  @Post('update-email')
+  @HttpCode(200)
+  async update(
+    @Body() body: UpdateEmailDto,
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestUpdateEmail(
+      userId,
       userAgent,
       ipAddress,
     );

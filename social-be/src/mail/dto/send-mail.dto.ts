@@ -3,7 +3,8 @@ export type MailType =
   | 'reset'
   | 'welcome'
   | 'send-notification'
-  | 'forgot';
+  | 'forgot'
+  | 'email-otp'
 
 export interface SendMailDto {
   to: string;
