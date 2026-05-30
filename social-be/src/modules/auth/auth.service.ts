@@ -30,6 +30,7 @@ import {
 } from 'src/common/constants/queue.constant';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { UpdateEmailDto } from './dto/update-email.dto';
 
 const RESET_TTL_MINUTES = 15;
 
@@ -677,6 +678,32 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     };
+  }
+
+  async requestUpdateEmail(userId: string, userAgent?: string, ipAddress?: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+    if (!user) {
+      return
+    }
+
+    const rawCode = generateResetCode()
+    const tokenHash = await HashUtil.hash(rawCode)
+    const expiresAt = addMinutes(new Date(), RESET_TTL_MINUTES)
+
+    await this.mailService.sendEmailOtp(user.email, rawCode, user.username, expiresAt)
+  }
+
+  async updateEmail(updateEmailDto: UpdateEmailDto, userId: string) {
+    const { newEmail } = updateEmailDto
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (newEmail == user?.email) {
+      throw new ConflictException("This email is already associated with your account. ")
+    }
+
+    // Send otp to current email
   }
 
   private transformUser(user: any) {

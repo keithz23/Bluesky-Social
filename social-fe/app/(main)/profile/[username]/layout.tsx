@@ -87,7 +87,7 @@ export default function ProfileLayout({
           // <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
           //   Edit Profile
           // </button>
-          <EditProfileModal />
+          <EditProfileModal profile={profile} />
         ) : (
           <FollowButton targetUserId={profile?.id} />
         )}

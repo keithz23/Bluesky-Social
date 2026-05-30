@@ -20,7 +20,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 
-export default function EditProfileModal() {
+interface EditableProfile {
+  displayName?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+}
+
+interface EditProfileModalProps {
+  profile?: EditableProfile | null;
+}
+
+export default function EditProfileModal({ profile }: EditProfileModalProps) {
   const { updateProfileMutation, isUpdating } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -35,11 +46,27 @@ export default function EditProfileModal() {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  const initialDisplayName = profile?.displayName ?? "";
+  const initialBio = profile?.bio ?? "";
+  const initialAvatar = profile?.avatarUrl ?? "";
+  const initialCover = profile?.coverUrl ?? "";
+
   const hasChanges =
-    displayName.trim().length > 0 ||
-    description.trim().length > 0 ||
-    avatar ||
-    coverPhoto;
+    displayName !== initialDisplayName ||
+    description !== initialBio ||
+    avatar !== initialAvatar ||
+    coverPhoto !== initialCover ||
+    !!avatarFile ||
+    !!coverFile;
+
+  const hydrateForm = () => {
+    setDisplayName(initialDisplayName);
+    setDescription(initialBio);
+    setAvatar(initialAvatar);
+    setCoverPhoto(initialCover);
+    setAvatarFile(undefined);
+    setCoverFile(undefined);
+  };
 
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -58,10 +85,7 @@ export default function EditProfileModal() {
   };
 
   const resetForm = () => {
-    setDisplayName("");
-    setDescription("");
-    setAvatar("");
-    setCoverPhoto("");
+    hydrateForm();
     setAvatarFile(undefined);
     setCoverFile(undefined);
   };
@@ -99,11 +123,23 @@ export default function EditProfileModal() {
     setIsOpen(false);
   };
 
-  const isSaveDisabled = displayName.trim() === "" && !avatar && !coverPhoto;
+  const isSaveDisabled =
+    !hasChanges || displayName.trim() === "" || isUpdating;
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            hydrateForm();
+            setIsOpen(true);
+            return;
+          }
+
+          handleCloseAttempt();
+        }}
+      >
         <DialogTrigger asChild>
           <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
             Edit Profile

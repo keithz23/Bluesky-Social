@@ -120,6 +120,7 @@ export function useAuth() {
 
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: ["profile"] });
       toast.success("Profile updated successfully");
     },
     onError: (err) => {
