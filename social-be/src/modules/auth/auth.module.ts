@@ -9,11 +9,13 @@ import { RefreshJwtStrategy } from './strategies/jwt-refresh.strategy';
 import { MailModule } from 'src/mail/mail.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
     MailModule,
     PrismaModule,
+    CacheModule,
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => {
         const secret = configService.get('config.jwt.secret');
@@ -30,4 +32,4 @@ import { GoogleStrategy } from './strategies/google.strategy';
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RefreshJwtStrategy, GoogleStrategy],
 })
-export class AuthModule {}
+export class AuthModule { }

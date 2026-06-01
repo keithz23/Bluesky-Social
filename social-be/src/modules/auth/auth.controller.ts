@@ -314,10 +314,9 @@ export class AuthController {
     return { message: 'If the email exists, a reset link has been sent.' };
   }
 
-  @Post('update-email')
+  @Post('request-update-email')
   @HttpCode(200)
-  async update(
-    @Body() body: UpdateEmailDto,
+  async requestUpdateEmail(
     @CurrentUser('id') userId: string,
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
@@ -329,6 +328,13 @@ export class AuthController {
     );
 
     return { message: 'If the email exists, a reset link has been sent.' };
+  }
+
+  @Post('update-email')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async updateEmail(@Body() updateEmailDto: UpdateEmailDto, @CurrentUser('id') userId: string, @Ip() ipAddress: String, @Headers('user-agent') userAgent: string) {
+    return this.authService.updateEmail(updateEmailDto, userId)
   }
 
   @Public()

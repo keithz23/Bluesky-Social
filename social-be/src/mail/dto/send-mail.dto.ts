@@ -4,7 +4,7 @@ export type MailType =
   | 'welcome'
   | 'send-notification'
   | 'forgot'
-  | 'email-otp'
+  | 'request-email-otp'
 
 export interface SendMailDto {
   to: string;

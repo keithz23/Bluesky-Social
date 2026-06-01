@@ -24,7 +24,7 @@ export class MailService {
         backoff: { type: 'exponential', delay: 1000 },
       };
 
-      if (payload.type === 'verify' || payload.type === 'forgot' || payload.type === 'email-otp') {
+      if (payload.type === 'verify' || payload.type === 'forgot' || payload.type === 'request-email-otp') {
         opts.jobId = this.makeJobId(payload);
       }
 
@@ -95,12 +95,12 @@ export class MailService {
     });
   }
 
-  async sendEmailOtp(to: string, resetCode: string, username: string, expiresIn: Date) {
+  async sendRequestEmailOtp(to: string, resetCode: string, username: string) {
     return this.enqueue({
       to,
-      type: 'email-otp',
+      type: 'request-email-otp',
       subject: 'Email Update Requested',
-      context: { resetCode, username, expiresIn },
+      context: { resetCode, username },
     });
   }
 }
