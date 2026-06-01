@@ -48,7 +48,7 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('welcome');
     this.loadTemplate('send-notification');
     this.loadTemplate('forgot');
-    this.loadTemplate('email-otp')
+    this.loadTemplate('request-email-otp')
   }
 
   private loadTemplate(name: string): void {
@@ -58,8 +58,10 @@ export class MailProcessor extends WorkerHost {
       const compiled = Handlebars.compile(source, { noEscape: false });
       this.templateCache.set(name, compiled);
       this.logger.log(`Loaded template: ${path.basename(file)}`);
-    } catch (error) {
-      this.logger.error(`Failed to load template "${name}": ${error?.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(`Failed to load template "${name}": ${error?.message}`);
+      }
     }
   }
 
@@ -124,9 +126,9 @@ export class MailProcessor extends WorkerHost {
           });
           break;
         }
-        case 'email-otp': {
+        case 'request-email-otp': {
           subject ||= 'Email Update Requested';
-          html = this.renderTemplate('email-otp', {
+          html = this.renderTemplate('request-email-otp', {
             ...context,
           })
           break;

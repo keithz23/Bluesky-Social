@@ -31,6 +31,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { UpdateEmailDto } from './dto/update-email.dto';
+import { CacheService } from '../cache/cache.service';
 
 const RESET_TTL_MINUTES = 15;
 
@@ -43,6 +44,7 @@ export class AuthService {
     private configService: ConfigService,
     private mailService: MailService,
     private s3Service: S3Service,
+    private redisService: CacheService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
   ) { }
@@ -680,17 +682,27 @@ export class AuthService {
     };
   }
 
-  async requestUpdateEmail(userId: string, userAgent?: string, ipAddress?: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+  async requestUpdateEmail(userId: string, newEmail: string, userAgent?: string, ipAddress?: string): Promise<void> {
+    // 1. Kiểm tra user
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return
+      // Nên throw Error (vd: NotFoundException) thay vì return rỗng để Client biết đường xử lý
+      throw new Error('User not found');
     }
 
-    const rawCode = generateResetCode()
-    const tokenHash = await HashUtil.hash(rawCode)
-    const expiresAt = addMinutes(new Date(), RESET_TTL_MINUTES)
+    const rawCode = generateResetCode();
 
-    await this.mailService.sendEmailOtp(user.email, rawCode, user.username, expiresAt)
+    const redisPayload = JSON.stringify({
+      new_email: newEmail,
+      otp: rawCode
+    });
+
+    await this.redisService.set(`email_update:${userId}`, redisPayload, RESET_TTL_MINUTES * 60);
+
+    const savedData = await this.redisService.get(`email_update:${userId}`);
+    console.log('Saved in Redis:', savedData);
+
+    await this.mailService.sendRequestEmailOtp(user.email, rawCode, user.username);
   }
 
   async updateEmail(updateEmailDto: UpdateEmailDto, userId: string) {
@@ -700,10 +712,11 @@ export class AuthService {
     })
 
     if (newEmail == user?.email) {
-      throw new ConflictException("This email is already associated with your account. ")
+      throw new ConflictException("This email is already associated with your account.")
     }
 
     // Send otp to current email
+
   }
 
   private transformUser(user: any) {
