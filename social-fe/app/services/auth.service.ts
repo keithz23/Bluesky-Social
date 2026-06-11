@@ -2,8 +2,10 @@ import { axiosInstance, refreshAuthSession } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
   LoginCredentials,
+  RequestUpdateEmailData,
   RegisterData,
   ResetPasswordData,
+  UpdateEmailData,
   UpdateProfileData,
 } from "../interfaces/auth.interface";
 import { AuthResponse } from "../interfaces/user.interface";
@@ -58,5 +60,16 @@ export const AuthService = {
 
   reset: (resetPasswordData: ResetPasswordData) => {
     return axiosInstance.post(API_ENDPOINT.AUTH.RESET, resetPasswordData);
+  },
+
+  requestUpdateEmail: (requestUpdateEmailData: RequestUpdateEmailData) => {
+    return axiosInstance.post(
+      API_ENDPOINT.AUTH.REQUEST_UPDATE_EMAIL,
+      requestUpdateEmailData,
+    );
+  },
+
+  updateEmail: (updateEmailData: UpdateEmailData) => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.UPDATE_EMAIL, updateEmailData);
   },
 };

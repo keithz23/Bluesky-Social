@@ -1,5 +1,6 @@
 import { Heart } from "lucide-react";
 import { useLike } from "../../hooks/use-like";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 const LikeButton = ({
   postId,
@@ -11,11 +12,13 @@ const LikeButton = ({
   likeCount: number;
 }) => {
   const { mutate: toggleLike } = useLike(postId, isLiked);
+  const requireAuth = useRequireAuthAction();
 
   return (
     <div
       onClick={(e) => {
         e.stopPropagation();
+        if (!requireAuth()) return;
         toggleLike();
       }}
       className="flex items-center gap-1 group cursor-pointer"

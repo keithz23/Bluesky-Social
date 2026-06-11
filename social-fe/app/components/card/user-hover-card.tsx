@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/hover-card";
 import { BadgeCheck } from "lucide-react";
 import { useFollow } from "../../hooks/use-follow";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import Avatar from "../avatar";
 
 interface UserHoverCardProps {
@@ -17,6 +18,7 @@ export default function UserHoverCard({
   handleProfileClick,
 }: UserHoverCardProps) {
   const { follow } = useFollow(data.user.id);
+  const requireAuth = useRequireAuthAction();
   return (
     <HoverCard openDelay={400} closeDelay={150}>
       <HoverCardTrigger asChild>
@@ -50,6 +52,7 @@ export default function UserHoverCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!requireAuth()) return;
                   follow.mutate();
                 }}
                 className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-1.5 rounded-full transition cursor-pointer"

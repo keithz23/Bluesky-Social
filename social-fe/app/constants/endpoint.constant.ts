@@ -9,6 +9,8 @@ export const API_ENDPOINT = {
     RESET: "/auth/reset-password",
     UPDATE_PROFILE: "/auth/update-profile",
     UPDATE_PASSWORD: "/auth/update-password",
+    REQUEST_UPDATE_EMAIL: "/auth/request-update-email",
+    UPDATE_EMAIL: "/auth/update-email",
     SOCKET_TOKEN: "/auth/socket-token",
   },
 
@@ -31,10 +33,11 @@ export const API_ENDPOINT = {
   },
 
   FEED: {
-    GET_FEED: (params?: { cursor?: string; limit?: number }) => {
+    GET_FEED: (params?: { cursor?: string; limit?: number; seed?: string }) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.seed) query.set("seed", params.seed);
       const qs = query.toString();
       return qs ? `/feed?${qs}` : "/feed";
     },

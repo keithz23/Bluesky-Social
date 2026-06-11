@@ -23,6 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useModeration } from "@/app/hooks/use-moderation";
 import { ReportReason } from "@/app/services/moderation.service";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 interface PostDropDownProps {
   post: Feed;
@@ -35,6 +36,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
   const { deletePost, isDeletingPost } = usePost();
   const { blockUser, muteUser, reportPost, isModerating } = useModeration();
   const { user } = useAuth();
+  const requireAuth = useRequireAuthAction();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
@@ -57,6 +59,8 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
     : items;
 
   const confirmDelete = () => {
+    if (!requireAuth()) return;
+
     const isOnPostDetail =
       pathname === `/profile/${post.user.username}/post/${post.id}`;
 
@@ -123,14 +127,17 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
         hidePostFromCaches();
         break;
       case "Mute account":
+        if (!requireAuth()) return;
         if (isOwner) return toast.info("You cannot mute your own account");
         muteUser.mutate(post.user.id);
         break;
       case "Block account":
+        if (!requireAuth()) return;
         if (isOwner) return toast.info("You cannot block your own account");
         blockUser.mutate(post.user.id);
         break;
       case "Report post":
+        if (!requireAuth()) return;
         if (isOwner) return toast.info("You cannot report your own post");
         setIsReportOpen(true);
         break;
@@ -151,6 +158,8 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
   };
 
   const submitReport = () => {
+    if (!requireAuth()) return;
+
     reportPost.mutate(
       {
         postId: post.id,
