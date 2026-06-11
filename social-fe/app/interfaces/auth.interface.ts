@@ -24,3 +24,11 @@ export interface UpdateProfileData {
   avatarFile?: File;
   coverFile?: File;
 }
+
+export interface RequestUpdateEmailData {
+  newEmail: string;
+}
+
+export interface UpdateEmailData {
+  otp: string;
+}

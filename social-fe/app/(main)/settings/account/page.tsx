@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
+import { useState } from "react";
 import {
   AtSign,
   Bot,
@@ -15,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import UpdateEmailDialog from "@/app/components/dialog/update-email-dialog";
 import { useAuth } from "@/app/hooks/use-auth";
 
 type AccountRowProps = {
@@ -34,6 +36,7 @@ const unavailable = (label: string) => {
 
 export default function AccountPage() {
   const { user } = useAuth();
+  const [isUpdateEmailOpen, setIsUpdateEmailOpen] = useState(false);
   const email = user?.email || "No email";
   const handle = user?.username ? `@${user.username}` : "Not set";
 
@@ -51,7 +54,7 @@ export default function AccountPage() {
           icon={Pencil}
           label="Update email"
           chevron
-          onClick={() => unavailable("Update email")}
+          onClick={() => setIsUpdateEmailOpen(true)}
         />
       </section>
 
@@ -109,6 +112,12 @@ export default function AccountPage() {
           onClick={() => unavailable("Delete account")}
         />
       </section>
+
+      <UpdateEmailDialog
+        open={isUpdateEmailOpen}
+        onOpenChange={setIsUpdateEmailOpen}
+        currentEmail={user?.email}
+      />
     </div>
   );
 }

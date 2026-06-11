@@ -683,40 +683,83 @@ export class AuthService {
   }
 
   async requestUpdateEmail(userId: string, newEmail: string, userAgent?: string, ipAddress?: string): Promise<void> {
-    // 1. Kiểm tra user
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      // Nên throw Error (vd: NotFoundException) thay vì return rỗng để Client biết đường xử lý
-      throw new Error('User not found');
+
+    if (!user) throw new Error("User not found")
+
+
+    const normalizedEmail = newEmail.trim().toLowerCase();
+
+
+    if (normalizedEmail == user.email) throw new ConflictException("This email is already associated with your account.")
+
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (existingUser) {
+      throw new ConflictException("Email already exists.");
     }
 
     const rawCode = generateResetCode();
 
     const redisPayload = JSON.stringify({
-      new_email: newEmail,
+      new_email: normalizedEmail,
       otp: rawCode
     });
 
     await this.redisService.set(`email_update:${userId}`, redisPayload, RESET_TTL_MINUTES * 60);
 
-    const savedData = await this.redisService.get(`email_update:${userId}`);
-    console.log('Saved in Redis:', savedData);
-
     await this.mailService.sendRequestEmailOtp(user.email, rawCode, user.username);
   }
 
   async updateEmail(updateEmailDto: UpdateEmailDto, userId: string) {
-    const { newEmail } = updateEmailDto
+    const { otp } = updateEmailDto;
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-    })
+    });
 
-    if (newEmail == user?.email) {
-      throw new ConflictException("This email is already associated with your account.")
+    if (!user) throw new Error('User not found');
+
+    const redisKey = `email_update:${userId}`;
+    const rawData = await this.redisService.get(redisKey);
+
+    if (!rawData) {
+      throw new BadRequestException('OTP is invalid or expired');
     }
 
-    // Send otp to current email
+    const requestUpdateEmailData = JSON.parse(rawData) as {
+      new_email: string;
+      otp: string;
+    };
 
+    if (otp !== requestUpdateEmailData.otp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: requestUpdateEmailData.new_email },
+    });
+
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictException('Email already exists');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { email: requestUpdateEmailData.new_email },
+      }),
+      this.prisma.refreshToken.deleteMany({
+        where: { userId },
+      }),
+    ]);
+
+    await this.redisService.del(`email_update:${userId}`)
+
+    return { message: 'Email updated successfully. Please login again.' };
   }
 
   private transformUser(user: any) {

@@ -20,6 +20,7 @@ import { Feed } from "@/app/interfaces/feed.interface";
 import AvatarHoverCard from "../card/avatar-hover-card";
 import { useCreateReply } from "@/app/hooks/use-reply";
 import { useAuth } from "@/app/hooks/use-auth";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_REPLY_LENGTH = 300;
@@ -41,6 +42,7 @@ export default function ReplyPostModal({
   disabled,
 }: ReplyPostModalProps) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuthAction();
   const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -161,6 +163,7 @@ export default function ReplyPostModal({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
+      if (!requireAuth()) return;
       setIsOpen(true);
       return;
     }

@@ -44,6 +44,7 @@ import { ConfigService } from '@nestjs/config';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { UpdateEmailDto } from './dto/update-email.dto';
+import { RequestUpdateEmail } from './dto/request-update-email.dto';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
@@ -317,12 +318,14 @@ export class AuthController {
   @Post('request-update-email')
   @HttpCode(200)
   async requestUpdateEmail(
+    @Body() requestUpdateEmail: RequestUpdateEmail,
     @CurrentUser('id') userId: string,
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
     await this.authService.requestUpdateEmail(
       userId,
+      requestUpdateEmail.newEmail,
       userAgent,
       ipAddress,
     );
@@ -333,8 +336,20 @@ export class AuthController {
   @Post('update-email')
   @ApiBearerAuth()
   @HttpCode(200)
-  async updateEmail(@Body() updateEmailDto: UpdateEmailDto, @CurrentUser('id') userId: string, @Ip() ipAddress: String, @Headers('user-agent') userAgent: string) {
-    return this.authService.updateEmail(updateEmailDto, userId)
+  async updateEmail(
+    @Body() updateEmailDto: UpdateEmailDto,
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.updateEmail(updateEmailDto, userId);
+
+    response.clearCookie('accessToken', cookieOptions);
+    response.clearCookie('refreshToken', {
+      ...cookieOptions,
+      path: '/api/v1/auth',
+    });
+
+    return result;
   }
 
   @Public()

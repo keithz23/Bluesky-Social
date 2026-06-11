@@ -44,6 +44,7 @@ import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
 import { enUS } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
@@ -56,6 +57,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const { mutate: toggleLike } = useLike(post.id, post.isLiked);
   const { mutate: toggleBookmark } = useBookmark(post.id, true);
   const { mutate: toggleRepost } = useRepost(post.id, post.isReposted);
+  const requireAuth = useRequireAuthAction();
 
   const handleNextImage = useCallback(
     (e?: React.MouseEvent) => {
@@ -216,6 +218,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
               className="flex items-center gap-1.5 hover:text-green-500 transition group cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
+                if (!requireAuth()) return;
                 toggleRepost();
               }}
             >
@@ -234,6 +237,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (!requireAuth()) return;
                 toggleLike();
               }}
               className="flex items-center gap-1.5 hover:text-pink-500 transition group cursor-pointer"
@@ -254,6 +258,7 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (!requireAuth()) return;
                 toggleBookmark();
               }}
               className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition group cursor-pointer"
