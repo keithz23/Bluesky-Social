@@ -45,6 +45,8 @@ import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { RequestUpdateEmail } from './dto/request-update-email.dto';
+import { ChangeUsernameDto } from './dto/change-username.dto';
+import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
@@ -279,6 +281,32 @@ export class AuthController {
     );
   }
 
+  @Post('request-update-password')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestUpdatePassword(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestUpdatePassword(userId, userAgent, ipAddress);
+
+    return { message: 'Verification code has been sent to your email.' };
+  }
+
+
+  @Patch('change-username')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change username/display name' })
+  async changeUsername(@Body() changeUsernameDto: ChangeUsernameDto, @CurrentUser('id') userId: string) {
+    return this.authService.changeUsername(userId, changeUsernameDto)
+  }
+
+  @Patch('change-birthday')
+  async changeBirthDay(@CurrentUser('id') userId: string, @Body() changeDateOfBirthDto: ChangeDateOfBirthDto) {
+    return this.authService.changeBirthday(userId, changeDateOfBirthDto)
+  }
+
   @Patch('change-password')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change account password' })
@@ -290,12 +318,20 @@ export class AuthController {
   async changePassword(
     @CurrentUser('id') userId: string,
     @Body() changePasswordDto: ChangePasswordDto,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    return this.authService.changePassword(
+    const result = await this.authService.changePassword(
       userId,
-      changePasswordDto.currentPassword,
-      changePasswordDto.newPassword,
+      changePasswordDto,
     );
+
+    response.clearCookie('accessToken', cookieOptions);
+    response.clearCookie('refreshToken', {
+      ...cookieOptions,
+      path: '/api/v1/auth',
+    });
+
+    return result;
   }
 
   @Public()
@@ -439,7 +475,6 @@ export class AuthController {
         `${frontendUrl}/login?status=error&message=${encodeURIComponent(errorMessage)}`,
       );
     }
-
   }
 
   @Public()

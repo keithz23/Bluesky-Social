@@ -48,7 +48,8 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('welcome');
     this.loadTemplate('send-notification');
     this.loadTemplate('forgot');
-    this.loadTemplate('request-email-otp')
+    this.loadTemplate('request-email-otp');
+    this.loadTemplate('request-pwd-otp');
   }
 
   private loadTemplate(name: string): void {
@@ -60,7 +61,9 @@ export class MailProcessor extends WorkerHost {
       this.logger.log(`Loaded template: ${path.basename(file)}`);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        this.logger.error(`Failed to load template "${name}": ${error?.message}`);
+        this.logger.error(
+          `Failed to load template "${name}": ${error?.message}`,
+        );
       }
     }
   }
@@ -119,10 +122,11 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect
-              ? `?redirect=${encodeURIComponent(context.redirect)}`
-              : ''
-              }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${
+              context.redirect
+                ? `?redirect=${encodeURIComponent(context.redirect)}`
+                : ''
+            }`,
           });
           break;
         }
@@ -130,7 +134,14 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Email Update Requested';
           html = this.renderTemplate('request-email-otp', {
             ...context,
-          })
+          });
+          break;
+        }
+        case 'request-password-otp': {
+          subject ||= 'Password Reset Requested';
+          html = this.renderTemplate('request-pwd-otp', {
+            ...context,
+          });
           break;
         }
         case 'welcome':

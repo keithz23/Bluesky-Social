@@ -32,3 +32,16 @@ export interface RequestUpdateEmailData {
 export interface UpdateEmailData {
   otp: string;
 }
+
+export interface ChangePasswordData {
+  otp: string;
+  newPassword: string;
+}
+
+export interface ChangeUsernameData {
+  username: string;
+}
+
+export interface ChangeBirthDayData {
+  dateOfBirth: string;
+}

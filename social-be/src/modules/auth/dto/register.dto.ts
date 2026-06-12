@@ -23,7 +23,7 @@ export class RegisterDto {
   @Matches(/^[a-zA-Z0-9_]+$/, {
     message: 'Username can only contain letters, numbers and underscores',
   })
-  username: string;
+  username!: string;
 
   @ApiProperty({
     example: 'john.doe@example.com',
@@ -31,7 +31,7 @@ export class RegisterDto {
   })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @ApiProperty({
     example: 'StrongPass123!',
@@ -45,7 +45,7 @@ export class RegisterDto {
     message:
       'Password must contain uppercase, lowercase, number and special character',
   })
-  password: string;
+  password!: string;
 
   @ApiProperty({
     example: '1999-05-15',
@@ -53,5 +53,5 @@ export class RegisterDto {
   @Type(() => Date)
   @IsDate()
   @IsNotEmpty()
-  dateOfBirth: Date;
+  dateOfBirth!: Date;
 }

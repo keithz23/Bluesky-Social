@@ -8,10 +8,10 @@ import {
 
 export class ReplyPrivacyDto {
   @IsEnum(['anyone', 'nobody', 'custom'])
-  type: 'anyone' | 'nobody' | 'custom';
+  type!: 'anyone' | 'nobody' | 'custom';
 
   @IsBoolean()
-  allowQuote: boolean;
+  allowQuote!: boolean;
 
   @IsOptional()
   custom?: {

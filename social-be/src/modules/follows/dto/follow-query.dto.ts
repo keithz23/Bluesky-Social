@@ -2,7 +2,7 @@ import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 export class FollowQueryDto {
   @IsString()
-  username: string;
+  username!: string;
 
   @IsOptional()
   cursor?: string;

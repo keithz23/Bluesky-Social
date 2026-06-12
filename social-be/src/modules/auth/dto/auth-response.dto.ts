@@ -4,15 +4,15 @@ import { Expose } from 'class-transformer';
 export class UserResponseDto {
   @ApiProperty({ example: 'clxxx...' })
   @Expose()
-  id: string;
+  id!: string;
 
   @ApiProperty({ example: 'johndoe' })
   @Expose()
-  username: string;
+  username!: string;
 
   @ApiProperty({ example: 'john.doe@example.com' })
   @Expose()
-  email: string;
+  email!: string;
 
   @ApiPropertyOptional({ example: 'John Doe' })
   @Expose()
@@ -40,36 +40,36 @@ export class UserResponseDto {
 
   @ApiProperty({ example: false })
   @Expose()
-  verified: boolean;
+  verified!: boolean;
 
   @ApiProperty({ example: false })
   @Expose()
-  isPrivate: boolean;
+  isPrivate!: boolean;
 
   @ApiProperty({ example: 150 })
   @Expose()
-  followersCount: number;
+  followersCount!: number;
 
   @ApiProperty({ example: 89 })
   @Expose()
-  followingCount: number;
+  followingCount!: number;
 
   @ApiProperty({ example: 234 })
   @Expose()
-  postsCount: number;
+  postsCount!: number;
 
   @ApiProperty()
   @Expose()
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 export class AuthResponseDto {
   @ApiProperty({ description: 'JWT access token (expires in 15m)' })
-  accessToken: string;
+  accessToken!: string;
 
   @ApiProperty({ description: 'Refresh token (expires in 7d)' })
-  refreshToken: string;
+  refreshToken!: string;
 
   @ApiProperty({ type: UserResponseDto })
-  user: UserResponseDto;
+  user!: UserResponseDto;
 }

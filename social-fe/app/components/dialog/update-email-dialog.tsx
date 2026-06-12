@@ -1,13 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Mail } from "lucide-react";
-import { toast } from "sonner";
-import { AuthService } from "@/app/services/auth.service";
-import { useAuthStore } from "@/app/store/use-auth.store";
-import { extractErrMsg } from "@/app/utils/error.util";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +15,7 @@ import {
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAccountSettings } from "@/app/hooks/use-account-settings";
 
 type UpdateEmailDialogProps = {
   open: boolean;
@@ -33,57 +28,44 @@ export default function UpdateEmailDialog({
   onOpenChange,
   currentEmail,
 }: UpdateEmailDialogProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const clearAuth = useAuthStore((state) => state.clearAuth);
   const [newEmail, setNewEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
 
-  const requestUpdateEmailMutation = useMutation({
-    mutationFn: () => AuthService.requestUpdateEmail({ newEmail }),
-    onSuccess: () => {
+  const resetForm = () => {
+    setNewEmail("");
+    setOtp("");
+    setCodeSent(false);
+  };
+
+  const {
+    requestUpdateEmailMutation,
+    updateEmailMutation,
+    isUpdatingEmail,
+    isRequestingEmailCode,
+  } = useAccountSettings({
+    onRequestEmailCodeSuccess: () => {
       setCodeSent(true);
-      toast.success("Verification code sent.");
     },
-    onError: (err) => {
-      toast.error(extractErrMsg(err));
-    },
-  });
-
-  const updateEmailMutation = useMutation({
-    mutationFn: () => AuthService.updateEmail({ otp }),
-    onSuccess: async () => {
-      clearAuth();
-      queryClient.setQueryData(["me"], null);
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
+    onSuccess: () => {
+      resetForm();
       onOpenChange(false);
-      toast.success("Email updated. Please login again.");
-      router.push("/login");
-    },
-    onError: (err) => {
-      toast.error(extractErrMsg(err));
     },
   });
-
-  const isRequestingCode = requestUpdateEmailMutation.isPending;
-  const isUpdatingEmail = updateEmailMutation.isPending;
 
   const handleRequestCode = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    requestUpdateEmailMutation.mutate();
+    requestUpdateEmailMutation.mutate({ newEmail });
   };
 
   const handleUpdateEmail = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    updateEmailMutation.mutate();
+    updateEmailMutation.mutate({ otp });
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      setNewEmail("");
-      setOtp("");
-      setCodeSent(false);
+      resetForm();
     }
     onOpenChange(nextOpen);
   };
@@ -129,7 +111,7 @@ export default function UpdateEmailDialog({
                 placeholder="name@example.com"
                 value={newEmail}
                 onChange={(event) => setNewEmail(event.target.value)}
-                disabled={codeSent || isRequestingCode || isUpdatingEmail}
+                disabled={codeSent || isRequestingEmailCode || isUpdatingEmail}
                 className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
                 required
               />
@@ -160,10 +142,12 @@ export default function UpdateEmailDialog({
               <button
                 type="button"
                 className="font-medium text-blue-600 not-italic hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isRequestingCode || isUpdatingEmail}
-                onClick={() => requestUpdateEmailMutation.mutate()}
+                disabled={isRequestingEmailCode || isUpdatingEmail}
+                onClick={() => requestUpdateEmailMutation.mutate({ newEmail })}
               >
-                {isRequestingCode ? "Resending..." : "Click here to resend."}
+                {isRequestingEmailCode
+                  ? "Resending..."
+                  : "Click here to resend."}
               </button>
             </p>
           )}
@@ -173,7 +157,7 @@ export default function UpdateEmailDialog({
               <Button
                 type="button"
                 variant="outline"
-                disabled={isRequestingCode || isUpdatingEmail}
+                disabled={isRequestingEmailCode || isUpdatingEmail}
               >
                 Cancel
               </Button>
@@ -185,9 +169,9 @@ export default function UpdateEmailDialog({
             ) : (
               <Button
                 type="submit"
-                disabled={isRequestingCode || !newEmail.trim()}
+                disabled={isRequestingEmailCode || !newEmail.trim()}
               >
-                {isRequestingCode ? "Sending..." : "Send code"}
+                {isRequestingEmailCode ? "Sending..." : "Send code"}
               </Button>
             )}
           </DialogFooter>

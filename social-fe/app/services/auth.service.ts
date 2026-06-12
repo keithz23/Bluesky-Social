@@ -1,12 +1,15 @@
 import { axiosInstance, refreshAuthSession } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
+  ChangePasswordData,
   LoginCredentials,
   RequestUpdateEmailData,
   RegisterData,
   ResetPasswordData,
   UpdateEmailData,
   UpdateProfileData,
+  ChangeUsernameData,
+  ChangeBirthDayData,
 } from "../interfaces/auth.interface";
 import { AuthResponse } from "../interfaces/user.interface";
 
@@ -16,8 +19,11 @@ export const AuthService = {
   },
 
   login: async (crendentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await axiosInstance.post(API_ENDPOINT.AUTH.LOGIN, crendentials);
-    return response.data
+    const response = await axiosInstance.post(
+      API_ENDPOINT.AUTH.LOGIN,
+      crendentials,
+    );
+    return response.data;
   },
 
   logout: () => {
@@ -72,4 +78,23 @@ export const AuthService = {
   updateEmail: (updateEmailData: UpdateEmailData) => {
     return axiosInstance.post(API_ENDPOINT.AUTH.UPDATE_EMAIL, updateEmailData);
   },
+
+  requestUpdatePassword: () => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_UPDATE_PASSWORD);
+  },
+
+  changePassword: (changePasswordData: ChangePasswordData) => {
+    return axiosInstance.patch(
+      API_ENDPOINT.AUTH.CHANGE_PASSWORD,
+      changePasswordData,
+    );
+  },
+
+  changeUsername: (changeUsernameData: ChangeUsernameData) => {
+    return axiosInstance.patch(API_ENDPOINT.AUTH.CHANGE_USERNAME, changeUsernameData)
+  },
+
+  changeBirthDay: (changeBirthDayData: ChangeBirthDayData) => {
+    return axiosInstance.patch(API_ENDPOINT.AUTH.CHANGE_BIRTHDAY, changeBirthDayData)
+  }
 };

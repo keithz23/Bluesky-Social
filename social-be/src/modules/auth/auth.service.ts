@@ -6,7 +6,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { addMinutes } from 'date-fns';
+import { addMinutes, min } from 'date-fns';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RegisterDto } from './dto/register.dto';
@@ -32,8 +32,27 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { CacheService } from '../cache/cache.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeUsernameDto } from './dto/change-username.dto';
+import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
 
 const RESET_TTL_MINUTES = 15;
+const MAX_ACTIVE_EMAIL_CODES = 3;
+const EMAIL_UPDATE_CODE_PREFIX = 'email_update';
+const PASSWORD_UPDATE_CODE_PREFIX = 'password_update';
+
+type AccountEmailCodePurpose =
+  | 'password-reset'
+  | 'email-update'
+  | 'password-update';
+
+type AccountEmailCodePayload = {
+  user: Pick<User, 'id' | 'email' | 'username'>;
+  purpose: AccountEmailCodePurpose;
+  metadata?: Record<string, unknown>;
+  userAgent?: string;
+  ipAddress?: string;
+};
 
 @Injectable()
 export class AuthService {
@@ -316,11 +335,67 @@ export class AuthService {
     }
   }
 
+  async changeUsername(userId: string, changeUsernameDto: ChangeUsernameDto) {
+    const { username } = changeUsernameDto
+    const normalizedUsername = username.trim();
+
+
+    const existing = await this.prisma.user.findUnique({
+      where: { username }
+    })
+
+    if (existing && existing.id != userId) throw new ConflictException("Username already exists.");
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { username: normalizedUsername, displayName: normalizedUsername },
+    })
+
+
+    return this.transformUser(user);
+  }
+
+  async changeBirthday(userId: string, changeDateOfBirthDto: ChangeDateOfBirthDto) {
+    const { dateOfBirth } = changeDateOfBirthDto
+    const birthDate = new Date(dateOfBirth)
+
+    const minDate = new Date()
+    minDate.setFullYear(minDate.getFullYear() - 13)
+
+    if (birthDate > minDate) throw new BadRequestException("You must be at least 13 years old.");
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { dateOfBirth: birthDate }
+    })
+
+    return this.transformUser(user)
+  }
+
+  async requestUpdatePassword(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.createAndSendAccountEmailCode({
+      user,
+      purpose: 'password-update',
+      userAgent,
+      ipAddress,
+    });
+  }
+
   async changePassword(
     userId: string,
-    currentPassword: string,
-    newPassword: string,
+    changePasswordDto: ChangePasswordDto,
   ): Promise<{ message: string }> {
+    const { otp, newPassword } = changePasswordDto;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -329,15 +404,23 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    // Verify current password
-    const isPasswordValid = await HashUtil.compare(
-      currentPassword,
-      user.passwordHash ?? '',
-    );
+    const redisKey = this.getAccountEmailCodeKey('password-update', userId);
+    const rawData = await this.redisService.get(redisKey);
 
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
-    }
+    if (!rawData) throw new BadRequestException('OTP is invalid or expired');
+
+    const requestUpdatePasswordData = JSON.parse(rawData) as {
+      otpHash?: string;
+      otp?: string;
+    };
+
+    const normalizedOtp = this.normalizeEmailCode(otp);
+    const isValidOtp = requestUpdatePasswordData.otpHash
+      ? await HashUtil.compare(normalizedOtp, requestUpdatePasswordData.otpHash)
+      : normalizedOtp ===
+      this.normalizeEmailCode(requestUpdatePasswordData.otp);
+
+    if (!isValidOtp) throw new BadRequestException('Invalid OTP');
 
     // Hash new password
     const passwordHash = await HashUtil.hash(newPassword);
@@ -353,6 +436,8 @@ export class AuthService {
       where: { userId },
     });
 
+    await this.redisService.del(redisKey);
+
     return { message: 'Password changed successfully. Please login again.' };
   }
 
@@ -367,26 +452,12 @@ export class AuthService {
       return;
     }
 
-    const activeCount = await this.prisma.passwordResetToken.count({
-      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+    await this.createAndSendAccountEmailCode({
+      user,
+      purpose: 'password-reset',
+      userAgent,
+      ipAddress,
     });
-    if (activeCount >= 3) return;
-
-    const rawCode = generateResetCode();
-    const tokenHash = await HashUtil.hash(rawCode);
-    const expiresAt = addMinutes(new Date(), RESET_TTL_MINUTES);
-
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt,
-        createdIp: ipAddress,
-        createdUa: userAgent,
-      },
-    });
-
-    await this.mailService.sendForgotEmail(user.email, rawCode, user.username);
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
@@ -682,36 +753,38 @@ export class AuthService {
     };
   }
 
-  async requestUpdateEmail(userId: string, newEmail: string, userAgent?: string, ipAddress?: string): Promise<void> {
+  async requestUpdateEmail(
+    userId: string,
+    newEmail: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
-    if (!user) throw new Error("User not found")
-
+    if (!user) throw new Error('User not found');
 
     const normalizedEmail = newEmail.trim().toLowerCase();
 
-
-    if (normalizedEmail == user.email) throw new ConflictException("This email is already associated with your account.")
-
+    if (normalizedEmail == user.email)
+      throw new ConflictException(
+        'This email is already associated with your account.',
+      );
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
     if (existingUser) {
-      throw new ConflictException("Email already exists.");
+      throw new ConflictException('Email already exists.');
     }
 
-    const rawCode = generateResetCode();
-
-    const redisPayload = JSON.stringify({
-      new_email: normalizedEmail,
-      otp: rawCode
+    await this.createAndSendAccountEmailCode({
+      user,
+      purpose: 'email-update',
+      metadata: { new_email: normalizedEmail },
+      userAgent,
+      ipAddress,
     });
-
-    await this.redisService.set(`email_update:${userId}`, redisPayload, RESET_TTL_MINUTES * 60);
-
-    await this.mailService.sendRequestEmailOtp(user.email, rawCode, user.username);
   }
 
   async updateEmail(updateEmailDto: UpdateEmailDto, userId: string) {
@@ -723,7 +796,7 @@ export class AuthService {
 
     if (!user) throw new Error('User not found');
 
-    const redisKey = `email_update:${userId}`;
+    const redisKey = this.getAccountEmailCodeKey('email-update', userId);
     const rawData = await this.redisService.get(redisKey);
 
     if (!rawData) {
@@ -732,10 +805,16 @@ export class AuthService {
 
     const requestUpdateEmailData = JSON.parse(rawData) as {
       new_email: string;
-      otp: string;
+      otpHash?: string;
+      otp?: string;
     };
 
-    if (otp !== requestUpdateEmailData.otp) {
+    const normalizedOtp = this.normalizeEmailCode(otp);
+    const isValidOtp = requestUpdateEmailData.otpHash
+      ? await HashUtil.compare(normalizedOtp, requestUpdateEmailData.otpHash)
+      : normalizedOtp === this.normalizeEmailCode(requestUpdateEmailData.otp);
+
+    if (!isValidOtp) {
       throw new BadRequestException('Invalid OTP');
     }
 
@@ -757,9 +836,86 @@ export class AuthService {
       }),
     ]);
 
-    await this.redisService.del(`email_update:${userId}`)
+    await this.redisService.del(redisKey);
 
     return { message: 'Email updated successfully. Please login again.' };
+  }
+
+  private async createAndSendAccountEmailCode({
+    user,
+    purpose,
+    metadata = {},
+    userAgent,
+    ipAddress,
+  }: AccountEmailCodePayload): Promise<void> {
+    const rawCode = generateResetCode();
+    const codeHash = await HashUtil.hash(rawCode);
+    const expiresAt = addMinutes(new Date(), RESET_TTL_MINUTES);
+
+    if (purpose === 'password-reset') {
+      const activeCount = await this.prisma.passwordResetToken.count({
+        where: {
+          userId: user.id,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (activeCount >= MAX_ACTIVE_EMAIL_CODES) return;
+
+      await this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: codeHash,
+          expiresAt,
+          createdIp: ipAddress,
+          createdUa: userAgent,
+        },
+      });
+    } else {
+      await this.redisService.set(
+        this.getAccountEmailCodeKey(purpose, user.id),
+        JSON.stringify({
+          ...metadata,
+          otpHash: codeHash,
+          createdIp: ipAddress,
+          createdUa: userAgent,
+        }),
+        RESET_TTL_MINUTES * 60,
+      );
+    }
+
+    await this.mailService.sendAccountCodeEmail({
+      to: user.email,
+      code: rawCode,
+      username: user.username,
+      purpose,
+    });
+  }
+
+  private getAccountEmailCodeKey(
+    purpose: AccountEmailCodePurpose,
+    userId: string,
+  ): string {
+    if (purpose === 'email-update') {
+      return `${EMAIL_UPDATE_CODE_PREFIX}:${userId}`;
+    }
+
+    if (purpose === 'password-update') {
+      return `${PASSWORD_UPDATE_CODE_PREFIX}:${userId}`;
+    }
+
+    return `${purpose}:${userId}`;
+  }
+
+  private normalizeEmailCode(code?: string): string {
+    const normalized = (code ?? '').trim().toUpperCase().replace(/\s/g, '');
+
+    if (normalized.length === 10 && !normalized.includes('-')) {
+      return `${normalized.slice(0, 5)}-${normalized.slice(5)}`;
+    }
+
+    return normalized;
   }
 
   private transformUser(user: any) {
@@ -782,6 +938,7 @@ export class AuthService {
       followingCount: user.followingCount,
       postsCount: user.postsCount,
       createdAt: user.createdAt,
+      dateOfBirth: user.dateOfBirth
     };
   }
 
