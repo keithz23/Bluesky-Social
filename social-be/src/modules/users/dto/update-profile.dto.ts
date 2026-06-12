@@ -5,7 +5,7 @@ export class UpdateProfileDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  username: string;
+  username!: string;
 
   @ApiProperty()
   @IsString()

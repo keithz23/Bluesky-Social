@@ -2,12 +2,37 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { createHash } from 'crypto';
-import { SendMailDto } from './dto/send-mail.dto';
+import { AccountCodeMailPurpose, SendMailDto } from './dto/send-mail.dto';
+
+type AccountCodeMailPayload = {
+  to: string;
+  code: string;
+  username: string;
+  purpose: AccountCodeMailPurpose;
+};
+
+const ACCOUNT_CODE_MAIL_CONFIG: Record<
+  AccountCodeMailPurpose,
+  Pick<SendMailDto, 'type' | 'subject'>
+> = {
+  'password-reset': {
+    type: 'forgot',
+    subject: 'Code to reset your password',
+  },
+  'email-update': {
+    type: 'request-email-otp',
+    subject: 'Email Update Requested',
+  },
+  'password-update': {
+    type: 'request-password-otp',
+    subject: 'Password Change Requested',
+  },
+};
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) { }
+  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) {}
 
   private makeJobId(payload: SendMailDto) {
     const raw = `${payload.to}|${payload.type}|${JSON.stringify(payload.context)}`;
@@ -24,7 +49,12 @@ export class MailService {
         backoff: { type: 'exponential', delay: 1000 },
       };
 
-      if (payload.type === 'verify' || payload.type === 'forgot' || payload.type === 'request-email-otp') {
+      if (
+        payload.type === 'verify' ||
+        payload.type === 'forgot' ||
+        payload.type === 'request-email-otp' ||
+        payload.type === 'request-password-otp'
+      ) {
         opts.jobId = this.makeJobId(payload);
       }
 
@@ -47,11 +77,11 @@ export class MailService {
   }
 
   async sendForgotEmail(to: string, resetCode: string, username: string) {
-    return this.enqueue({
+    return this.sendAccountCodeEmail({
       to,
-      type: 'forgot',
-      subject: 'Code to reset your password',
-      context: { resetCode, username },
+      code: resetCode,
+      username,
+      purpose: 'password-reset',
     });
   }
 
@@ -96,11 +126,35 @@ export class MailService {
   }
 
   async sendRequestEmailOtp(to: string, resetCode: string, username: string) {
-    return this.enqueue({
+    return this.sendAccountCodeEmail({
       to,
-      type: 'request-email-otp',
-      subject: 'Email Update Requested',
-      context: { resetCode, username },
+      code: resetCode,
+      username,
+      purpose: 'email-update',
+    });
+  }
+
+  async sendRequestPasswordOtp(
+    to: string,
+    resetCode: string,
+    username: string,
+  ) {
+    return this.sendAccountCodeEmail({
+      to,
+      code: resetCode,
+      username,
+      purpose: 'password-update',
+    });
+  }
+
+  async sendAccountCodeEmail(payload: AccountCodeMailPayload) {
+    const config = ACCOUNT_CODE_MAIL_CONFIG[payload.purpose];
+
+    return this.enqueue({
+      to: payload.to,
+      type: config.type,
+      subject: config.subject,
+      context: { resetCode: payload.code, username: payload.username },
     });
   }
 }

@@ -3,6 +3,7 @@ export interface User {
   email?: string;
   username: string;
   displayName: string;
+  dateOfBirth?: string;
   avatarUrl: string;
   verified: boolean;
   followersCount: number;
@@ -22,6 +23,7 @@ export interface AuthResponse {
     email?: string;
     username: string;
     displayName: string;
+    dateOfBirth?: string;
     avatarUrl: string;
     verified: boolean;
     followersCount: number;

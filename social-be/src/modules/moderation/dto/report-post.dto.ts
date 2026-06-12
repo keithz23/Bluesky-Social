@@ -3,7 +3,7 @@ import { ReportReason } from '@prisma/client';
 
 export class ReportPostDto {
   @IsEnum(ReportReason)
-  reason: ReportReason;
+  reason!: ReportReason;
 
   @IsOptional()
   @IsString()

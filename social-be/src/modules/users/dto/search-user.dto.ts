@@ -10,7 +10,7 @@ import {
 export class SearchUserDto {
   @IsString()
   @MaxLength(50)
-  q: string;
+  q!: string;
 
   @IsOptional()
   @IsInt()

@@ -4,5 +4,5 @@ import { IsString } from 'class-validator';
 export class RemoveMemberDto {
   @ApiProperty()
   @IsString()
-  userIdToRemove: string;
+  userIdToRemove!: string;
 }

@@ -4,8 +4,6 @@ import type { ComponentType } from "react";
 import { useState } from "react";
 import {
   AtSign,
-  Bot,
-  BriefcaseBusiness,
   Cake,
   ChevronRight,
   Lock,
@@ -18,6 +16,9 @@ import {
 import { toast } from "sonner";
 import UpdateEmailDialog from "@/app/components/dialog/update-email-dialog";
 import { useAuth } from "@/app/hooks/use-auth";
+import ChangePasswordDialog from "@/app/components/dialog/change-password-dialog";
+import ChangeUsernameDialog from "@/app/components/dialog/change-username-dialog";
+import ChangeBirthdayDialog from "@/app/components/dialog/change-birthday-dialog";
 
 type AccountRowProps = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -37,6 +38,9 @@ const unavailable = (label: string) => {
 export default function AccountPage() {
   const { user } = useAuth();
   const [isUpdateEmailOpen, setIsUpdateEmailOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isChangeUsernameOpen, setIsChangeUsernameOpen] = useState(false);
+  const [isChangeBirthdayOpen, setIsChangeBirthdayOpen] = useState(false);
   const email = user?.email || "No email";
   const handle = user?.username ? `@${user.username}` : "Not set";
 
@@ -63,7 +67,7 @@ export default function AccountPage() {
           icon={Lock}
           label="Password"
           chevron
-          onClick={() => unavailable("Password settings")}
+          onClick={() => setIsChangePasswordOpen(true)}
         />
         <AccountRow
           icon={AtSign}
@@ -71,32 +75,18 @@ export default function AccountPage() {
           value={handle}
           valueClassName="text-slate-500"
           chevron
-          onClick={() => unavailable("Handle settings")}
+          onClick={() => setIsChangeUsernameOpen(true)}
         />
         <AccountRow
           icon={Cake}
           label="Birthday"
           value="Edit"
           valueClassName="text-blue-600"
-          onClick={() => unavailable("Birthday settings")}
-        />
-        <AccountRow
-          icon={Bot}
-          label="Automation label"
-          value="Off"
-          valueClassName="text-slate-500"
-          chevron
-          onClick={() => unavailable("Automation label")}
+          onClick={() => setIsChangeBirthdayOpen(true)}
         />
       </section>
 
       <section className="py-3">
-        <AccountRow
-          icon={BriefcaseBusiness}
-          label="Export my data"
-          chevron
-          onClick={() => unavailable("Export my data")}
-        />
         <AccountRow
           icon={Snowflake}
           label="Deactivate account"
@@ -117,6 +107,22 @@ export default function AccountPage() {
         open={isUpdateEmailOpen}
         onOpenChange={setIsUpdateEmailOpen}
         currentEmail={user?.email}
+      />
+
+      <ChangePasswordDialog
+        open={isChangePasswordOpen}
+        onOpenChange={setIsChangePasswordOpen}
+      />
+
+      <ChangeUsernameDialog
+        open={isChangeUsernameOpen}
+        onOpenChange={setIsChangeUsernameOpen}
+      />
+
+      <ChangeBirthdayDialog
+        open={isChangeBirthdayOpen}
+        onOpenChange={setIsChangeBirthdayOpen}
+        dateOfBirth={user?.dateOfBirth}
       />
     </div>
   );

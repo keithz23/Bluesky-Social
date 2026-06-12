@@ -4,7 +4,7 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validat
 export class SearchPostsDto {
   @IsString()
   @IsNotEmpty()
-  q: string;
+  q!: string;
 
   @IsOptional()
   @IsString()
