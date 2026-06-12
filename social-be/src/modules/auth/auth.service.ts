@@ -6,7 +6,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { addMinutes, min } from 'date-fns';
+import { addMinutes } from 'date-fns';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RegisterDto } from './dto/register.dto';
@@ -19,7 +19,7 @@ import { SUCCESS_MESSAGES } from 'src/common/constants/success-message';
 import { ERROR_MESSAGES } from 'src/common/constants/error-message';
 import { MailService } from 'src/mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { PasswordResetToken, User } from '@prisma/client';
+import { PasswordResetToken, Prisma, User } from '@prisma/client';
 import * as crypto from 'crypto';
 import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
 import { S3Service } from 'src/uploads/s3.service';
@@ -50,6 +50,11 @@ type AccountEmailCodePayload = {
   user: Pick<User, 'id' | 'email' | 'username'>;
   purpose: AccountEmailCodePurpose;
   metadata?: Record<string, unknown>;
+  userAgent?: string;
+  ipAddress?: string;
+};
+
+type AuditContext = {
   userAgent?: string;
   ipAddress?: string;
 };
@@ -335,41 +340,93 @@ export class AuthService {
     }
   }
 
-  async changeUsername(userId: string, changeUsernameDto: ChangeUsernameDto) {
-    const { username } = changeUsernameDto
+  async changeUsername(
+    userId: string,
+    changeUsernameDto: ChangeUsernameDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
+    const { username } = changeUsernameDto;
     const normalizedUsername = username.trim();
 
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!currentUser) throw new NotFoundException('User not found');
 
     const existing = await this.prisma.user.findUnique({
-      where: { username }
-    })
+      where: { username: normalizedUsername },
+    });
 
-    if (existing && existing.id != userId) throw new ConflictException("Username already exists.");
+    if (existing && existing.id != userId) {
+      throw new ConflictException('Username already exists.');
+    }
 
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: { username: normalizedUsername, displayName: normalizedUsername },
-    })
-
+    const [user] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { username: normalizedUsername, displayName: normalizedUsername },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'ACCOUNT_USERNAME_CHANGED',
+          userAgent,
+          ipAddress,
+          metadata: {
+            oldUsername: currentUser.username,
+            newUsername: normalizedUsername,
+          },
+        }),
+      }),
+    ]);
 
     return this.transformUser(user);
   }
 
-  async changeBirthday(userId: string, changeDateOfBirthDto: ChangeDateOfBirthDto) {
-    const { dateOfBirth } = changeDateOfBirthDto
-    const birthDate = new Date(dateOfBirth)
+  async changeBirthday(
+    userId: string,
+    changeDateOfBirthDto: ChangeDateOfBirthDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
+    const { dateOfBirth } = changeDateOfBirthDto;
+    const birthDate = new Date(dateOfBirth);
 
-    const minDate = new Date()
-    minDate.setFullYear(minDate.getFullYear() - 13)
+    const minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 13);
 
-    if (birthDate > minDate) throw new BadRequestException("You must be at least 13 years old.");
+    if (birthDate > minDate) {
+      throw new BadRequestException('You must be at least 13 years old.');
+    }
 
-    const user = await this.prisma.user.update({
+    const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
-      data: { dateOfBirth: birthDate }
-    })
+    });
 
-    return this.transformUser(user)
+    if (!currentUser) throw new NotFoundException('User not found');
+
+    const [user] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { dateOfBirth: birthDate },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'ACCOUNT_BIRTHDAY_CHANGED',
+          userAgent,
+          ipAddress,
+          metadata: {
+            oldDateOfBirth: this.formatAuditDate(currentUser.dateOfBirth),
+            newDateOfBirth: this.formatAuditDate(birthDate),
+          },
+        }),
+      }),
+    ]);
+
+    return this.transformUser(user);
   }
 
   async requestUpdatePassword(
@@ -394,6 +451,8 @@ export class AuthService {
   async changePassword(
     userId: string,
     changePasswordDto: ChangePasswordDto,
+    userAgent?: string,
+    ipAddress?: string,
   ): Promise<{ message: string }> {
     const { otp, newPassword } = changePasswordDto;
     const user = await this.prisma.user.findUnique({
@@ -425,16 +484,27 @@ export class AuthService {
     // Hash new password
     const passwordHash = await HashUtil.hash(newPassword);
 
-    // Update password
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash },
-    });
-
-    // Revoke all refresh tokens (force re-login on all devices)
-    await this.prisma.refreshToken.deleteMany({
-      where: { userId },
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.deleteMany({
+        where: { userId },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'ACCOUNT_PASSWORD_CHANGED',
+          userAgent,
+          ipAddress,
+          metadata: {
+            method: 'email_otp',
+            refreshTokensRevoked: true,
+          },
+        }),
+      }),
+    ]);
 
     await this.redisService.del(redisKey);
 
@@ -460,7 +530,11 @@ export class AuthService {
     });
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     const { newPassword } = resetPasswordDto;
     let { code } = resetPasswordDto;
 
@@ -495,10 +569,12 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired token');
     }
 
+    const passwordHash = await HashUtil.hash(newPassword);
+
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: match.userId },
-        data: { passwordHash: await HashUtil.hash(newPassword) },
+        data: { passwordHash },
       }),
       this.prisma.passwordResetToken.update({
         where: { id: match.id },
@@ -507,6 +583,18 @@ export class AuthService {
       this.prisma.passwordResetToken.updateMany({
         where: { userId: match.userId, usedAt: null, id: { not: match.id } },
         data: { usedAt: new Date() },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId: match.userId,
+          action: 'ACCOUNT_PASSWORD_RESET',
+          userAgent,
+          ipAddress,
+          metadata: {
+            method: 'forgot_password_code',
+            resetTokenId: match.id,
+          },
+        }),
       }),
     ]);
   }
@@ -787,7 +875,12 @@ export class AuthService {
     });
   }
 
-  async updateEmail(updateEmailDto: UpdateEmailDto, userId: string) {
+  async updateEmail(
+    updateEmailDto: UpdateEmailDto,
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     const { otp } = updateEmailDto;
 
     const user = await this.prisma.user.findUnique({
@@ -833,6 +926,19 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'ACCOUNT_EMAIL_CHANGED',
+          userAgent,
+          ipAddress,
+          metadata: {
+            oldEmail: user.email,
+            newEmail: requestUpdateEmailData.new_email,
+            refreshTokensRevoked: true,
+          },
+        }),
       }),
     ]);
 
@@ -918,6 +1024,36 @@ export class AuthService {
     return normalized;
   }
 
+  private createAuditLogData({
+    userId,
+    action,
+    userAgent,
+    ipAddress,
+    metadata,
+  }: AuditContext & {
+    userId: string;
+    action: string;
+    metadata?: Prisma.InputJsonObject;
+  }): Prisma.AuditLogUncheckedCreateInput {
+    return {
+      userId,
+      action,
+      userAgent,
+      ipAddress,
+      metadata,
+    };
+  }
+
+  private formatAuditDate(value?: Date | string | null): string | null {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+      return value.toISOString().slice(0, 10);
+    }
+
+    return value.slice(0, 10);
+  }
+
   private transformUser(user: any) {
     return {
       id: user.id,
@@ -938,7 +1074,7 @@ export class AuthService {
       followingCount: user.followingCount,
       postsCount: user.postsCount,
       createdAt: user.createdAt,
-      dateOfBirth: user.dateOfBirth
+      dateOfBirth: user.dateOfBirth,
     };
   }
 

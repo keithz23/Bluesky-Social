@@ -70,6 +70,7 @@ model User {
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  auditLogs               AuditLog[]
   messageMentions         MessageMention[]
   messageDeletedFors      MessageDeletedFor[]
   lists                   List[]
@@ -704,6 +705,23 @@ model EmailVerificationToken {
   expiresAt DateTime
 
   @@map("email_verification_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  actorType String   @default("USER") @map("actor_type")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_audit_logs_user_created")
+  @@index([action, createdAt(sort: Desc)], map: "idx_audit_logs_action_created")
+  @@map("audit_logs")
 }
 
 // ============================================
