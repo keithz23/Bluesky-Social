@@ -80,7 +80,7 @@ export class AuthController {
     private jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   // ============= PUBLIC ROUTES =============
 
@@ -294,17 +294,37 @@ export class AuthController {
     return { message: 'Verification code has been sent to your email.' };
   }
 
-
   @Patch('change-username')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change username/display name' })
-  async changeUsername(@Body() changeUsernameDto: ChangeUsernameDto, @CurrentUser('id') userId: string) {
-    return this.authService.changeUsername(userId, changeUsernameDto)
+  async changeUsername(
+    @Body() changeUsernameDto: ChangeUsernameDto,
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.changeUsername(
+      userId,
+      changeUsernameDto,
+      userAgent,
+      ipAddress,
+    );
   }
 
   @Patch('change-birthday')
-  async changeBirthDay(@CurrentUser('id') userId: string, @Body() changeDateOfBirthDto: ChangeDateOfBirthDto) {
-    return this.authService.changeBirthday(userId, changeDateOfBirthDto)
+  @ApiBearerAuth()
+  async changeBirthDay(
+    @CurrentUser('id') userId: string,
+    @Body() changeDateOfBirthDto: ChangeDateOfBirthDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.changeBirthday(
+      userId,
+      changeDateOfBirthDto,
+      userAgent,
+      ipAddress,
+    );
   }
 
   @Patch('change-password')
@@ -318,11 +338,15 @@ export class AuthController {
   async changePassword(
     @CurrentUser('id') userId: string,
     @Body() changePasswordDto: ChangePasswordDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
     const result = await this.authService.changePassword(
       userId,
       changePasswordDto,
+      userAgent,
+      ipAddress,
     );
 
     response.clearCookie('accessToken', cookieOptions);
@@ -375,9 +399,16 @@ export class AuthController {
   async updateEmail(
     @Body() updateEmailDto: UpdateEmailDto,
     @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.updateEmail(updateEmailDto, userId);
+    const result = await this.authService.updateEmail(
+      updateEmailDto,
+      userId,
+      userAgent,
+      ipAddress,
+    );
 
     response.clearCookie('accessToken', cookieOptions);
     response.clearCookie('refreshToken', {
@@ -391,8 +422,16 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(200)
-  async reset(@Body() resetPasswordDto: ResetPasswordDto) {
-    await this.authService.resetPassword(resetPasswordDto);
+  async reset(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.resetPassword(
+      resetPasswordDto,
+      userAgent,
+      ipAddress,
+    );
     return { message: 'Password has been updated successfully.' };
   }
 
@@ -482,7 +521,7 @@ export class AuthController {
   @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   @ApiResponse({ status: 302, description: 'Redirects to Google login page' })
-  async googleAuth() { }
+  async googleAuth() {}
 
   @Public()
   @Get('google/callback')
