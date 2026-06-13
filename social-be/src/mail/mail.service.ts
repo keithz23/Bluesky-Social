@@ -27,12 +27,16 @@ const ACCOUNT_CODE_MAIL_CONFIG: Record<
     type: 'request-password-otp',
     subject: 'Password Change Requested',
   },
+  'deactivate-account': {
+    type: 'request-deactivate-account-otp',
+    subject: 'Confirm account deactivation',
+  },
 };
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) {}
+  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) { }
 
   private makeJobId(payload: SendMailDto) {
     const raw = `${payload.to}|${payload.type}|${JSON.stringify(payload.context)}`;

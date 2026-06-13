@@ -76,6 +76,12 @@ model User {
   lists                   List[]
   listMembers             ListMember[]
 
+  // Deactive & Delete
+  status            UserStatus @default(ACTIVE) @map("status")
+  deactivatedAt     DateTime?  @map("deactivated_at")
+  deletedAt         DateTime?  @map("deleted_at")
+  deleteScheduledAt DateTime?  @map("delete_scheduled_at")
+
   @@index([username])
   @@index([email])
   @@index([createdAt(sort: Desc)])
@@ -727,6 +733,13 @@ model AuditLog {
 // ============================================
 // ENUMS
 // ============================================
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
+  DELETED
+  SUSPENDED
+}
 
 enum MediaType {
   IMAGE

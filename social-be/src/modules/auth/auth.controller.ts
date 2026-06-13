@@ -80,7 +80,7 @@ export class AuthController {
     private jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   // ============= PUBLIC ROUTES =============
 
@@ -521,7 +521,7 @@ export class AuthController {
   @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   @ApiResponse({ status: 302, description: 'Redirects to Google login page' })
-  async googleAuth() {}
+  async googleAuth() { }
 
   @Public()
   @Get('google/callback')
@@ -578,5 +578,14 @@ export class AuthController {
         `${frontendUrl}/login?error=google_login_failed&message=${errorMessage}`,
       );
     }
+  }
+
+  @Post('request-deactivate-account')
+  async requestDeactivateAccount(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+    @Res({ passthrough: true }) response: Response,) {
+    return this.authService.requestDeactivateAccount(userId)
   }
 }
