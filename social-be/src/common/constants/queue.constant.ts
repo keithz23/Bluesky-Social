@@ -37,13 +37,16 @@ export interface CleanupJobData {
     | 'transaction_failed'
     | 'post_deleted'
     | 'orphaned'
-    | 'replaced_by_new_upload';
+    | 'replaced_by_new_upload'
+    | 'db_update_failed'
+    | 'list_deleted';
   retryCount?: number;
 }
 
 export interface ResizeImageJobData {
   key: string;
   bucket: string;
+  list_deleted;
   sizes: {
     width: number;
     height: number;

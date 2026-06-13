@@ -38,7 +38,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth?.token;
+      const token =
+        client.handshake.auth?.token ||
+        client.handshake.headers?.authorization?.replace('Bearer ', '') || // for Headers (Postman)
+        client.handshake.query?.token; // For params (postman)
       if (!token) throw new Error('Missing auth token');
 
       const payload = this.jwtService.verify(token, {
@@ -73,9 +76,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(
-      `User ${client.data.userId} disconnected from chat`,
-    );
+    this.logger.log(`User ${client.data.userId} disconnected from chat`);
   }
 
   // ─── Room management ──────────────────────────────────────
@@ -141,12 +142,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
       for (const pId of participantIds) {
         if (pId !== userId) {
-          this.server
-            .to(`user:${pId}`)
-            .emit('conversation-updated', {
-              conversationId: data.conversationId,
-              lastMessage: message,
-            });
+          this.server.to(`user:${pId}`).emit('conversation-updated', {
+            conversationId: data.conversationId,
+            lastMessage: message,
+          });
         }
       }
     } catch (error) {
@@ -323,8 +322,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ─── Helper: notify new conversation ──────────────────────
 
   emitNewConversation(userId: string, conversation: any) {
-    this.server
-      .to(`user:${userId}`)
-      .emit('new-conversation', conversation);
+    this.server.to(`user:${userId}`).emit('new-conversation', conversation);
   }
 }

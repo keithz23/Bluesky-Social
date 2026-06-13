@@ -1,57 +1,70 @@
 "use client";
-import { ArrowLeft, Plus } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+
+import ListItem from "@/app/components/list-item";
+import { InfiniteScrollFooter, ListSkeleton } from "@/app/components/skeletons";
+import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
+import { useGetlists } from "@/app/hooks/use-list";
 
 export default function ListsPage() {
-  const router = useRouter();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useGetlists();
+
+  const lists = data?.pages.flatMap((page) => page.lists) ?? [];
+
+  const { ref } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    enabled: lists.length > 0,
+  });
+
   return (
-    <div className="flex flex-col w-full bg-white min-h-screen pb-20">
-      {/* --- HEADER --- */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-center justify-between p-4">
-        <div className="flex items-center">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-900" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900 ml-4">Lists</h1>
+    <div>
+      {isLoading && <ListSkeleton />}
+
+      {!isLoading && lists.length > 0 && (
+        <div className="flex flex-col w-full">
+          {lists.map((list) => (
+            <ListItem item={list} key={list?.id} />
+          ))}
         </div>
+      )}
 
-        <button className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[15px] px-4 py-1.5 rounded-full transition cursor-pointer">
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          New
-        </button>
-      </div>
+      {!isLoading && lists.length === 0 && (
+        <div className="flex flex-col items-center justify-center mt-32 px-4">
+          <div className="mb-6 p-4 bg-gray-50 rounded-full text-gray-400">
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="8" cy="9" r="1.5" />
+              <path d="M12 9h5" />
+              <circle cx="8" cy="15" r="1.5" />
+              <path d="M12 15h5" />
+            </svg>
+          </div>
 
-      {/* --- EMPTY STATE --- */}
-      <div className="flex flex-col items-center justify-center mt-32 px-4">
-        <div className="mb-6 text-slate-700">
-          <svg
-            width="44"
-            height="44"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="8" cy="9" r="1.5" />
-            <path d="M12 9h5" />
-            <circle cx="8" cy="15" r="1.5" />
-            <path d="M12 15h5" />
-          </svg>
+          <p className="text-gray-500 text-[15px] text-center leading-relaxed">
+            Lists allow you to see content
+            <br />
+            from your favorite people.
+          </p>
         </div>
+      )}
 
-        {/* Text */}
-        <p className="text-[#4B5563] text-[15px] text-center leading-snug">
-          Lists allow you to see content
-          <br />
-          from your favorite people.
-        </p>
-      </div>
+      {/* --- INFINITE SCROLL TRIGGER (LOAD MORE) --- */}
+      <InfiniteScrollFooter
+        refCallback={ref}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        hasItems={lists.length > 0}
+      />
     </div>
   );
 }

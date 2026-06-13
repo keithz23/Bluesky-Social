@@ -4,5 +4,7 @@
 .vscode/launch.json
 .vscode/extensions.json
 
+*.env
+
 .DS_Store
 *.pem

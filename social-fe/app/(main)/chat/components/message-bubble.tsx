@@ -96,7 +96,7 @@ export default function MessageBubble({
         <div className={`flex items-center gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           {/* Bubble */}
           <div
-            className={`px-3.5 py-2 text-[15px] leading-relaxed wrap-break-word ${
+            className={`px-3.5 py-2 text-[15px] leading-relaxed wrap-break-word break-all ${
               isOwn
                 ? "bg-blue-500 text-white rounded-2xl rounded-br-md"
                 : "bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md"

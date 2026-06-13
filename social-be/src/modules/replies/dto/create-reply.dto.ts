@@ -12,5 +12,5 @@ export class CreateReplyDto {
 
   @ApiProperty()
   @IsString()
-  postId: string;
+  postId!: string;
 }

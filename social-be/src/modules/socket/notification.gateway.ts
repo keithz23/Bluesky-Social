@@ -36,7 +36,10 @@ export class NotificationGateway
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth?.token;
+      const token =
+        client.handshake.auth?.token ||
+        client.handshake.headers?.authorization?.replace('Bearer ', '') || // for Headers (Postman)
+        client.handshake.query?.token; // For params (postman)
       if (!token) throw new Error("Can't find token in auth handshake");
 
       const payload = this.jwtService.verify(token, {

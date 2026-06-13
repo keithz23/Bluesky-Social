@@ -1,5 +1,6 @@
 "use client";
 import SavedPostCard from "@/app/components/card/save-post-card";
+import { PostSkeletonList } from "@/app/components/skeletons";
 import { useGetBookmarks } from "@/app/hooks/use-bookmark";
 import { ArrowLeft, Bookmark } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +13,7 @@ export default function SavedPostsPage() {
   return (
     <div className="flex flex-col w-full bg-white min-h-screen pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-4">
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-4">
         <button
           onClick={() => router.back()}
           className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"
@@ -23,19 +24,7 @@ export default function SavedPostsPage() {
       </div>
 
       {/* Loading */}
-      {isLoading &&
-        Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="p-4 border-b border-gray-100 animate-pulse">
-            <div className="flex gap-3">
-              <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0" />
-              <div className="flex-1 flex flex-col gap-2">
-                <div className="h-4 bg-gray-200 rounded w-1/3" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-              </div>
-            </div>
-          </div>
-        ))}
+      {isLoading && <PostSkeletonList avatarSize="h-12 w-12" />}
 
       {/* Empty state */}
       {!isLoading && bookmarks.length === 0 && (

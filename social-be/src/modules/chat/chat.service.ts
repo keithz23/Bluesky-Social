@@ -63,6 +63,30 @@ const MESSAGE_SELECT = {
   },
 };
 
+type ConversationCursor = {
+  lastMessageAt: string | null;
+  createdAt: string;
+  id: string;
+};
+
+type MessageCursor = {
+  createdAt: string;
+  id: string;
+};
+
+const encodeCursor = (cursor: ConversationCursor | MessageCursor) =>
+  Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
+
+const decodeCursor = <T>(cursor?: string): T | null => {
+  if (!cursor) return null;
+
+  try {
+    return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as T;
+  } catch {
+    return null;
+  }
+};
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
@@ -73,17 +97,50 @@ export class ChatService {
 
   async getConversations(userId: string, query: ConversationQueryDto) {
     const limit = query.limit ?? 20;
+    const cursor = decodeCursor<ConversationCursor>(query.cursor);
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
 
     const conversations = await this.prisma.conversation.findMany({
       where: {
         participants: {
           some: { userId, leftAt: null },
         },
-        ...(query.cursor && { id: { lt: query.cursor } }),
+        ...(cursor?.lastMessageAt
+          ? {
+              OR: [
+                { lastMessageAt: { lt: new Date(cursor.lastMessageAt) } },
+                { lastMessageAt: null },
+                {
+                  lastMessageAt: new Date(cursor.lastMessageAt),
+                  createdAt: { lt: new Date(cursor.createdAt) },
+                },
+                {
+                  lastMessageAt: new Date(cursor.lastMessageAt),
+                  createdAt: new Date(cursor.createdAt),
+                  id: { lt: cursor.id },
+                },
+              ],
+            }
+          : cursor
+            ? {
+                lastMessageAt: null,
+                OR: [
+                  { createdAt: { lt: new Date(cursor.createdAt) } },
+                  {
+                    createdAt: new Date(cursor.createdAt),
+                    id: { lt: cursor.id },
+                  },
+                ],
+              }
+            : {}),
       },
       orderBy: [
         { lastMessageAt: { sort: 'desc', nulls: 'last' } },
         { createdAt: 'desc' },
+        { id: 'desc' },
       ],
       take: limit + 1,
       select: {
@@ -119,9 +176,15 @@ export class ChatService {
     const hasMore = conversations.length > limit;
     if (hasMore) conversations.pop();
 
-    const nextCursor = hasMore
-      ? conversations[conversations.length - 1].id
-      : null;
+    const lastConversation = conversations[conversations.length - 1];
+    const nextCursor =
+      hasMore && lastConversation
+        ? encodeCursor({
+            lastMessageAt: lastConversation.lastMessageAt?.toISOString() ?? null,
+            createdAt: lastConversation.createdAt.toISOString(),
+            id: lastConversation.id,
+          })
+        : null;
 
     return { conversations, nextCursor };
   }
@@ -346,18 +409,30 @@ export class ChatService {
       throw new ForbiddenException('You are not a member of this conversation');
 
     const limit = query.limit ?? 30;
+    const cursor = decodeCursor<MessageCursor>(query.cursor);
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
 
     const messages = await this.prisma.message.findMany({
       where: {
         conversationId,
-        isDeleted: false,
         // Exclude messages deleted for this user
         NOT: {
           deletedFor: { some: { userId } },
         },
-        ...(query.cursor && { id: { lt: query.cursor } }),
+        ...(cursor && {
+          OR: [
+            { createdAt: { lt: new Date(cursor.createdAt) } },
+            {
+              createdAt: new Date(cursor.createdAt),
+              id: { lt: cursor.id },
+            },
+          ],
+        }),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       select: MESSAGE_SELECT,
     });
@@ -365,9 +440,14 @@ export class ChatService {
     const hasMore = messages.length > limit;
     if (hasMore) messages.pop();
 
-    const nextCursor = hasMore
-      ? messages[messages.length - 1].id
-      : null;
+    const lastMessage = messages[messages.length - 1];
+    const nextCursor =
+      hasMore && lastMessage
+        ? encodeCursor({
+            createdAt: lastMessage.createdAt.toISOString(),
+            id: lastMessage.id,
+          })
+        : null;
 
     return { messages, nextCursor };
   }

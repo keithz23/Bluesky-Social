@@ -2,6 +2,10 @@
 
 import Avatar from "@/app/components/avatar";
 import { FollowButton } from "@/app/components/button/follow-button";
+import {
+  InfiniteScrollFooter,
+  UserListSkeleton,
+} from "@/app/components/skeletons";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useGetFollowingLists } from "@/app/hooks/use-follow";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
@@ -54,6 +58,8 @@ export default function FollowsPage() {
 
         <div className="flex flex-col">
           {/* --- SKELETON LOADING --- */}
+          {isLoading && <UserListSkeleton />}
+
           {!isLoading &&
             following.length === 0 &&
             (isOwnProfile ? (
@@ -132,13 +138,12 @@ export default function FollowsPage() {
           ))}
 
           {/* Trigger infinite scroll */}
-          <div ref={ref} className="py-6 text-center text-[15px] text-gray-500">
-            {isFetchingNextPage
-              ? "Loading more..."
-              : !hasNextPage && following.length > 0
-                ? ""
-                : null}
-          </div>
+          <InfiniteScrollFooter
+            refCallback={ref}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={hasNextPage}
+            hasItems={following.length > 0}
+          />
         </div>
       </div>
     </>
