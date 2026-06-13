@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import { FollowService } from "../services/follow.service";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export const useFollowStatus = (targetUserId: string) => {
   return useQuery({
@@ -45,19 +46,22 @@ export const useFollow = (targetUserId: string) => {
   return { follow, unfollow };
 };
 
-export const useGetFollowingLists = (username: string) => {
+export const useGetFollowingLists = (username: string, listId?: string) => {
   return useInfiniteQuery({
-    queryKey: ["followings", username],
+    queryKey: ["followings", username, listId],
 
     queryFn: ({ pageParam }) =>
       FollowService.getFollowingLists(
         username,
         pageParam as string | undefined,
+        listId,
       ),
 
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: !!username,
+    ...infiniteQueryOptions,
   });
 };
 
@@ -71,5 +75,7 @@ export const useGetFollowerLists = (username: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: !!username,
+    ...infiniteQueryOptions,
   });
 };

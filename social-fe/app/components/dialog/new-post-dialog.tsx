@@ -28,6 +28,7 @@ import { User } from "@/app/interfaces/user.interface";
 import Avatar from "../avatar";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
+const MAX_POST_LENGTH = 300;
 
 interface ImagePreview {
   file: File;
@@ -165,15 +166,41 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
     setCustomSettings((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const revokeImagePreviews = (images: ImagePreview[]) => {
+    images.forEach((img) => URL.revokeObjectURL(img.preview));
+  };
+
+  const handleTextChange = (value: string, cursor: number) => {
+    const nextValue = value.slice(0, MAX_POST_LENGTH);
+    setPostText(nextValue);
+    handleInput(nextValue, Math.min(cursor, nextValue.length));
+  };
+
+  const appendText = (value: string) => {
+    setPostText((current) =>
+      `${current}${value}`.slice(0, MAX_POST_LENGTH),
+    );
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (hasGif) return;
+
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     const remaining = 4 - selectedImages.length;
-    const toAdd = files.slice(0, remaining).map((f) => ({
-      file: f,
-      preview: URL.createObjectURL(f),
-    }));
+    const toAdd = files
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, remaining)
+      .map((f) => ({
+        file: f,
+        preview: URL.createObjectURL(f),
+      }));
+
+    if (toAdd.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setSelectedImages((prev) => [...prev, ...toAdd]);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -195,30 +222,72 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
   const resetForm = () => {
     setPostText("");
-    selectedImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    revokeImagePreviews(selectedImages);
     setSelectedImages([]);
     setSelectedGif(null);
+    setShowEmojiPicker(false);
+    setShowGifPicker(false);
+    setIsPrivacyModalOpen(false);
+    setShowExitConfirm(false);
+    setIsListsExpanded(false);
+    setSaveForNextTime(false);
     setReplyType("anyone");
     setCustomSettings({ followers: false, following: false, mentioned: false });
     setAllowQuote(true);
+    closeMention();
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const closeAndReset = () => {
+    resetForm();
+    setIsOpen(false);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setIsOpen(true);
+      return;
+    }
+
+    if (createPost.isPending) return;
+    if (hasChanges) {
+      setShowExitConfirm(true);
+      return;
+    }
+
+    closeAndReset();
   };
 
   const handleCancel = () => {
+    if (createPost.isPending) return;
     if (hasChanges) {
       setShowExitConfirm(true);
     } else {
-      setIsOpen(false);
-      resetForm();
+      closeAndReset();
     }
   };
 
   const handleConfirmDiscard = () => {
-    resetForm();
-    setShowExitConfirm(false);
-    setIsOpen(false);
+    closeAndReset();
+  };
+
+  const openPrivacySettings = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsPrivacyModalOpen(true);
+  };
+
+  const isPrivacyDialogInteraction = (event: Event) => {
+    const target = event.target as HTMLElement | null;
+    return (
+      isPrivacyModalOpen ||
+      Boolean(target?.closest("[data-privacy-dialog='true']"))
+    );
   };
 
   const handleCreatePost = () => {
+    if (isSubmitDisabled) return;
+
     const privacyData = {
       type: replyType,
       allowQuote,
@@ -239,19 +308,20 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
     createPost.mutate(payload, {
       onSuccess: () => {
-        setIsOpen(false);
-        resetForm();
+        closeAndReset();
       },
     });
   };
 
   const isSubmitDisabled =
-    createPost.isPending || (!postText.trim() && !hasImages && !hasGif);
+    createPost.isPending ||
+    (!postText.trim() && !hasImages && !hasGif) ||
+    postText.length > MAX_POST_LENGTH;
 
   return (
     <>
       <div className="mt-4 px-2 w-[90%] relative">
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button className="w-full h-14 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[17px] font-bold flex gap-2 items-center cursor-pointer shadow-sm">
               <SquarePen className="w-5 h-5" strokeWidth={2} />
@@ -260,17 +330,27 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
           </DialogTrigger>
 
           <DialogContent
-            className="max-w-150 p-0 border-none rounded-xl shadow-lg bg-white gap-0"
+            className="max-w-150 max-h-[90vh] overflow-y-auto p-0 border-none rounded-xl shadow-lg bg-white gap-0"
             onInteractOutside={(e) => {
-              if (hasChanges) {
+              if (isPrivacyDialogInteraction(e.detail.originalEvent)) {
                 e.preventDefault();
-                setShowExitConfirm(true);
+                return;
+              }
+
+              if (createPost.isPending || hasChanges) {
+                e.preventDefault();
+                if (!createPost.isPending) setShowExitConfirm(true);
               }
             }}
             onEscapeKeyDown={(e) => {
-              if (hasChanges) {
+              if (isPrivacyModalOpen) {
                 e.preventDefault();
-                setShowExitConfirm(true);
+                return;
+              }
+
+              if (createPost.isPending || hasChanges) {
+                e.preventDefault();
+                if (!createPost.isPending) setShowExitConfirm(true);
               }
             }}
           >
@@ -295,7 +375,11 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                         : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
                     }`}
                   >
-                    {createPost.isPending ? "Posting..." : "Post"}
+                    {createPost.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Post"
+                    )}
                   </Button>
                 </div>
               </div>
@@ -330,8 +414,10 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                     ref={textareaRef}
                     value={postText}
                     onChange={(e) => {
-                      setPostText(e.target.value);
-                      handleInput(e.target.value, e.target.selectionStart ?? 0);
+                      handleTextChange(
+                        e.target.value,
+                        e.target.selectionStart ?? 0,
+                      );
                     }}
                     onKeyDown={handleKeyDown}
                     className="relative w-full bg-transparent resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-500 min-h-20 z-10 text-transparent caret-black"
@@ -435,7 +521,8 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
             <div className="px-4 pb-3 mt-2">
               <button
-                onClick={() => setIsPrivacyModalOpen(true)}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={openPrivacySettings}
                 className="flex items-center gap-1.5 bg-[#F2F4F8] hover:bg-gray-200 text-[#444746] text-[13px] font-medium px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
               >
                 <Globe className="w-4 h-4 text-[#444746]" strokeWidth={2} />
@@ -460,7 +547,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                   className="absolute bottom-full left-4 mb-2 z-50 shadow-xl rounded-lg"
                 >
                   <EmojiPicker
-                    onEmojiClick={(e) => setPostText((prev) => prev + e.emoji)}
+                    onEmojiClick={(e) => appendText(e.emoji)}
                     searchDisabled
                     skinTonesDisabled
                   />
@@ -478,6 +565,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                     fetchGifs={fetchGifs}
                     onGifClick={(gif, e) => {
                       e.preventDefault();
+                      revokeImagePreviews(selectedImages);
                       setSelectedGif(gif.images.original.url);
                       setSelectedImages([]);
                       setShowGifPicker(false);
@@ -558,8 +646,8 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                 <button className="text-[#0066FF] font-medium text-[15px] hover:underline">
                   English
                 </button>
-                <span className="text-gray-900 text-[15px]">
-                  {300 - postText.length}
+              <span className="text-gray-900 text-[15px]">
+                  {MAX_POST_LENGTH - postText.length}
                 </span>
                 <div className="w-7 h-7 rounded-full border border-gray-200"></div>
               </div>
@@ -569,7 +657,10 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
         {/* -------------------- PRIVACY SETTINGS MODAL -------------------- */}
         <Dialog open={isPrivacyModalOpen} onOpenChange={setIsPrivacyModalOpen}>
-          <DialogContent className="max-w-100 p-6 border-none rounded-xl shadow-xl bg-white gap-0">
+          <DialogContent
+            data-privacy-dialog="true"
+            className="max-w-100 p-6 border-none rounded-xl shadow-xl bg-white gap-0"
+          >
             <DialogTitle className="flex justify-between items-center mb-4 text-xl font-bold text-black">
               Post interaction settings
               <button

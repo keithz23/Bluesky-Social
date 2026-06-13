@@ -1,5 +1,6 @@
 import { Repeat2 } from "lucide-react";
 import { useRepost } from "@/app/hooks/use-repost";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 const RepostButton = ({
   postId,
@@ -11,11 +12,13 @@ const RepostButton = ({
   repostCount: number;
 }) => {
   const { mutate: toggleRepost } = useRepost(postId, isReposted);
+  const requireAuth = useRequireAuthAction();
 
   return (
     <div
       onClick={(e) => {
         e.stopPropagation();
+        if (!requireAuth()) return;
         toggleRepost();
       }}
       className={`flex items-center gap-1 group cursor-pointer ${

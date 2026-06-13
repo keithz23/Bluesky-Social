@@ -2,20 +2,25 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export function resolveTemplatePath(name: string) {
-  const p1 = path.join(__dirname, 'templates', `${name}.hbs`);
-  if (fs.existsSync(p1)) return p1;
+  const prodPath = path.join(
+    process.cwd(),
+    'dist',
+    'mail',
+    'templates',
+    `${name}.hbs`,
+  );
+  if (fs.existsSync(prodPath)) return prodPath;
 
-  const p2 = path.join(
+  const localPath = path.join(
     process.cwd(),
     'src',
     'mail',
     'templates',
     `${name}.hbs`,
   );
-  if (fs.existsSync(p2)) return p2;
+  if (fs.existsSync(localPath)) return localPath;
 
-  const p3 = path.join(process.cwd(), 'mail', 'templates', `${name}.hbs`);
-  if (fs.existsSync(p3)) return p3;
-
-  throw new Error(`Template not found:\n- ${p1}\n- ${p2}\n- ${p3}`);
+  throw new Error(
+    `Template not found:\n- Prod Path: ${prodPath}\n- Local Path: ${localPath}`,
+  );
 }

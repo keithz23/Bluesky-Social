@@ -19,6 +19,8 @@ import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { SearchPostsDto } from './dto/search-posts.dto';
+import 'multer';
 
 @Controller('posts')
 export class PostsController {
@@ -45,6 +47,14 @@ export class PostsController {
     @Query() query: PostQueryDto,
   ) {
     return this.postsService.getPostByUsername(userId, username, query);
+  }
+
+  @Get('search')
+  searchPosts(
+    @CurrentUser('id') userId: string,
+    @Query() query: SearchPostsDto,
+  ) {
+    return this.postsService.searchPosts(userId, query);
   }
 
   @Get('post-detail/:postId')

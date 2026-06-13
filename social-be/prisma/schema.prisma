@@ -70,8 +70,17 @@ model User {
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  auditLogs               AuditLog[]
   messageMentions         MessageMention[]
   messageDeletedFors      MessageDeletedFor[]
+  lists                   List[]
+  listMembers             ListMember[]
+
+  // Deactive & Delete
+  status            UserStatus @default(ACTIVE) @map("status")
+  deactivatedAt     DateTime?  @map("deactivated_at")
+  deletedAt         DateTime?  @map("deleted_at")
+  deleteScheduledAt DateTime?  @map("delete_scheduled_at")
 
   @@index([username])
   @@index([email])
@@ -126,6 +135,8 @@ model Post {
   hashtags      PostHashtag[]
   notifications Notification[]
   reports       Report[]
+  lists         List[]
+  listItems     ListItem[]
 
   @@index([userId])
   @@index([parentPostId])
@@ -133,6 +144,10 @@ model Post {
   @@index([createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, isPinned])
+  @@index([isDeleted, parentPostId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_posts_feed_cursor")
+  @@index([userId, isDeleted, createdAt(sort: Desc), id(sort: Desc)], map: "idx_posts_user_cursor")
+  @@index([userId, isDeleted, parentPostId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_posts_user_parent_cursor")
+  @@index([parentPostId, createdAt, id], map: "idx_posts_replies_cursor")
   @@map("posts")
 }
 
@@ -154,6 +169,8 @@ model PostMedia {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+  @@index([postId, orderIndex], map: "idx_post_media_order")
+  @@index([mediaType, postId], map: "idx_post_media_type_post")
   @@map("post_media")
 }
 
@@ -169,7 +186,9 @@ model Follow {
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+  @@index([followerId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_follows_following_cursor")
   @@index([followingId, createdAt(sort: Desc)])
+  @@index([followingId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_follows_followers_cursor")
   @@map("follows")
 }
 
@@ -202,7 +221,9 @@ model Like {
   @@unique([userId, postId])
   @@index([postId])
   @@index([userId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_likes_user_cursor")
   @@index([postId, createdAt(sort: Desc)])
+  @@index([postId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_likes_post_cursor")
   @@map("likes")
 }
 
@@ -220,6 +241,8 @@ model Repost {
   @@index([postId])
   @@index([userId])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_reposts_user_cursor")
+  @@index([postId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_reposts_post_cursor")
   @@map("reposts")
 }
 
@@ -234,6 +257,7 @@ model Bookmark {
 
   @@unique([userId, postId])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_bookmarks_user_cursor")
   @@index([postId])
   @@map("bookmarks")
 }
@@ -280,6 +304,61 @@ model PostHashtag {
   @@map("post_hashtags")
 }
 
+model List {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String
+  description String?
+  listPhoto   String?  @map("list_photo")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items ListItem[]
+
+  members ListMember[]
+  post    Post?        @relation(fields: [postId], references: [id])
+  postId  String?
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_lists_user_cursor")
+  @@map("lists")
+}
+
+model ListMember {
+  id     String @id @default(cuid())
+  listId String @map("list_id")
+
+  memberId String   @map("member_id")
+  addedBy  String   @map("added_by")
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, memberId])
+  @@index([listId])
+  @@index([listId, addedAt(sort: Desc), id(sort: Desc)], map: "idx_list_members_cursor")
+  @@index([memberId, listId], map: "idx_list_members_member_list")
+  @@map("list_members")
+}
+
+model ListItem {
+  id      String   @id @default(cuid())
+  listId  String   @map("list_id")
+  postId  String   @map("post_id")
+  addedAt DateTime @default(now()) @map("added_at")
+
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, postId])
+  @@index([listId])
+  @@index([listId, addedAt(sort: Desc), id(sort: Desc)], map: "idx_list_items_cursor")
+  @@index([postId])
+  @@map("list_items")
+}
+
 model Notification {
   id        String           @id @default(cuid())
   userId    String           @map("user_id")
@@ -295,6 +374,8 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_notifications_user_cursor")
+  @@index([userId, isRead, createdAt(sort: Desc)], map: "idx_notifications_unread")
   @@index([actorId])
   @@map("notifications")
 }
@@ -355,7 +436,9 @@ model Conversation {
 
   @@index([type])
   @@index([lastMessageAt(sort: Desc)])
+  @@index([lastMessageAt(sort: Desc), createdAt(sort: Desc), id(sort: Desc)], map: "idx_conversations_activity_cursor")
   @@index([createdAt])
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "idx_conversations_created_cursor")
   @@map("conversations")
 }
 
@@ -386,6 +469,7 @@ model ConversationParticipant {
   @@index([userId])
   @@index([conversationId])
   @@index([userId, leftAt, isPinned])
+  @@index([userId, leftAt, conversationId], map: "idx_participants_user_active")
   @@map("conversation_participants")
 }
 
@@ -434,10 +518,12 @@ model Message {
   lastMessageIn Conversation?             @relation("LastMessage")
 
   @@index([conversationId, createdAt(sort: Desc)])
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)], map: "idx_messages_conversation_cursor")
   @@index([senderId])
   @@index([replyToId])
   @@index([forwardedFromId])
   @@index([conversationId, isDeleted, createdAt])
+  @@index([conversationId, isDeleted, createdAt(sort: Desc), id(sort: Desc)], map: "idx_messages_visible_cursor")
   @@map("messages")
 }
 
@@ -467,6 +553,7 @@ model MessageDeletedFor {
 
   @@unique([messageId, userId])
   @@index([userId])
+  @@index([userId, messageId], map: "idx_message_deleted_for_user_message")
   @@map("message_deleted_for")
 }
 
@@ -568,6 +655,7 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+  @@index([userId, createdAt(sort: Desc)], map: "idx_refresh_tokens_user_created")
   @@map("refresh_tokens")
 }
 
@@ -584,6 +672,8 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+  @@index([userId, usedAt, expiresAt], map: "idx_password_reset_active")
+  @@index([createdIp, createdAt(sort: Desc)], map: "idx_password_reset_ip_window")
   @@map("password_reset_tokens")
 }
 
@@ -623,9 +713,33 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  actorType String   @default("USER") @map("actor_type")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_audit_logs_user_created")
+  @@index([action, createdAt(sort: Desc)], map: "idx_audit_logs_action_created")
+  @@map("audit_logs")
+}
+
 // ============================================
 // ENUMS
 // ============================================
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
+  DELETED
+  SUSPENDED
+}
 
 enum MediaType {
   IMAGE

@@ -1,60 +1,83 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  useQueryClient,
-  useQuery,
-  useInfiniteQuery,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/providers/socket.provider";
 import { NotificationService } from "../services/notification.service";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
-export const useNotifications = () => {
+type NotificationFilter = "all" | "mention";
+
+const updateNotificationCaches = (
+  qc: ReturnType<typeof useQueryClient>,
+  updater: (notification: any) => any,
+) => {
+  qc.getQueriesData({ queryKey: ["notifications"] }).forEach(([queryKey]) => {
+    qc.setQueryData(queryKey, (old: any) => {
+      if (!old?.pages) return old;
+
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          notifications: page.notifications.map(updater),
+        })),
+      };
+    });
+  });
+};
+
+export const useNotifications = (enabled = true) => {
   const { notificationsSocket, isConnected } = useSocket();
   const qc = useQueryClient();
 
   const { data: unreadCount = 0 } = useQuery({
-    queryKey: ["unread-count"],
-    queryFn: () => 0,
-    enabled: false,
+    queryKey: ["notifications", "unread-count"],
+    queryFn: NotificationService.getUnreadCount,
+    enabled,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
-    if (!notificationsSocket || !isConnected) return;
+    if (!enabled || !notificationsSocket || !isConnected) return;
 
     const handleUnreadCount = (data: { count: number }) => {
-      qc.setQueryData(["unread-count"], data.count);
+      qc.setQueryData(["notifications", "unread-count"], data.count);
     };
 
     const handleNewNotification = (newNoti: any) => {
-      qc.setQueryData(["notifications"], (old: any) => {
-        if (!old || !old.pages || old.pages.length === 0) return old;
+      const addToCache = (filter: NotificationFilter) => {
+        if (filter === "mention" && newNoti.type !== "MENTION") return;
 
-        const currentList = old.pages[0].notifications || [];
+        qc.setQueryData(["notifications", filter], (old: any) => {
+          if (!old?.pages?.length) return old;
 
-        const isDuplicate = currentList.some(
-          (noti: any) => noti.id === newNoti.id,
-        );
+          const currentList = old.pages[0].notifications || [];
+          const isDuplicate = currentList.some(
+            (noti: any) => noti.id === newNoti.id,
+          );
 
-        if (isDuplicate) {
-          return old;
-        }
+          if (isDuplicate) return old;
 
-        return {
-          ...old,
-          pages: [
-            {
-              ...old.pages[0],
-              notifications: [newNoti, ...currentList],
-            },
-            ...old.pages.slice(1),
-          ],
-        };
-      });
+          return {
+            ...old,
+            pages: [
+              {
+                ...old.pages[0],
+                notifications: [newNoti, ...currentList],
+              },
+              ...old.pages.slice(1),
+            ],
+          };
+        });
+      };
+
+      addToCache("all");
+      addToCache("mention");
     };
 
     const handleInitialNotifications = (payload: any) => {
-      qc.setQueryData(["notifications"], {
+      qc.setQueryData(["notifications", "all"], {
         pages: [payload],
         pageParams: [undefined],
       });
@@ -62,6 +85,7 @@ export const useNotifications = () => {
 
     const handleConnect = () => {
       notificationsSocket.emit("get-notifications");
+      qc.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
     };
 
     notificationsSocket.on("unread-count", handleUnreadCount);
@@ -82,49 +106,61 @@ export const useNotifications = () => {
       );
       notificationsSocket.off("connect", handleConnect);
     };
-  }, [notificationsSocket, isConnected, qc]);
+  }, [enabled, notificationsSocket, isConnected, qc]);
 
-  const markAsRead = (notificationId: string) => {
-    if (!notificationsSocket) return;
-    notificationsSocket.emit("mark-notification-read", { notificationId });
+  const markAsRead = async (notificationId: string) => {
+    const previousCount =
+      qc.getQueryData<number>(["notifications", "unread-count"]) ?? 0;
+    let wasUnread = false;
 
-    qc.setQueryData(["notifications"], (old: any) => {
-      if (!old) return old;
-      return {
-        ...old,
-        pages: old.pages.map((page: any) => ({
-          ...page,
-          notifications: page.notifications.map((n: any) =>
-            n.id === notificationId ? { ...n, isRead: true } : n,
-          ),
-        })),
-      };
+    updateNotificationCaches(qc, (notification) => {
+      if (notification.id !== notificationId) return notification;
+      wasUnread = !notification.isRead;
+      return { ...notification, isRead: true };
     });
+
+    if (wasUnread) {
+      qc.setQueryData(
+        ["notifications", "unread-count"],
+        Math.max(previousCount - 1, 0),
+      );
+    }
+
+    notificationsSocket?.emit("mark-notification-read", { notificationId });
+
+    try {
+      await NotificationService.markAsRead(notificationId);
+      qc.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+    } catch {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.setQueryData(["notifications", "unread-count"], previousCount);
+    }
   };
 
-  const markAllAsRead = () => {
-    if (!notificationsSocket) return;
-    notificationsSocket.emit("mark-all-read");
+  const markAllAsRead = async () => {
+    const previousCount =
+      qc.getQueryData<number>(["notifications", "unread-count"]) ?? 0;
 
-    qc.setQueryData(["notifications"], (old: any) => {
-      if (!old) return old;
-      return {
-        ...old,
-        pages: old.pages.map((page: any) => ({
-          ...page,
-          notifications: page.notifications.map((n: any) => ({
-            ...n,
-            isRead: true,
-          })),
-        })),
-      };
-    });
+    updateNotificationCaches(qc, (notification) => ({
+      ...notification,
+      isRead: true,
+    }));
+    qc.setQueryData(["notifications", "unread-count"], 0);
+    notificationsSocket?.emit("mark-all-read");
+
+    try {
+      await NotificationService.markAllAsRead();
+      qc.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+    } catch {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.setQueryData(["notifications", "unread-count"], previousCount);
+    }
   };
 
   return { unreadCount, markAsRead, markAllAsRead };
 };
 
-export const useGetNotifications = (filter: "all" | "mention" = "all") => {
+export const useGetNotifications = (filter: NotificationFilter = "all") => {
   return useInfiniteQuery({
     queryKey: ["notifications", filter],
     queryFn: ({ pageParam }) =>
@@ -132,5 +168,6 @@ export const useGetNotifications = (filter: "all" | "mention" = "all") => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    ...infiniteQueryOptions,
   });
 };

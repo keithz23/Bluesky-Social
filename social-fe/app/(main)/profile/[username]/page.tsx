@@ -4,10 +4,14 @@ import { useParams } from "next/navigation";
 import { useProfile } from "@/app/hooks/use-profile";
 import { useUserPosts } from "@/app/hooks/use-post";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
-import PostCard from "@/app/components/card/post-card";
 import { Feed } from "@/app/interfaces/feed.interface";
 import NewPostModal from "@/app/components/dialog/new-post-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
+import VirtualPostList from "@/app/components/virtual-post-list";
+import {
+  InfiniteScrollFooter,
+  PostSkeletonList,
+} from "@/app/components/skeletons";
 import {
   SquarePen,
   BookA,
@@ -65,32 +69,17 @@ export default function PostsPage() {
   return (
     <>
       <div className="flex flex-col">
-        {isPostLoading &&
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="p-4 border-b border-gray-100 animate-pulse">
-              <div className="flex gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
-                <div className="flex-1 flex flex-col gap-2">
-                  <div className="h-4 bg-gray-200 rounded w-1/3" />
-                  <div className="h-4 bg-gray-200 rounded w-full" />
-                  <div className="h-4 bg-gray-200 rounded w-2/3" />
-                </div>
-              </div>
-            </div>
-          ))}
+        {isPostLoading && posts.length === 0 && <PostSkeletonList />}
 
-        {posts.map((post: Feed) => (
-          <PostCard key={post.id} post={post} dropdownItems={dropdownItems} />
-        ))}
+        <VirtualPostList posts={posts as Feed[]} dropdownItems={dropdownItems} />
       </div>
 
-      <div ref={ref} className="py-4 text-center text-sm text-gray-400">
-        {isFetchingNextPage
-          ? "Loading more..."
-          : !hasNextPage && posts.length > 0
-            ? "You're all caught up"
-            : null}
-      </div>
+      <InfiniteScrollFooter
+        refCallback={ref}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        hasItems={posts.length > 0}
+      />
     </>
   );
 }

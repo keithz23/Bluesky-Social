@@ -1,9 +1,14 @@
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class FeedQueryDto {
   @IsOptional()
-  cursor?: string; // post_id cuối của page trước
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @IsString()
+  seed?: string;
 
   @IsOptional()
   @Type(() => Number)
@@ -11,4 +16,8 @@ export class FeedQueryDto {
   @Min(1)
   @Max(50)
   limit?: number = 20;
+
+  @IsOptional()
+  @IsString()
+  username?: string;
 }

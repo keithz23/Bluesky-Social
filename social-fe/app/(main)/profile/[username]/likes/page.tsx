@@ -1,8 +1,13 @@
 "use client";
 
-import PostCard from "@/app/components/card/post-card";
+import VirtualPostList from "@/app/components/virtual-post-list";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useUserPosts } from "@/app/hooks/use-post";
+import { Feed } from "@/app/interfaces/feed.interface";
+import {
+  InfiniteScrollFooter,
+  PostSkeletonList,
+} from "@/app/components/skeletons";
 import { useParams } from "next/navigation";
 
 export default function LikesPage() {
@@ -23,18 +28,7 @@ export default function LikesPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="p-4 border-b border-gray-100 animate-pulse">
-            <div className="flex gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
-              <div className="flex-1 flex flex-col gap-2">
-                <div className="h-4 bg-gray-200 rounded w-1/3" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-              </div>
-            </div>
-          </div>
-        ))}
+        <PostSkeletonList />
       </div>
     );
   }
@@ -54,19 +48,14 @@ export default function LikesPage() {
 
   return (
     <>
-      <div className="flex flex-col">
-        {posts.map((post) => (
-          <PostCard post={post} key={post.id} />
-        ))}
-      </div>
+      <VirtualPostList posts={posts as Feed[]} dropdownItems={[]} />
 
-      <div ref={ref} className="py-4 text-center text-sm text-gray-400">
-        {isFetchingNextPage
-          ? "Loading more..."
-          : !hasNextPage && posts.length > 0
-            ? "You're all caught up"
-            : null}
-      </div>
+      <InfiniteScrollFooter
+        refCallback={ref}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        hasItems={posts.length > 0}
+      />
     </>
   );
 }

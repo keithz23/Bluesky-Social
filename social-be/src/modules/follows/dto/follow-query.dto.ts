@@ -2,7 +2,7 @@ import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 export class FollowQueryDto {
   @IsString()
-  username: string;
+  username!: string;
 
   @IsOptional()
   cursor?: string;
@@ -13,4 +13,7 @@ export class FollowQueryDto {
   @Min(1)
   @Max(50)
   limit?: number = 20;
+
+  @IsOptional()
+  listId?: string;
 }

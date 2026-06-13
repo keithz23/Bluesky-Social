@@ -2,7 +2,6 @@ import { Feed } from "../interfaces/feed.interface";
 
 export const checkCanReply = (post: Feed, currentUser: any) => {
   if (!currentUser) {
-    console.log("here");
     return false;
   }
 

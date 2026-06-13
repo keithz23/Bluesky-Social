@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, BadgeCheck } from "lucide-react";
+import { Plus, Search, BadgeCheck, Loader2 } from "lucide-react";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useGetFollowingLists } from "@/app/hooks/use-follow";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
@@ -17,6 +17,7 @@ import { User } from "@/app/interfaces/user.interface";
 import { ChatService } from "@/app/services/chat.service";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { UserListSkeleton } from "../skeletons";
 
 export default function NewChatDialog() {
   const { user } = useAuth();
@@ -100,10 +101,12 @@ export default function NewChatDialog() {
           <div className="flex flex-col py-2 max-h-87.5 overflow-y-auto">
             {/* Loading state during search */}
             {hasQuery && isSearching && (
-              <p className="p-4 text-center text-gray-500 text-sm">
-                Searching...
-              </p>
+              <div className="flex items-center justify-center p-4 text-gray-400">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
             )}
+
+            {!hasQuery && isLoading && <UserListSkeleton count={4} />}
 
             {/* Empty state for search results */}
             {hasQuery && !isSearching && displayUsers.length === 0 && (
@@ -119,7 +122,8 @@ export default function NewChatDialog() {
               </p>
             )}
 
-            {!isSearching &&
+            {!isLoading &&
+              !isSearching &&
               displayUsers.map((u: User) => (
                 <button
                   className="w-full p-4 border-b border-gray-100 hover:bg-gray-50 transition text-left cursor-pointer"
@@ -154,9 +158,9 @@ export default function NewChatDialog() {
 
             {/* Loading state for infinite scroll */}
             {!hasQuery && isFetchingNextPage && (
-              <p className="p-4 text-center text-gray-500 text-sm">
-                Loading more...
-              </p>
+              <div className="flex items-center justify-center p-4 text-gray-400">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
             )}
           </div>
         </DialogContent>

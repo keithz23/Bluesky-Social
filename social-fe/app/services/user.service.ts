@@ -9,9 +9,9 @@ export const UserService = {
     return data;
   },
 
-  searchUsers: async (query: string, limit: number = 10) => {
+  searchUsers: async (query: string, limit: number = 10, listId?: string) => {
     const { data } = await axiosInstance.get(
-      API_ENDPOINT.USERS.SEARCH(query, limit),
+      API_ENDPOINT.USERS.SEARCH(query, limit, listId),
     );
     return data;
   },
