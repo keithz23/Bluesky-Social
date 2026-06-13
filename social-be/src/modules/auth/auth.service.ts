@@ -44,7 +44,8 @@ const PASSWORD_UPDATE_CODE_PREFIX = 'password_update';
 type AccountEmailCodePurpose =
   | 'password-reset'
   | 'email-update'
-  | 'password-update';
+  | 'password-update'
+  | 'deactivate-account';
 
 type AccountEmailCodePayload = {
   user: Pick<User, 'id' | 'email' | 'username'>;
@@ -945,6 +946,26 @@ export class AuthService {
     await this.redisService.del(redisKey);
 
     return { message: 'Email updated successfully. Please login again.' };
+  }
+
+  async requestDeactivateAccount(userId: string, userAgent?: string, ipAddress?: string,): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!user) throw new NotFoundException("User not found");
+
+    await this.createAndSendAccountEmailCode({
+      user,
+      purpose: 'deactivate-account',
+      userAgent,
+      ipAddress,
+    });
+  }
+
+
+  async deactivateAccount(userId: string,) {
+
   }
 
   private async createAndSendAccountEmailCode({

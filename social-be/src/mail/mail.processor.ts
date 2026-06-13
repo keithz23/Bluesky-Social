@@ -50,6 +50,7 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('forgot');
     this.loadTemplate('request-email-otp');
     this.loadTemplate('request-pwd-otp');
+    this.loadTemplate('request-deactivate-account-otp');
   }
 
   private loadTemplate(name: string): void {
@@ -122,11 +123,10 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${
-              context.redirect
-                ? `?redirect=${encodeURIComponent(context.redirect)}`
-                : ''
-            }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect
+              ? `?redirect=${encodeURIComponent(context.redirect)}`
+              : ''
+              }`,
           });
           break;
         }
