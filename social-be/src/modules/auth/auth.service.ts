@@ -19,7 +19,7 @@ import { SUCCESS_MESSAGES } from 'src/common/constants/success-message';
 import { ERROR_MESSAGES } from 'src/common/constants/error-message';
 import { MailService } from 'src/mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { PasswordResetToken, Prisma, User } from '@prisma/client';
+import { PasswordResetToken, Prisma, User, UserStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
 import { S3Service } from 'src/uploads/s3.service';
@@ -35,6 +35,7 @@ import { CacheService } from '../cache/cache.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeUsernameDto } from './dto/change-username.dto';
 import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
+import { DeactivateAccountDto } from './dto/deactivate-account-dto';
 
 const RESET_TTL_MINUTES = 15;
 const MAX_ACTIVE_EMAIL_CODES = 3;
@@ -60,6 +61,11 @@ type AuditContext = {
   ipAddress?: string;
 };
 
+type AccountEmailCodeData = {
+  otpHash?: string;
+  otp?: string;
+};
+
 @Injectable()
 export class AuthService {
   private logger = new Logger(AuthService.name);
@@ -72,7 +78,7 @@ export class AuthService {
     private redisService: CacheService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
@@ -158,6 +164,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    this.assertActiveAccount(user);
+
     // Generate tokens with device info
     const tokens = await this.generateTokens(
       user.id,
@@ -198,6 +206,13 @@ export class AuthService {
     }
 
     const user = tokenDoc.user;
+
+    if (user.status !== UserStatus.ACTIVE) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { userId: user.id },
+      });
+      throw new UnauthorizedException('Account is not active');
+    }
 
     // Delete old refresh token
     await this.prisma.refreshToken.delete({
@@ -298,9 +313,9 @@ export class AuthService {
       // Get old image before update to delete later
       const oldUser = uploadedKeys.length
         ? await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { avatarUrl: true, coverUrl: true },
-        })
+            where: { id: userId },
+            select: { avatarUrl: true, coverUrl: true },
+          })
         : null;
 
       const user = await this.prisma.user.update({
@@ -464,23 +479,11 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const redisKey = this.getAccountEmailCodeKey('password-update', userId);
-    const rawData = await this.redisService.get(redisKey);
-
-    if (!rawData) throw new BadRequestException('OTP is invalid or expired');
-
-    const requestUpdatePasswordData = JSON.parse(rawData) as {
-      otpHash?: string;
-      otp?: string;
-    };
-
-    const normalizedOtp = this.normalizeEmailCode(otp);
-    const isValidOtp = requestUpdatePasswordData.otpHash
-      ? await HashUtil.compare(normalizedOtp, requestUpdatePasswordData.otpHash)
-      : normalizedOtp ===
-      this.normalizeEmailCode(requestUpdatePasswordData.otp);
-
-    if (!isValidOtp) throw new BadRequestException('Invalid OTP');
+    const { redisKey } = await this.verifyAccountEmailCode(
+      'password-update',
+      userId,
+      otp,
+    );
 
     // Hash new password
     const passwordHash = await HashUtil.hash(newPassword);
@@ -718,46 +721,11 @@ export class AuthService {
       return null;
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      return null;
+    }
+
     return this.transformUser(user);
-  }
-
-  private async generateTokens(
-    userId: string,
-    email: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = {
-      sub: userId,
-      email,
-    };
-
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('config.jwt.seccret'),
-      expiresIn: this.configService.get('config.jwt.expiresIn', '15m'),
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('config.jwt.refreshSecret'),
-      expiresIn: this.configService.get('config.jwt.refreshExpiresIn', '7d'),
-    });
-
-    // Calculate expiry date
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
-
-    // Save refresh token to database
-    await this.prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId,
-        expiresAt,
-        userAgent,
-        ipAddress,
-      },
-    });
-
-    return { accessToken, refreshToken };
   }
 
   async googleLogin(googleUser: any, ipAddress: string, userAgent: string) {
@@ -766,6 +734,10 @@ export class AuthService {
         OR: [{ email: googleUser.email }],
       },
     });
+
+    if (user && user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account is not active');
+    }
 
     if (user && !user.googleId) {
       await this.mailService.sendEmailNotification(
@@ -786,8 +758,8 @@ export class AuthService {
       const tokens = await this.generateTokens(
         user.id,
         user.email,
-        ipAddress,
         userAgent,
+        ipAddress,
       );
 
       return {
@@ -826,8 +798,8 @@ export class AuthService {
     const tokens = await this.generateTokens(
       user.id,
       user.email,
-      ipAddress,
       userAgent,
+      ipAddress,
     );
 
     return {
@@ -850,7 +822,7 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
-    if (!user) throw new Error('User not found');
+    if (!user) throw new NotFoundException('User not found');
 
     const normalizedEmail = newEmail.trim().toLowerCase();
 
@@ -888,29 +860,12 @@ export class AuthService {
       where: { id: userId },
     });
 
-    if (!user) throw new Error('User not found');
+    if (!user) throw new NotFoundException('User not found');
 
-    const redisKey = this.getAccountEmailCodeKey('email-update', userId);
-    const rawData = await this.redisService.get(redisKey);
-
-    if (!rawData) {
-      throw new BadRequestException('OTP is invalid or expired');
-    }
-
-    const requestUpdateEmailData = JSON.parse(rawData) as {
-      new_email: string;
-      otpHash?: string;
-      otp?: string;
-    };
-
-    const normalizedOtp = this.normalizeEmailCode(otp);
-    const isValidOtp = requestUpdateEmailData.otpHash
-      ? await HashUtil.compare(normalizedOtp, requestUpdateEmailData.otpHash)
-      : normalizedOtp === this.normalizeEmailCode(requestUpdateEmailData.otp);
-
-    if (!isValidOtp) {
-      throw new BadRequestException('Invalid OTP');
-    }
+    const { redisKey, data: requestUpdateEmailData } =
+      await this.verifyAccountEmailCode<
+        AccountEmailCodeData & { new_email: string }
+      >('email-update', userId, otp);
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email: requestUpdateEmailData.new_email },
@@ -948,12 +903,17 @@ export class AuthService {
     return { message: 'Email updated successfully. Please login again.' };
   }
 
-  async requestDeactivateAccount(userId: string, userAgent?: string, ipAddress?: string,): Promise<void> {
+  async requestDeactivateAccount(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId }
-    })
+      where: { id: userId },
+    });
 
-    if (!user) throw new NotFoundException("User not found");
+    if (!user) throw new NotFoundException('User not found');
+    this.assertActiveAccount(user);
 
     await this.createAndSendAccountEmailCode({
       user,
@@ -963,9 +923,94 @@ export class AuthService {
     });
   }
 
+  async deactivateAccount(
+    userId: string,
+    deactivateAccountDto: DeactivateAccountDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ message: string }> {
+    const { otp } = deactivateAccountDto;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    this.assertActiveAccount(user);
 
-  async deactivateAccount(userId: string,) {
+    const { redisKey } = await this.verifyAccountEmailCode(
+      'deactivate-account',
+      userId,
+      otp,
+    );
 
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          status: UserStatus.DEACTIVATED,
+          deactivatedAt: new Date(),
+        },
+      }),
+      this.prisma.refreshToken.deleteMany({
+        where: { userId },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'DEACTIVATE_ACCOUNT',
+          userAgent,
+          ipAddress,
+          metadata: {
+            status: 'DEACTIVATED',
+            refreshTokensRevoked: true,
+          },
+        }),
+      }),
+    ]);
+
+    await this.redisService.del(redisKey);
+
+    return { message: 'Account deactivated successfully.' };
+  }
+
+  private async generateTokens(
+    userId: string,
+    email: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const payload = {
+      sub: userId,
+      email,
+    };
+
+    const jwtSecret = this.configService.get<string>('config.jwt.secret') || '';
+    const refreshSecret =
+      this.configService.get<string>('config.jwt.refreshSecret') || jwtSecret;
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: jwtSecret,
+      expiresIn: this.configService.get('config.jwt.expiresIn', '15m'),
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: refreshSecret,
+      expiresIn: this.configService.get('config.jwt.refreshExpiresIn', '7d'),
+    });
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId,
+        expiresAt,
+        userAgent,
+        ipAddress,
+      },
+    });
+
+    return { accessToken, refreshToken };
   }
 
   private async createAndSendAccountEmailCode({
@@ -1033,6 +1078,37 @@ export class AuthService {
     }
 
     return `${purpose}:${userId}`;
+  }
+
+  private async verifyAccountEmailCode<T extends AccountEmailCodeData>(
+    purpose: Exclude<AccountEmailCodePurpose, 'password-reset'>,
+    userId: string,
+    otp: string,
+  ): Promise<{ redisKey: string; data: T }> {
+    const redisKey = this.getAccountEmailCodeKey(purpose, userId);
+    const rawData = await this.redisService.get(redisKey);
+
+    if (!rawData) {
+      throw new BadRequestException('OTP is invalid or expired');
+    }
+
+    const data = JSON.parse(rawData) as T;
+    const normalizedOtp = this.normalizeEmailCode(otp);
+    const isValidOtp = data.otpHash
+      ? await HashUtil.compare(normalizedOtp, data.otpHash)
+      : normalizedOtp === this.normalizeEmailCode(data.otp);
+
+    if (!isValidOtp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    return { redisKey, data };
+  }
+
+  private assertActiveAccount(user: Pick<User, 'status'>): void {
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account is not active');
+    }
   }
 
   private normalizeEmailCode(code?: string): string {

@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Request } from 'express';
+import { UserStatus } from '@prisma/client';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -32,11 +33,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         username: true,
         displayName: true,
         verified: true,
+        status: true,
       },
     });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account is not active');
     }
 
     return {

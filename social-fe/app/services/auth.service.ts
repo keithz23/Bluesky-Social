@@ -10,6 +10,7 @@ import {
   UpdateProfileData,
   ChangeUsernameData,
   ChangeBirthDayData,
+  DeactivateAccountData,
 } from "../interfaces/auth.interface";
 import { AuthResponse } from "../interfaces/user.interface";
 
@@ -91,10 +92,27 @@ export const AuthService = {
   },
 
   changeUsername: (changeUsernameData: ChangeUsernameData) => {
-    return axiosInstance.patch(API_ENDPOINT.AUTH.CHANGE_USERNAME, changeUsernameData)
+    return axiosInstance.patch(
+      API_ENDPOINT.AUTH.CHANGE_USERNAME,
+      changeUsernameData,
+    );
   },
 
   changeBirthDay: (changeBirthDayData: ChangeBirthDayData) => {
-    return axiosInstance.patch(API_ENDPOINT.AUTH.CHANGE_BIRTHDAY, changeBirthDayData)
-  }
+    return axiosInstance.patch(
+      API_ENDPOINT.AUTH.CHANGE_BIRTHDAY,
+      changeBirthDayData,
+    );
+  },
+
+  requestDeactivateAccount: () => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT);
+  },
+
+  deactivateAccount: (deactivateAccountData: DeactivateAccountData) => {
+    return axiosInstance.post(
+      API_ENDPOINT.AUTH.DEACTIVATE_ACCOUNT,
+      deactivateAccountData,
+    );
+  },
 };

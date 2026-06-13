@@ -45,3 +45,7 @@ export interface ChangeUsernameData {
 export interface ChangeBirthDayData {
   dateOfBirth: string;
 }
+
+export interface DeactivateAccountData {
+  otp: string;
+}

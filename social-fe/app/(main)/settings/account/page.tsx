@@ -19,6 +19,7 @@ import { useAuth } from "@/app/hooks/use-auth";
 import ChangePasswordDialog from "@/app/components/dialog/change-password-dialog";
 import ChangeUsernameDialog from "@/app/components/dialog/change-username-dialog";
 import ChangeBirthdayDialog from "@/app/components/dialog/change-birthday-dialog";
+import DeactivateAccountDialog from "@/app/components/dialog/deactivate-account-dialog";
 
 type AccountRowProps = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -41,6 +42,7 @@ export default function AccountPage() {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isChangeUsernameOpen, setIsChangeUsernameOpen] = useState(false);
   const [isChangeBirthdayOpen, setIsChangeBirthdayOpen] = useState(false);
+  const [isDeactivateAccountOpen, setIsDeactivateAccountOpen] = useState(false);
   const email = user?.email || "No email";
   const handle = user?.username ? `@${user.username}` : "Not set";
 
@@ -92,7 +94,7 @@ export default function AccountPage() {
           label="Deactivate account"
           danger
           chevron
-          onClick={() => unavailable("Deactivate account")}
+          onClick={() => setIsDeactivateAccountOpen(true)}
         />
         <AccountRow
           icon={Trash2}
@@ -123,6 +125,11 @@ export default function AccountPage() {
         open={isChangeBirthdayOpen}
         onOpenChange={setIsChangeBirthdayOpen}
         dateOfBirth={user?.dateOfBirth}
+      />
+
+      <DeactivateAccountDialog
+        open={isDeactivateAccountOpen}
+        onOpenChange={setIsDeactivateAccountOpen}
       />
     </div>
   );
