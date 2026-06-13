@@ -12,7 +12,7 @@ export type AccountCodeMailPurpose =
   | 'password-reset'
   | 'email-update'
   | 'password-update'
-  | 'deactivate-account'
+  | 'deactivate-account';
 
 export interface SendMailDto {
   to: string;

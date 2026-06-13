@@ -14,6 +14,8 @@ export const API_ENDPOINT = {
     CHANGE_BIRTHDAY: "/auth/change-birthday",
     REQUEST_UPDATE_EMAIL: "/auth/request-update-email",
     UPDATE_EMAIL: "/auth/update-email",
+    REQUEST_DEACTIVATE_ACCOUNT: "/auth/request-deactivate-account",
+    DEACTIVATE_ACCOUNT: "/auth/deactivate-account",
     SOCKET_TOKEN: "/auth/socket-token",
   },
 

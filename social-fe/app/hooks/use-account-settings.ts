@@ -11,6 +11,7 @@ type useAccountSettingsOptions = {
   onSuccess?: () => void;
   onRequestEmailCodeSuccess?: () => void;
   onRequestPasswordCodeSuccess?: () => void;
+  onRequestDeactivateCodeSuccess?: () => void;
 };
 
 export const useAccountSettings = (options?: useAccountSettingsOptions) => {
@@ -82,18 +83,39 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
   });
 
   const changeBirthDayMutation = useMutation({
-    mutationFn: (payload: { dateOfBirth: string }) => AuthService.changeBirthDay(payload),
+    mutationFn: (payload: { dateOfBirth: string }) =>
+      AuthService.changeBirthDay(payload),
     onSuccess: async () => {
-      qc.setQueryData(["me"], null)
-      await qc.invalidateQueries({ queryKey: ["me"] })
+      qc.setQueryData(["me"], null);
+      await qc.invalidateQueries({ queryKey: ["me"] });
       options?.onSuccess?.();
-      toast.success("Birthday changed.")
+      toast.success("Birthday changed.");
     },
     onError: (err) => {
-      toast.error(extractErrMsg(err))
-    }
-  })
+      toast.error(extractErrMsg(err));
+    },
+  });
 
+  const requestDeactivateAccountMutation = useMutation({
+    mutationFn: () => AuthService.requestDeactivateAccount(),
+    onSuccess: () => {
+      options?.onRequestDeactivateCodeSuccess?.();
+      toast.success("Verification code sent.");
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
+  const deactivateAccountMutation = useMutation({
+    mutationFn: (payload: { otp: string }) =>
+      AuthService.deactivateAccount(payload),
+    onSuccess: async () => {
+      await resetAuth();
+      options?.onSuccess?.();
+      toast.success("Account deactivated.");
+      router.push("/login");
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
 
   return {
     requestUpdateEmailMutation,
@@ -102,6 +124,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     changePasswordMutation,
     changeUsernameMutation,
     changeBirthDayMutation,
+    requestDeactivateAccountMutation,
+    deactivateAccountMutation,
 
     isRequestingEmailCode: requestUpdateEmailMutation.isPending,
     isUpdatingEmail: updateEmailMutation.isPending,
@@ -109,5 +133,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     isChangingPassword: changePasswordMutation.isPending,
     isChangingUsername: changeUsernameMutation.isPending,
     isChangingBirthday: changeBirthDayMutation.isPending,
+    isRequestingDeactivateCode: requestDeactivateAccountMutation.isPending,
+    isDeactivatingAccount: deactivateAccountMutation.isPending,
   };
 };

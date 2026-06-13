@@ -123,10 +123,11 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect
-              ? `?redirect=${encodeURIComponent(context.redirect)}`
-              : ''
-              }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${
+              context.redirect
+                ? `?redirect=${encodeURIComponent(context.redirect)}`
+                : ''
+            }`,
           });
           break;
         }
@@ -140,6 +141,13 @@ export class MailProcessor extends WorkerHost {
         case 'request-password-otp': {
           subject ||= 'Password Reset Requested';
           html = this.renderTemplate('request-pwd-otp', {
+            ...context,
+          });
+          break;
+        }
+        case 'request-deactivate-account-otp': {
+          subject ||= 'Deactivate your account';
+          html = this.renderTemplate('request-deactivate-account-otp', {
             ...context,
           });
           break;

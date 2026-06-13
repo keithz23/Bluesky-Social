@@ -36,7 +36,7 @@ const ACCOUNT_CODE_MAIL_CONFIG: Record<
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) { }
+  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) {}
 
   private makeJobId(payload: SendMailDto) {
     const raw = `${payload.to}|${payload.type}|${JSON.stringify(payload.context)}`;
@@ -57,7 +57,8 @@ export class MailService {
         payload.type === 'verify' ||
         payload.type === 'forgot' ||
         payload.type === 'request-email-otp' ||
-        payload.type === 'request-password-otp'
+        payload.type === 'request-password-otp' ||
+        payload.type === 'request-deactivate-account-otp'
       ) {
         opts.jobId = this.makeJobId(payload);
       }

@@ -47,6 +47,7 @@ import { UpdateEmailDto } from './dto/update-email.dto';
 import { RequestUpdateEmail } from './dto/request-update-email.dto';
 import { ChangeUsernameDto } from './dto/change-username.dto';
 import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
+import { DeactivateAccountDto } from './dto/deactivate-account-dto';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ export class AuthController {
     private jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   // ============= PUBLIC ROUTES =============
 
@@ -112,14 +113,7 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto, ipAddress, userAgent);
 
-    response.cookie(
-      'accessToken',
-      result.accessToken,
-      accessTokenCookieOptions,
-    );
-    response.cookie('refreshToken', result.refreshToken, {
-      ...refreshTokenCookieOptions,
-    });
+    this.setAuthCookies(response, result);
 
     return result;
   }
@@ -145,16 +139,7 @@ export class AuthController {
 
     const result = await this.authService.refreshTokens(refreshToken);
 
-    response.cookie(
-      'accessToken',
-      result.accessToken,
-      accessTokenCookieOptions,
-    );
-    response.cookie(
-      'refreshToken',
-      result.refreshToken,
-      refreshTokenCookieOptions,
-    );
+    this.setAuthCookies(response, result);
 
     return result;
   }
@@ -199,7 +184,7 @@ export class AuthController {
     return this.authService.checkEmail(email);
   }
 
-  // ============= PROTECTED ROUTES =============
+  // ============= SESSION ROUTES =============
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
@@ -217,11 +202,7 @@ export class AuthController {
       await this.authService.logout(userId, refreshToken);
     }
 
-    response.clearCookie('accessToken', cookieOptions);
-    response.clearCookie('refreshToken', {
-      ...cookieOptions,
-      path: '/api/v1/auth',
-    });
+    this.clearAuthCookies(response);
 
     return { message: 'Logged out successfully' };
   }
@@ -237,11 +218,7 @@ export class AuthController {
   ): Promise<{ message: string }> {
     await this.authService.logoutAll(userId);
 
-    response.clearCookie('accessToken', cookieOptions);
-    response.clearCookie('refreshToken', {
-      ...cookieOptions,
-      path: '/api/v1/auth',
-    });
+    this.clearAuthCookies(response);
 
     return { message: 'Logged out from all devices' };
   }
@@ -253,6 +230,8 @@ export class AuthController {
   async getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
   }
+
+  // ============= PROFILE ROUTES =============
 
   @Patch('update-profile')
   @ApiBearerAuth()
@@ -280,6 +259,8 @@ export class AuthController {
       files?.cover,
     );
   }
+
+  // ============= ACCOUNT SECURITY ROUTES =============
 
   @Post('request-update-password')
   @ApiBearerAuth()
@@ -349,14 +330,12 @@ export class AuthController {
       ipAddress,
     );
 
-    response.clearCookie('accessToken', cookieOptions);
-    response.clearCookie('refreshToken', {
-      ...cookieOptions,
-      path: '/api/v1/auth',
-    });
+    this.clearAuthCookies(response);
 
     return result;
   }
+
+  // ============= PASSWORD RECOVERY ROUTES =============
 
   @Public()
   @Post('forgot-password')
@@ -375,7 +354,26 @@ export class AuthController {
     return { message: 'If the email exists, a reset link has been sent.' };
   }
 
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  async reset(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.resetPassword(
+      resetPasswordDto,
+      userAgent,
+      ipAddress,
+    );
+    return { message: 'Password has been updated successfully.' };
+  }
+
+  // ============= ACCOUNT EMAIL ROUTES =============
+
   @Post('request-update-email')
+  @ApiBearerAuth()
   @HttpCode(200)
   async requestUpdateEmail(
     @Body() requestUpdateEmail: RequestUpdateEmail,
@@ -410,30 +408,12 @@ export class AuthController {
       ipAddress,
     );
 
-    response.clearCookie('accessToken', cookieOptions);
-    response.clearCookie('refreshToken', {
-      ...cookieOptions,
-      path: '/api/v1/auth',
-    });
+    this.clearAuthCookies(response);
 
     return result;
   }
 
-  @Public()
-  @Post('reset-password')
-  @HttpCode(200)
-  async reset(
-    @Body() resetPasswordDto: ResetPasswordDto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    await this.authService.resetPassword(
-      resetPasswordDto,
-      userAgent,
-      ipAddress,
-    );
-    return { message: 'Password has been updated successfully.' };
-  }
+  // ============= SESSION MANAGEMENT ROUTES =============
 
   @Get('sessions')
   @ApiBearerAuth()
@@ -482,6 +462,8 @@ export class AuthController {
     return this.authService.revokeSession(userId, sessionId);
   }
 
+  // ============= EMAIL VERIFICATION & OAUTH ROUTES =============
+
   @Public()
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string, @Res() res: Response) {
@@ -521,7 +503,7 @@ export class AuthController {
   @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   @ApiResponse({ status: 302, description: 'Redirects to Google login page' })
-  async googleAuth() { }
+  async googleAuth() {}
 
   @Public()
   @Get('google/callback')
@@ -546,16 +528,7 @@ export class AuthController {
         userAgent,
       );
 
-      response.cookie(
-        'accessToken',
-        result.accessToken,
-        accessTokenCookieOptions,
-      );
-      response.cookie(
-        'refreshToken',
-        result.refreshToken,
-        refreshTokenCookieOptions,
-      );
+      this.setAuthCookies(response, result);
 
       response.redirect(frontendUrl);
     } catch (error) {
@@ -580,12 +553,66 @@ export class AuthController {
     }
   }
 
+  // ============= ACCOUNT DEACTIVATION ROUTES =============
+
   @Post('request-deactivate-account')
+  @ApiBearerAuth()
+  @HttpCode(200)
   async requestDeactivateAccount(
     @CurrentUser('id') userId: string,
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
-    @Res({ passthrough: true }) response: Response,) {
-    return this.authService.requestDeactivateAccount(userId)
+  ) {
+    await this.authService.requestDeactivateAccount(
+      userId,
+      userAgent,
+      ipAddress,
+    );
+
+    return { message: 'Verification code has been sent to your email.' };
+  }
+
+  @Post('deactivate-account')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async deactivateAccount(
+    @CurrentUser('id') userId: string,
+    @Body() deactivateAccountDto: DeactivateAccountDto,
+    @Headers('user-agent') userAgent: string,
+    @Ip() ipAddress: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.deactivateAccount(
+      userId,
+      deactivateAccountDto,
+      userAgent,
+      ipAddress,
+    );
+
+    this.clearAuthCookies(response);
+
+    return result;
+  }
+
+  private setAuthCookies(
+    response: Response,
+    tokens: Pick<AuthResponseDto, 'accessToken' | 'refreshToken'>,
+  ) {
+    response.cookie(
+      'accessToken',
+      tokens.accessToken,
+      accessTokenCookieOptions,
+    );
+    response.cookie('refreshToken', tokens.refreshToken, {
+      ...refreshTokenCookieOptions,
+    });
+  }
+
+  private clearAuthCookies(response: Response) {
+    response.clearCookie('accessToken', cookieOptions);
+    response.clearCookie('refreshToken', {
+      ...cookieOptions,
+      path: '/api/v1/auth',
+    });
   }
 }
