@@ -20,7 +20,7 @@ export const usePostRoom = (postId: string | undefined) => {
     // Listen for new replies broadcast to this post room
     const handleNewReply = () => {
       qc.invalidateQueries({ queryKey: ["replies", postId] });
-      qc.invalidateQueries({ queryKey: ["postDetail", postId] });
+      qc.invalidateQueries({ queryKey: ["post-detail", postId] });
     };
 
     globalSocket.on("new-reply", handleNewReply);

@@ -1,5 +1,6 @@
 "use client";
 import SavedPostCard from "@/app/components/card/save-post-card";
+import { PostSkeletonList } from "@/app/components/skeletons";
 import { useGetBookmarks } from "@/app/hooks/use-bookmark";
 import { ArrowLeft, Bookmark } from "lucide-react";
 import Link from "next/link";
@@ -23,19 +24,7 @@ export default function SavedPostsPage() {
       </div>
 
       {/* Loading */}
-      {isLoading &&
-        Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="p-4 border-b border-gray-100 animate-pulse">
-            <div className="flex gap-3">
-              <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0" />
-              <div className="flex-1 flex flex-col gap-2">
-                <div className="h-4 bg-gray-200 rounded w-1/3" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-              </div>
-            </div>
-          </div>
-        ))}
+      {isLoading && <PostSkeletonList avatarSize="h-12 w-12" />}
 
       {/* Empty state */}
       {!isLoading && bookmarks.length === 0 && (

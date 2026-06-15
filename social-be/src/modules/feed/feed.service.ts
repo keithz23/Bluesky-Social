@@ -10,26 +10,52 @@ export class FeedService {
 
   async getFeed(currentUserId: string | null, query: FeedQueryDto) {
     const limit = query.limit ?? 20;
+    const parsedCursor = Number(query.cursor ?? 0);
+    const offset =
+      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
+    const seed = query.seed ?? `${Date.now()}`;
+    const poolSize = Math.max(limit * 15, 300);
 
     let followingIds: string[] = [];
+    let excludedUserIds: string[] = [];
 
     if (currentUserId) {
-      const following = await this.prisma.follow.findMany({
-        where: { followerId: currentUserId },
-        select: { followingId: true },
-      });
+      const [following, blocks, mutes] = await Promise.all([
+        this.prisma.follow.findMany({
+          where: { followerId: currentUserId },
+          select: { followingId: true },
+        }),
+        this.prisma.block.findMany({
+          where: { blockerId: currentUserId },
+          select: { blockedId: true },
+        }),
+        this.prisma.mute.findMany({
+          where: { muterId: currentUserId },
+          select: { mutedId: true },
+        }),
+      ]);
       followingIds = following.map((f) => f.followingId);
+      excludedUserIds = [
+        ...blocks.map((block) => block.blockedId),
+        ...mutes.map((mute) => mute.mutedId),
+      ];
     }
+
+    const userIdFilter =
+      excludedUserIds.length > 0
+        ? {
+            notIn: excludedUserIds,
+          }
+        : undefined;
 
     const posts = await this.prisma.post.findMany({
       where: {
         isDeleted: false,
         parentPostId: null,
-        ...(followingIds.length > 0 && { userId: { in: followingIds } }),
-        ...(query.cursor && { id: { lt: query.cursor } }),
+        ...(userIdFilter && { userId: userIdFilter }),
       },
       orderBy: { createdAt: 'desc' },
-      take: limit + 1,
+      take: poolSize,
       select: {
         id: true,
         content: true,
@@ -38,6 +64,7 @@ export class FeedService {
         replyCount: true,
         repostCount: true,
         bookmarkCount: true,
+        viewCount: true,
         user: {
           select: {
             id: true,
@@ -72,9 +99,40 @@ export class FeedService {
     let bookmarkedSet = new Set<string>();
     let repostedSet = new Set<string>();
     const followingSet = new Set(followingIds);
+    const now = Date.now();
+
+    const rankedPosts = posts
+      .map((post) => {
+        const ageHours = Math.max(
+          0,
+          (now - post.createdAt.getTime()) / (1000 * 60 * 60),
+        );
+        const freshnessScore = Math.max(0, 120 - ageHours * 1.5);
+        const engagementScore =
+          post.likeCount * 3 +
+          post.replyCount * 5 +
+          post.repostCount * 6 +
+          post.bookmarkCount * 4 +
+          post.viewCount * 0.2;
+        const followingBoost = followingSet.has(post.user.id) ? 25 : 0;
+        const randomBoost = this.seededRandom(`${seed}:${post.id}`) * 70;
+
+        return {
+          post,
+          score:
+            freshnessScore + engagementScore + followingBoost + randomBoost,
+        };
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.post.createdAt.getTime() - a.post.createdAt.getTime();
+      })
+      .map(({ post }) => post);
+
+    const pagePosts = rankedPosts.slice(offset, offset + limit);
 
     if (currentUserId) {
-      const postIds = posts.map((p) => p.id);
+      const postIds = pagePosts.map((p) => p.id);
 
       const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
         this.prisma.like.findMany({
@@ -93,7 +151,7 @@ export class FeedService {
       repostedSet = new Set(repostedPosts.map((r) => r.postId));
     }
 
-    const result = posts.map((post) => ({
+    const result = pagePosts.map((post) => ({
       ...post,
       isLiked: likedSet.has(post.id),
       isBookmarked: bookmarkedSet.has(post.id),
@@ -110,11 +168,21 @@ export class FeedService {
       },
     }));
 
-    const hasMore = result.length > limit;
-    if (hasMore) result.pop();
-    const nextCursor = hasMore ? result[result.length - 1].id : null;
+    const nextOffset = offset + result.length;
+    const hasMore = nextOffset < rankedPosts.length;
+    const nextCursor = hasMore ? String(nextOffset) : null;
 
     return { posts: result, nextCursor, hasMore };
+  }
+
+  private seededRandom(input: string) {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+
+    return (hash >>> 0) / 4294967295;
   }
 
   create(createFeedDto: CreateFeedDto) {

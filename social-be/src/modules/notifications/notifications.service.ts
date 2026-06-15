@@ -1,11 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
-import { NotificationGateway } from '../socket/notification.gateway';
-import { OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { NotificationType } from '@prisma/client';
+import { OnEvent } from '@nestjs/event-emitter';
+import { CreateNotificationDto } from './dto/create-notification.dto';
+import { NotificationGateway } from '../socket/notification.gateway';
 import { NotificationQueryDto } from './dto/notification-query.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -13,18 +12,23 @@ export class NotificationsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly notificationGateway: NotificationGateway,
   ) {}
+
   onModuleInit() {}
 
   @OnEvent('notifications.get')
   async handleGetNotifications(payload: { userId: string; socketId?: string }) {
-    const { userId, socketId } = payload;
-    const notifications = await this.getNotifications(userId, {});
-    // emit về client qua gateway
+    const { userId } = payload;
+    const [notifications, count] = await Promise.all([
+      this.getNotifications(userId, {}),
+      this.getUnreadCount(userId),
+    ]);
+
     this.notificationGateway.emitToUserById(
       userId,
       'notifications:initial',
       notifications,
     );
+    this.notificationGateway.emitToUserById(userId, 'unread-count', { count });
   }
 
   @OnEvent('notifications.markRead')
@@ -69,7 +73,6 @@ export class NotificationsService implements OnModuleInit {
       postId: data.postId,
     });
 
-    // Real-time emit if user connected
     if (isOnline) {
       this.notificationGateway.emitToUserById(
         data.userId,
@@ -107,12 +110,18 @@ export class NotificationsService implements OnModuleInit {
             followersCount: true,
             followingCount: true,
             postsCount: true,
+            verified: true,
           },
         },
         post: {
           select: {
             id: true,
             content: true,
+            user: {
+              select: {
+                username: true,
+              },
+            },
           },
         },
       },
@@ -142,6 +151,15 @@ export class NotificationsService implements OnModuleInit {
         isRead: true,
         createdAt: true,
         postId: true,
+        post: {
+          select: {
+            user: {
+              select: {
+                username: true,
+              },
+            },
+          },
+        },
         actor: {
           select: {
             id: true,

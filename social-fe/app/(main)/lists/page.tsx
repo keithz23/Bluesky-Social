@@ -1,6 +1,7 @@
 "use client";
 
 import ListItem from "@/app/components/list-item";
+import { InfiniteScrollFooter, ListSkeleton } from "@/app/components/skeletons";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetlists } from "@/app/hooks/use-list";
 
@@ -19,25 +20,7 @@ export default function ListsPage() {
 
   return (
     <div>
-      {isLoading &&
-        Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-col gap-2.5 p-4 border-b border-gray-100 animate-pulse"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 shrink-0 bg-gray-200 rounded-xl"></div>
-              <div className="flex flex-col justify-center gap-2">
-                <div className="h-4 w-32 bg-gray-200 rounded-md"></div>
-                <div className="h-3 w-48 bg-gray-200 rounded-md"></div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 mt-1">
-              <div className="h-3.5 w-3/4 bg-gray-200 rounded-md"></div>
-              <div className="h-3.5 w-1/2 bg-gray-200 rounded-md"></div>
-            </div>
-          </div>
-        ))}
+      {isLoading && <ListSkeleton />}
 
       {!isLoading && lists.length > 0 && (
         <div className="flex flex-col w-full">
@@ -76,18 +59,12 @@ export default function ListsPage() {
       )}
 
       {/* --- INFINITE SCROLL TRIGGER (LOAD MORE) --- */}
-      {lists.length > 0 && (
-        <div
-          ref={ref}
-          className="py-6 text-center text-[13px] font-medium text-gray-400"
-        >
-          {isFetchingNextPage
-            ? "Loading more..."
-            : !hasNextPage
-              ? "You're all caught up"
-              : null}
-        </div>
-      )}
+      <InfiniteScrollFooter
+        refCallback={ref}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        hasItems={lists.length > 0}
+      />
     </div>
   );
 }

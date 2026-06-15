@@ -1,186 +1,226 @@
 import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
   CallHandler,
-  Logger,
+  ExecutionContext,
   HttpException,
+  Injectable,
+  Logger,
+  NestInterceptor,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
 import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { RuntimeMetrics } from '../monitoring/runtime-metrics';
+
+type LogLevel = 'log' | 'warn' | 'error';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(LoggingInterceptor.name);
 
-  private readonly skipPaths = new Set<string>(['/health', '/healthz']);
+  private readonly skipPathPrefixes = [
+    '/health',
+    '/healthz',
+    '/metrics',
+    '/api/v1/health',
+    '/api/v1/healthz',
+    '/api/v1/metrics',
+  ];
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp();
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
-
     const method = req.method;
     const url = req.originalUrl || req.url;
 
-    if (this.skipPaths.has(url)) return next.handle();
+    if (this.shouldSkip(url)) return next.handle();
 
-    // request id: reuse header if present
-    const requestId = (req.headers['x-request-id'] as string) || randomUUID();
+    const requestId = this.getRequestId(req);
+    const route = this.getRoutePath(req, url);
+    const startedAt = Date.now();
+
+    (req as any).requestId = requestId;
     res.setHeader('X-Request-Id', requestId);
+    RuntimeMetrics.onRequestStart();
 
-    const userAgent = this.sanitizeUserAgent(req.get('user-agent') || '');
-    const userId = (req as any).user?.id ?? 'anonymous';
-    const ip = this.getClientIp(req);
-    const started = Date.now();
-
-    // only log bodies for mutating methods; redact + cap
-    const safeBody =
-      method === 'POST' ||
-      method === 'PUT' ||
-      method === 'PATCH' ||
-      method === 'DELETE'
+    this.write('log', {
+      event: 'http.request.started',
+      requestId,
+      method,
+      url,
+      route,
+      userId: (req as any).user?.id ?? null,
+      ip: this.getClientIp(req),
+      userAgent: this.truncate(req.get('user-agent') || 'unknown', 200),
+      query: this.redactAndTruncate(req.query),
+      body: this.shouldLogBody(method)
         ? this.redactAndTruncate(req.body)
-        : undefined;
-
-    const safeQuery = this.redactAndTruncate(req.query);
-
-    this.logger.log(
-      `[${requestId}] ➜ ${method} ${url} | user=${userId} | ip=${ip} | ua="${userAgent}"` +
-        (safeQuery ? ` | query=${JSON.stringify(safeQuery)}` : '') +
-        (safeBody ? ` | body=${JSON.stringify(safeBody)}` : ''),
-    );
+        : undefined,
+    });
 
     return next.handle().pipe(
       tap({
         next: () => {
-          const ms = Date.now() - started;
+          const durationMs = Date.now() - startedAt;
           const statusCode = res.statusCode;
-          this.logger.log(
-            `[${requestId}] ✓ ${method} ${url} -> ${statusCode} (${ms}ms)`,
-          );
+          RuntimeMetrics.onRequestEnd({
+            method,
+            route,
+            statusCode,
+            durationMs,
+          });
+
+          this.write(statusCode >= 500 ? 'error' : 'log', {
+            event: 'http.request.completed',
+            requestId,
+            method,
+            url,
+            route,
+            statusCode,
+            durationMs,
+          });
         },
-        error: (err) => {
-          const ms = Date.now() - started;
+        error: (error) => {
+          const durationMs = Date.now() - startedAt;
+          const statusCode = this.getErrorStatus(error, res);
+          RuntimeMetrics.onRequestEnd({
+            method,
+            route,
+            statusCode,
+            durationMs,
+          });
 
-          // try to get status/message consistently
-          const status =
-            err instanceof HttpException
-              ? err.getStatus()
-              : (err?.status as number) || res.statusCode || 500;
-
-          const message =
-            err instanceof HttpException
-              ? ((err.getResponse() as any)?.message ?? err.message)
-              : (err?.message ?? 'Unknown error');
-
-          this.logger.error(
-            `[${requestId}] ✗ ${method} ${url} -> ${status} (${ms}ms) - ${message}`,
-            err?.stack,
-          );
+          this.write(statusCode >= 500 ? 'error' : 'warn', {
+            event: 'http.request.failed',
+            requestId,
+            method,
+            url,
+            route,
+            statusCode,
+            durationMs,
+            errorName: error?.name,
+            message: this.getErrorMessage(error),
+            stack:
+              process.env.NODE_ENV === 'production' ? undefined : error?.stack,
+          });
         },
       }),
     );
   }
 
-  /**
-   * Get client IP address (handles proxies, load balancers, CDN)
-   */
+  private shouldSkip(url: string) {
+    return this.skipPathPrefixes.some((path) => url.startsWith(path));
+  }
+
+  private shouldLogBody(method: string) {
+    return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  }
+
+  private getRequestId(req: Request) {
+    const header = req.headers['x-request-id'];
+    if (Array.isArray(header)) return header[0] || randomUUID();
+    return header || randomUUID();
+  }
+
+  private getRoutePath(req: Request, url: string) {
+    const routePath = (req as any).route?.path;
+    if (typeof routePath === 'string') {
+      return `${req.baseUrl || ''}${routePath}`;
+    }
+
+    return url.split('?')[0];
+  }
+
+  private getErrorStatus(error: unknown, res: Response) {
+    if (error instanceof HttpException) return error.getStatus();
+    return ((error as any)?.status as number) || res.statusCode || 500;
+  }
+
+  private getErrorMessage(error: unknown) {
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+      if (typeof response === 'string') return response;
+      return (response as any)?.message ?? error.message;
+    }
+
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
+
   private getClientIp(request: Request): string {
     const xForwardedFor = request.headers['x-forwarded-for'];
-    if (xForwardedFor) {
-      const ips = String(xForwardedFor).split(',');
-      return ips[0].trim();
-    }
+    if (xForwardedFor) return String(xForwardedFor).split(',')[0].trim();
+
     const xRealIp = request.headers['x-real-ip'];
     if (xRealIp) return String(xRealIp);
 
     const cfConnectingIp = request.headers['cf-connecting-ip'];
     if (cfConnectingIp) return String(cfConnectingIp);
 
-    return (
-      (request.ip as string) ||
-      (request.socket?.remoteAddress as string) ||
-      (request.connection as any)?.remoteAddress ||
-      'unknown'
-    );
+    return request.ip || request.socket?.remoteAddress || 'unknown';
   }
 
-  /**
-   * Sanitize user agent (truncate if too long)
-   */
-  private sanitizeUserAgent(userAgent: string): string {
-    if (!userAgent) return 'unknown';
-    return userAgent.length > 200 ? userAgent.slice(0, 200) + '…' : userAgent;
-  }
-
-  /**
-   * Redact sensitive keys and truncate large values/objects
-   */
-  private redactAndTruncate<T extends Record<string, any>>(
-    obj: T | undefined,
-    maxLen = 2_000,
-  ): T | undefined {
-    if (!obj || typeof obj !== 'object') return obj;
-
-    const SENSITIVE_KEYS = new Set([
+  private redactAndTruncate(value: unknown, maxLength = 2_000): unknown {
+    const sensitiveKeys = new Set([
       'password',
       'pass',
       'pwd',
       'token',
-      'accessToken',
-      'refreshToken',
+      'accesstoken',
+      'refreshtoken',
       'authorization',
       'cookie',
       'cookies',
       'secret',
-      'apiKey',
+      'apikey',
       'x-api-key',
       'otp',
       'code',
     ]);
 
-    const walk = (value: any): any => {
-      if (value == null) return value;
+    const walk = (input: unknown): unknown => {
+      if (input == null) return input;
+      if (Array.isArray(input)) return input.slice(0, 50).map(walk);
 
-      if (Array.isArray(value)) {
-        return value.slice(0, 50).map(walk); // cap large arrays
-      }
-
-      if (typeof value === 'object') {
-        const out: Record<string, any> = {};
-        const entries = Object.entries(value).slice(0, 100); // cap object size
-        for (const [k, v] of entries) {
-          if (SENSITIVE_KEYS.has(k.toLowerCase())) {
-            out[k] = '[REDACTED]';
-          } else {
-            out[k] = walk(v);
-          }
+      if (typeof input === 'object') {
+        const output: Record<string, unknown> = {};
+        for (const [key, nestedValue] of Object.entries(input).slice(0, 100)) {
+          output[key] = sensitiveKeys.has(key.toLowerCase())
+            ? '[REDACTED]'
+            : walk(nestedValue);
         }
-        return out;
+        return output;
       }
 
-      if (typeof value === 'string') {
-        return value.length > 500 ? value.slice(0, 500) + '…' : value;
-      }
-
-      return value;
+      if (typeof input === 'string') return this.truncate(input, 500);
+      return input;
     };
 
-    const cleaned = walk(obj);
+    const cleaned = walk(value);
+    const serialized = JSON.stringify(cleaned);
+    if (!serialized || serialized.length <= maxLength) return cleaned;
 
-    // final safety: cap total JSON length
-    try {
-      let json = JSON.stringify(cleaned);
-      if (json.length > maxLen) {
-        json = json.slice(0, maxLen) + '…';
-        return JSON.parse(json + '"');
-      }
-      return cleaned as T;
-    } catch {
-      return undefined;
-    }
+    return {
+      truncated: true,
+      preview: this.truncate(serialized, maxLength),
+    };
+  }
+
+  private truncate(value: string, maxLength: number) {
+    return value.length > maxLength
+      ? `${value.slice(0, Math.max(0, maxLength - 3))}...`
+      : value;
+  }
+
+  private write(level: LogLevel, payload: Record<string, unknown>) {
+    const line = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      service: 'social-be',
+      ...payload,
+    });
+
+    if (level === 'error') this.logger.error(line);
+    else if (level === 'warn') this.logger.warn(line);
+    else this.logger.log(line);
   }
 }

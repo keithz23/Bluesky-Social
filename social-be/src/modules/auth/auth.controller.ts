@@ -36,24 +36,29 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Request, Response } from 'express';
+import { CookieOptions, Request, Response } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
+import { UpdateEmailDto } from './dto/update-email.dto';
+import { RequestUpdateEmail } from './dto/request-update-email.dto';
+import { ChangeUsernameDto } from './dto/change-username.dto';
+import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
+import { DeactivateAccountDto } from './dto/deactivate-account-dto';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const cookieOptions = {
+const cookieOptions: CookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: (isProduction ? 'strict' : 'lax') as 'lax' | 'strict',
+  sameSite: isProduction ? 'strict' : 'lax',
   path: '/',
-  domain: isProduction ? '.th-red.app' : 'localhost',
+  ...(isProduction ? { domain: '.th-red.app' } : {}),
 };
 
 const accessTokenCookieOptions = {
@@ -108,14 +113,7 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto, ipAddress, userAgent);
 
-    response.cookie(
-      'accessToken',
-      result.accessToken,
-      accessTokenCookieOptions,
-    );
-    response.cookie('refreshToken', result.refreshToken, {
-      ...refreshTokenCookieOptions,
-    });
+    this.setAuthCookies(response, result);
 
     return result;
   }
@@ -141,18 +139,9 @@ export class AuthController {
 
     const result = await this.authService.refreshTokens(refreshToken);
 
-    response.cookie(
-      'accessToken',
-      result.accessToken,
-      accessTokenCookieOptions,
-    );
-    response.cookie(
-      'refreshToken',
-      result.refreshToken,
-      refreshTokenCookieOptions,
-    );
+    this.setAuthCookies(response, result);
 
-    return { user: result.user };
+    return result;
   }
 
   @Public()
@@ -195,7 +184,7 @@ export class AuthController {
     return this.authService.checkEmail(email);
   }
 
-  // ============= PROTECTED ROUTES =============
+  // ============= SESSION ROUTES =============
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
@@ -213,11 +202,7 @@ export class AuthController {
       await this.authService.logout(userId, refreshToken);
     }
 
-    response.clearCookie('accessToken', cookieOptions);
-    response.clearCookie('refreshToken', {
-      ...cookieOptions,
-      path: '/api/v1/auth',
-    });
+    this.clearAuthCookies(response);
 
     return { message: 'Logged out successfully' };
   }
@@ -233,11 +218,7 @@ export class AuthController {
   ): Promise<{ message: string }> {
     await this.authService.logoutAll(userId);
 
-    response.clearCookie('accessToken', cookieOptions);
-    response.clearCookie('refreshToken', {
-      ...cookieOptions,
-      path: '/api/v1/auth',
-    });
+    this.clearAuthCookies(response);
 
     return { message: 'Logged out from all devices' };
   }
@@ -249,6 +230,8 @@ export class AuthController {
   async getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
   }
+
+  // ============= PROFILE ROUTES =============
 
   @Patch('update-profile')
   @ApiBearerAuth()
@@ -277,6 +260,54 @@ export class AuthController {
     );
   }
 
+  // ============= ACCOUNT SECURITY ROUTES =============
+
+  @Post('request-update-password')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestUpdatePassword(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestUpdatePassword(userId, userAgent, ipAddress);
+
+    return { message: 'Verification code has been sent to your email.' };
+  }
+
+  @Patch('change-username')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change username/display name' })
+  async changeUsername(
+    @Body() changeUsernameDto: ChangeUsernameDto,
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.changeUsername(
+      userId,
+      changeUsernameDto,
+      userAgent,
+      ipAddress,
+    );
+  }
+
+  @Patch('change-birthday')
+  @ApiBearerAuth()
+  async changeBirthDay(
+    @CurrentUser('id') userId: string,
+    @Body() changeDateOfBirthDto: ChangeDateOfBirthDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.changeBirthday(
+      userId,
+      changeDateOfBirthDto,
+      userAgent,
+      ipAddress,
+    );
+  }
+
   @Patch('change-password')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change account password' })
@@ -288,13 +319,23 @@ export class AuthController {
   async changePassword(
     @CurrentUser('id') userId: string,
     @Body() changePasswordDto: ChangePasswordDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    return this.authService.changePassword(
+    const result = await this.authService.changePassword(
       userId,
-      changePasswordDto.currentPassword,
-      changePasswordDto.newPassword,
+      changePasswordDto,
+      userAgent,
+      ipAddress,
     );
+
+    this.clearAuthCookies(response);
+
+    return result;
   }
+
+  // ============= PASSWORD RECOVERY ROUTES =============
 
   @Public()
   @Post('forgot-password')
@@ -316,10 +357,63 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(200)
-  async reset(@Body() resetPasswordDto: ResetPasswordDto) {
-    await this.authService.resetPassword(resetPasswordDto);
+  async reset(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.resetPassword(
+      resetPasswordDto,
+      userAgent,
+      ipAddress,
+    );
     return { message: 'Password has been updated successfully.' };
   }
+
+  // ============= ACCOUNT EMAIL ROUTES =============
+
+  @Post('request-update-email')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestUpdateEmail(
+    @Body() requestUpdateEmail: RequestUpdateEmail,
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestUpdateEmail(
+      userId,
+      requestUpdateEmail.newEmail,
+      userAgent,
+      ipAddress,
+    );
+
+    return { message: 'If the email exists, a reset link has been sent.' };
+  }
+
+  @Post('update-email')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async updateEmail(
+    @Body() updateEmailDto: UpdateEmailDto,
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.updateEmail(
+      updateEmailDto,
+      userId,
+      userAgent,
+      ipAddress,
+    );
+
+    this.clearAuthCookies(response);
+
+    return result;
+  }
+
+  // ============= SESSION MANAGEMENT ROUTES =============
 
   @Get('sessions')
   @ApiBearerAuth()
@@ -368,6 +462,8 @@ export class AuthController {
     return this.authService.revokeSession(userId, sessionId);
   }
 
+  // ============= EMAIL VERIFICATION & OAUTH ROUTES =============
+
   @Public()
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string, @Res() res: Response) {
@@ -385,8 +481,17 @@ export class AuthController {
       return res.redirect(
         `${frontendUrl}/login?status=success&message=Email_verified`,
       );
-    } catch (error) {
-      const errorMessage = error.message || 'Verification_failed';
+    } catch (error: unknown) {
+      let errorMessage = 'Verification_failed';
+
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String((error as any).message);
+      }
+
       return res.redirect(
         `${frontendUrl}/login?status=error&message=${encodeURIComponent(errorMessage)}`,
       );
@@ -423,16 +528,7 @@ export class AuthController {
         userAgent,
       );
 
-      response.cookie(
-        'accessToken',
-        result.accessToken,
-        accessTokenCookieOptions,
-      );
-      response.cookie(
-        'refreshToken',
-        result.refreshToken,
-        refreshTokenCookieOptions,
-      );
+      this.setAuthCookies(response, result);
 
       response.redirect(frontendUrl);
     } catch (error) {
@@ -455,5 +551,68 @@ export class AuthController {
         `${frontendUrl}/login?error=google_login_failed&message=${errorMessage}`,
       );
     }
+  }
+
+  // ============= ACCOUNT DEACTIVATION ROUTES =============
+
+  @Post('request-deactivate-account')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestDeactivateAccount(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestDeactivateAccount(
+      userId,
+      userAgent,
+      ipAddress,
+    );
+
+    return { message: 'Verification code has been sent to your email.' };
+  }
+
+  @Post('deactivate-account')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async deactivateAccount(
+    @CurrentUser('id') userId: string,
+    @Body() deactivateAccountDto: DeactivateAccountDto,
+    @Headers('user-agent') userAgent: string,
+    @Ip() ipAddress: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.deactivateAccount(
+      userId,
+      deactivateAccountDto,
+      userAgent,
+      ipAddress,
+    );
+
+    this.clearAuthCookies(response);
+
+    return result;
+  }
+
+  private setAuthCookies(
+    response: Response,
+    tokens: Pick<AuthResponseDto, 'accessToken' | 'refreshToken'>,
+  ) {
+    response.cookie(
+      'accessToken',
+      tokens.accessToken,
+      accessTokenCookieOptions,
+    );
+    response.cookie('refreshToken', tokens.refreshToken, {
+      ...refreshTokenCookieOptions,
+    });
+  }
+
+  private clearAuthCookies(response: Response) {
+    response.clearCookie('accessToken', cookieOptions);
+    response.clearCookie('refreshToken', {
+      ...cookieOptions,
+      path: '/api/v1/auth',
+    });
   }
 }

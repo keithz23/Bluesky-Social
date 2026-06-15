@@ -2,6 +2,10 @@
 import PostDetailCard from "@/app/components/card/post-detail-card";
 import ReplyCard from "@/app/components/card/reply-card";
 import ReplyPostModal from "@/app/components/dialog/reply-post-dialog";
+import {
+  InfiniteScrollFooter,
+  PostSkeleton,
+} from "@/app/components/skeletons";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetPostById } from "@/app/hooks/use-post";
@@ -47,16 +51,7 @@ export default function PostDetailPage() {
       </div>
 
       {/* Loading skeleton */}
-      {isLoading && (
-        <div className="p-4 animate-pulse flex gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
-          <div className="flex-1 flex flex-col gap-2">
-            <div className="h-4 bg-gray-200 rounded w-1/3" />
-            <div className="h-4 bg-gray-200 rounded w-full" />a
-            <div className="h-4 bg-gray-200 rounded w-2/3" />
-          </div>
-        </div>
-      )}
+      {isLoading && <PostSkeleton />}
 
       {post?.parentChain?.map((parent: any) => (
         <PostDetailCard key={parent.id} post={parent} role="parent" />
@@ -84,9 +79,12 @@ export default function PostDetailPage() {
       </div>
 
       {/* Infinite scroll trigger */}
-      <div ref={ref} className="py-4 text-center text-sm text-gray-400">
-        {isFetchingNextPage ? "Loading more..." : null}
-      </div>
+      <InfiniteScrollFooter
+        refCallback={ref}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        hasItems={replies.length > 0}
+      />
     </>
   );
 }

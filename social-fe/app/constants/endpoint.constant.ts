@@ -8,7 +8,14 @@ export const API_ENDPOINT = {
     FORGOT: "/auth/forgot-password",
     RESET: "/auth/reset-password",
     UPDATE_PROFILE: "/auth/update-profile",
-    UPDATE_PASSWORD: "/auth/update-password",
+    REQUEST_UPDATE_PASSWORD: "/auth/request-update-password",
+    CHANGE_PASSWORD: "/auth/change-password",
+    CHANGE_USERNAME: "/auth/change-username",
+    CHANGE_BIRTHDAY: "/auth/change-birthday",
+    REQUEST_UPDATE_EMAIL: "/auth/request-update-email",
+    UPDATE_EMAIL: "/auth/update-email",
+    REQUEST_DEACTIVATE_ACCOUNT: "/auth/request-deactivate-account",
+    DEACTIVATE_ACCOUNT: "/auth/deactivate-account",
     SOCKET_TOKEN: "/auth/socket-token",
   },
 
@@ -18,16 +25,24 @@ export const API_ENDPOINT = {
     DELETE_POST: (id: string) => `/posts/delete-post/${id}`,
     GET_BY_USERNAME: (username: string) => `/posts/users/${username}`,
     GET_BY_ID: (postId: string) => `/posts/post-detail/${postId}`,
+    SEARCH: (params: { q: string; cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      query.set("q", params.q);
+      if (params.cursor) query.set("cursor", params.cursor);
+      if (params.limit) query.set("limit", String(params.limit));
+      return `/posts/search?${query.toString()}`;
+    },
 
     CREATE_REPLY: (postId: string) => `/posts/${postId}/replies`,
     GET_REPLIES: (postId: string) => `/posts/${postId}/replies`,
   },
 
   FEED: {
-    GET_FEED: (params?: { cursor?: string; limit?: number }) => {
+    GET_FEED: (params?: { cursor?: string; limit?: number; seed?: string }) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.seed) query.set("seed", params.seed);
       const qs = query.toString();
       return qs ? `/feed?${qs}` : "/feed";
     },
@@ -48,6 +63,10 @@ export const API_ENDPOINT = {
         ? `/notifications/get-notifications?${qs}`
         : "/notifications/get-notifications";
     },
+    UNREAD_COUNT: "/notifications/unread-count",
+    MARK_READ: (notificationId: string) =>
+      `/notifications/${notificationId}/read`,
+    MARK_ALL_READ: "/notifications/read-all",
   },
 
   FOLLOWS: {
@@ -151,10 +170,15 @@ export const API_ENDPOINT = {
     CREATE_LIST: `/lists/create-list`,
     UPDATE_LIST: `/lists/update-list`,
     DELETE_LIST: (id: string) => `/lists/delete-list/${id}`,
-    GET_LISTS: (params?: { cursor?: string; limit?: number }) => {
+    GET_LISTS: (params?: {
+      cursor?: string;
+      limit?: number;
+      username?: string;
+    }) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.username) query.set("username", params.username);
       const qs = query.toString();
       return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
     },
@@ -177,5 +201,13 @@ export const API_ENDPOINT = {
         ? `/lists-member/${listId}/get-list-members?${qs}`
         : `lists-member/${listId}/members`;
     },
+  },
+
+  MODERATION: {
+    BLOCK_USER: (userId: string) => `/moderation/blocks/${userId}`,
+    UNBLOCK_USER: (userId: string) => `/moderation/blocks/${userId}`,
+    MUTE_USER: (userId: string) => `/moderation/mutes/${userId}`,
+    UNMUTE_USER: (userId: string) => `/moderation/mutes/${userId}`,
+    REPORT_POST: (postId: string) => `/moderation/reports/posts/${postId}`,
   },
 };

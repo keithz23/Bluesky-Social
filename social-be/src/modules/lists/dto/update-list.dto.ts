@@ -6,5 +6,5 @@ export class UpdateListDto extends PartialType(CreateListDto) {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  listId: string;
+  listId!: string;
 }

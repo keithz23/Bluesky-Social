@@ -1,5 +1,6 @@
 import { Bookmark } from "lucide-react";
 import { useBookmark } from "../../hooks/use-bookmark";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 const BookMarkButton = ({
   postId,
@@ -11,11 +12,13 @@ const BookMarkButton = ({
   bookmarkCount: number;
 }) => {
   const { mutate: toggleBookmark } = useBookmark(postId, isBookmarked);
+  const requireAuth = useRequireAuthAction();
 
   return (
     <div
       onClick={(e) => {
         e.stopPropagation();
+        if (!requireAuth()) return;
         toggleBookmark();
       }}
       className="flex items-center gap-1 group cursor-pointer"

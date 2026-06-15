@@ -7,5 +7,5 @@ export class CheckUsernameDto {
   @MinLength(3)
   @MaxLength(30)
   @Matches(/^[a-zA-Z0-9_]+$/)
-  username: string;
+  username!: string;
 }

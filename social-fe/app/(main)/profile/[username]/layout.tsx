@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { FollowButton } from "@/app/components/button/follow-button";
 import EditProfileModal from "@/app/components/dialog/edit-profile-dialog";
+import { ProfileHeaderSkeleton } from "@/app/components/skeletons";
 
 export default function ProfileLayout({
   children,
@@ -36,18 +37,7 @@ export default function ProfileLayout({
   };
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col w-full bg-white min-h-screen pb-20 animate-pulse">
-        <div className="h-32 bg-gray-200" />
-        <div className="flex justify-end gap-2 px-4 pt-3">
-          <div className="h-8 w-24 bg-gray-200 rounded-full" />
-        </div>
-        <div className="px-4 mt-12 flex flex-col gap-2">
-          <div className="h-5 w-32 bg-gray-200 rounded" />
-          <div className="h-4 w-24 bg-gray-200 rounded" />
-        </div>
-      </div>
-    );
+    return <ProfileHeaderSkeleton />;
   }
 
   if (
@@ -97,7 +87,7 @@ export default function ProfileLayout({
           // <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
           //   Edit Profile
           // </button>
-          <EditProfileModal />
+          <EditProfileModal profile={profile} />
         ) : (
           <FollowButton targetUserId={profile?.id} />
         )}

@@ -48,6 +48,9 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('welcome');
     this.loadTemplate('send-notification');
     this.loadTemplate('forgot');
+    this.loadTemplate('request-email-otp');
+    this.loadTemplate('request-pwd-otp');
+    this.loadTemplate('request-deactivate-account-otp');
   }
 
   private loadTemplate(name: string): void {
@@ -57,8 +60,12 @@ export class MailProcessor extends WorkerHost {
       const compiled = Handlebars.compile(source, { noEscape: false });
       this.templateCache.set(name, compiled);
       this.logger.log(`Loaded template: ${path.basename(file)}`);
-    } catch (error) {
-      this.logger.error(`Failed to load template "${name}": ${error?.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(
+          `Failed to load template "${name}": ${error?.message}`,
+        );
+      }
     }
   }
 
@@ -121,6 +128,27 @@ export class MailProcessor extends WorkerHost {
                 ? `?redirect=${encodeURIComponent(context.redirect)}`
                 : ''
             }`,
+          });
+          break;
+        }
+        case 'request-email-otp': {
+          subject ||= 'Email Update Requested';
+          html = this.renderTemplate('request-email-otp', {
+            ...context,
+          });
+          break;
+        }
+        case 'request-password-otp': {
+          subject ||= 'Password Reset Requested';
+          html = this.renderTemplate('request-pwd-otp', {
+            ...context,
+          });
+          break;
+        }
+        case 'request-deactivate-account-otp': {
+          subject ||= 'Deactivate your account';
+          html = this.renderTemplate('request-deactivate-account-otp', {
+            ...context,
           });
           break;
         }

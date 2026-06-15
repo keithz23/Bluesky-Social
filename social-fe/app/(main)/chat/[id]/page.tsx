@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ChatService } from "@/app/services/chat.service";
 import ChatWindow from "../components/chat-window";
+import { MessageSkeleton } from "@/app/components/skeletons";
 
 export default function ChatDetailPage() {
   const params = useParams();
@@ -19,9 +20,7 @@ export default function ChatDetailPage() {
   return (
     <div className="flex flex-col h-full">
       {isLoading || !conversation ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <MessageSkeleton />
       ) : (
         <ChatWindow conversation={conversation} />
       )}
