@@ -4,7 +4,7 @@ output "instance_id" {
 }
 
 output "public_ip" {
-  description = "Elastic public IP for the staging host. Use this as EC2_HOST in GitHub secrets."
+  description = "Elastic public IP for the staging host. The deploy workflow reads this directly from Terraform output."
   value       = aws_eip.app.public_ip
 }
 

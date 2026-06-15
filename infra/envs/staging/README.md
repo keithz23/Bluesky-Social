@@ -37,8 +37,7 @@ SSH_CIDR
 2. Create or choose an existing EC2 key pair and save its name as `EC2_KEY_NAME`.
 3. Add your current public IP as `SSH_CIDR`.
 4. Run the `Terraform Staging` workflow manually with `apply = true`.
-5. Copy the `public_ip` output into the deploy workflow secret `EC2_HOST`.
-6. Run `Deploy Social App to EC2`.
+5. Run `Deploy Social App to EC2`. The deploy workflow reads the EC2 public IP from the Terraform `public_ip` output.
 
 ## Local Usage
 
