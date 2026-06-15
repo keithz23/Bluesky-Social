@@ -92,16 +92,22 @@ jobs:
             -backend-config="key=staging/social/terraform.tfstate" \
             -backend-config="region=ap-southeast-1"
 
-      - name: Get EC2 host from Terraform output
+      - name: Get EC2 SSH config from Terraform output
         id: terraform-output
         working-directory: infra/envs/staging
         run: |
           EC2_HOST="$(terraform output -raw public_ip)"
+          EC2_USERNAME="$(terraform output -raw ssh_username)"
           if [ -z "$EC2_HOST" ]; then
             echo "Terraform output public_ip is empty."
             exit 1
           fi
+          if [ -z "$EC2_USERNAME" ]; then
+            echo "Terraform output ssh_username is empty."
+            exit 1
+          fi
           echo "public_ip=$EC2_HOST" >> "$GITHUB_OUTPUT"
+          echo "ssh_username=$EC2_USERNAME" >> "$GITHUB_OUTPUT"
 
       - name: Get .env for Backend from AWS SSM
         run: |
@@ -112,12 +118,36 @@ jobs:
             --output text > .env
           echo "GITHUB_SHA=${{ github.sha }}" >> .env
 
+      - name: Get EC2 SSH key from AWS SSM
+        id: ec2-ssh-key
+        run: |
+          SSH_KEY="$(aws ssm get-parameter \
+            --name "/staging/social/ec2_ssh_key" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text)"
+
+          if [ -z "$SSH_KEY" ]; then
+            echo "SSM parameter /staging/social/ec2_ssh_key is empty."
+            exit 1
+          fi
+
+          while IFS= read -r line; do
+            echo "::add-mask::$line"
+          done <<< "$SSH_KEY"
+
+          {
+            echo "private_key<<EOF"
+            echo "$SSH_KEY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Copy configure file and Deploy to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ steps.terraform-output.outputs.public_ip }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          username: ${{ steps.terraform-output.outputs.ssh_username }}
+          key: ${{ steps.ec2-ssh-key.outputs.private_key }}
           source: "docker-compose.yml,.env"
           target: "~/social"
 
@@ -125,8 +155,8 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ steps.terraform-output.outputs.public_ip }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          username: ${{ steps.terraform-output.outputs.ssh_username }}
+          key: ${{ steps.ec2-ssh-key.outputs.private_key }}
           script: |
             cd ~/social
 
