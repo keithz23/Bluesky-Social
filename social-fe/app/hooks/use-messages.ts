@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChatService } from "@/app/services/chat.service";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export function useMessages(conversationId: string | undefined) {
   return useInfiniteQuery({
@@ -12,5 +13,6 @@ export function useMessages(conversationId: string | undefined) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!conversationId,
+    ...infiniteQueryOptions,
   });
 }

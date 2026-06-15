@@ -24,7 +24,7 @@ export class CreatePostDto {
   })
   @ValidateNested()
   @Type(() => ReplyPrivacyDto)
-  replyPrivacy: ReplyPrivacyDto;
+  replyPrivacy!: ReplyPrivacyDto;
 
   @ApiProperty()
   @IsOptional()

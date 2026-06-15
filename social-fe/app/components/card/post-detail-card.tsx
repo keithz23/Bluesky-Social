@@ -2,14 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Repeat,
-  Heart,
-  Bookmark,
-  Share,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Share, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Carousel,
@@ -32,6 +25,10 @@ import { REPLY_POLICY_CONFIG } from "@/app/constants/reply-policy.constant";
 import PostDropDown from "../dropdown/post-dropdown";
 import { dropdownItems } from "@/app/constants/dropdown.constant";
 import { PostContent } from "../post-content";
+import RepostButton from "../button/repost-button";
+import LikeButton from "../button/like-button";
+import BookMarkButton from "../button/bookmark-button";
+import { toast } from "sonner";
 
 interface PostDetailCardProps {
   post: Feed;
@@ -83,6 +80,22 @@ export default function PostDetailCard({
       }
     },
     [zoomData],
+  );
+
+  const handleShare = useCallback(
+    async (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      const url = `${window.location.origin}/profile/${post.user.username}/post/${post.id}`;
+
+      if (navigator.share) {
+        await navigator.share({ text: post.content, url });
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+      toast.success("Post link copied");
+    },
+    [post.content, post.id, post.user.username],
   );
 
   useEffect(() => {
@@ -272,10 +285,6 @@ export default function PostDetailCard({
                   <span className="text-gray-500">reposts</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-gray-900">0</span>
-                  <span className="text-gray-500">quotes</span>
-                </div>
-                <div className="flex items-center gap-1">
                   <span className="font-bold text-gray-900">
                     {post.likeCount}
                   </span>
@@ -304,46 +313,32 @@ export default function PostDetailCard({
                   </span>
                 </div>
                 {/* Repost */}
-                <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <div
-                    className={`p-2 rounded-full group-hover:bg-green-50 transition-colors ${post.isReposted ? "text-green-600" : ""}`}
-                  >
-                    <Repeat size={19} className="group-hover:text-green-500" />
-                  </div>
-                  <span
-                    className={`text-[13px] group-hover:text-green-500 ${post.isReposted ? "text-green-600" : ""}`}
-                  >
-                    {post.repostCount}
-                  </span>
-                </div>
+                <RepostButton
+                  postId={post.id}
+                  isReposted={post.isReposted}
+                  repostCount={post.repostCount}
+                />
                 {/* Like */}
-                <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <div
-                    className={`p-2 rounded-full group-hover:bg-pink-50 transition-colors ${post.isLiked ? "text-pink-600" : ""}`}
-                  >
-                    <Heart
-                      size={19}
-                      className={`group-hover:text-pink-500 ${post.isLiked ? "fill-pink-600 text-pink-600" : ""}`}
-                    />
-                  </div>
-                  <span
-                    className={`text-[13px] group-hover:text-pink-500 ${post.isLiked ? "text-pink-600" : ""}`}
-                  >
-                    {post.likeCount}
-                  </span>
-                </div>
+                <LikeButton
+                  postId={post.id}
+                  isLiked={post.isLiked}
+                  likeCount={post.likeCount}
+                />
               </div>
 
               <div className="flex items-center gap-1">
-                <div className="p-2 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
-                  <Bookmark
-                    size={19}
-                    className={`group-hover:text-blue-500 ${post.isBookmarked ? "fill-blue-500 text-blue-500" : ""}`}
-                  />
-                </div>
-                <div className="p-2 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
+                <BookMarkButton
+                  postId={post.id}
+                  isBookmarked={post.isBookmarked}
+                  bookmarkCount={post.bookmarkCount}
+                />
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="p-2 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer"
+                >
                   <Share size={19} className="group-hover:text-blue-500" />
-                </div>
+                </button>
               </div>
             </div>
           </div>

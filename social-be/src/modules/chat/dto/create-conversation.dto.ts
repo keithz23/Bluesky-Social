@@ -2,12 +2,12 @@ import { IsArray, IsEnum, IsOptional, IsString, ArrayMinSize } from 'class-valid
 
 export class CreateConversationDto {
   @IsEnum(['DIRECT', 'GROUP'])
-  type: 'DIRECT' | 'GROUP';
+  type!: 'DIRECT' | 'GROUP';
 
   @IsArray()
   @IsString({ each: true })
   @ArrayMinSize(1)
-  participantIds: string[];
+  participantIds!: string[];
 
   @IsOptional()
   @IsString()

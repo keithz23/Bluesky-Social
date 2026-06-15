@@ -2,9 +2,10 @@
 
 import React, { useRef, useEffect, useMemo } from "react";
 import { Message } from "@/app/interfaces/chat.interface";
-import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import MessageBubble, { DateSeparator } from "./message-bubble";
 import { isSameDay } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { MessageSkeleton } from "@/app/components/skeletons";
 
 interface MessageListProps {
   messages: Message[];
@@ -29,17 +30,58 @@ export default function MessageList({
   onDelete,
   onReact,
 }: MessageListProps) {
+  const topSentinelRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
+  const prevScrollHeightRef = useRef(0);
+  const isLoadingOlderRef = useRef(false);
 
-  // Infinite scroll for older messages (top of list)
-  const { ref: topRef } = useInfiniteScroll({
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-    enabled: messages.length > 0,
-  });
+  // Infinite scroll for older messages inside the chat scroll container.
+  useEffect(() => {
+    const container = containerRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!container || !sentinel || messages.length === 0 || !hasNextPage) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (
+          !entry.isIntersecting ||
+          isFetchingNextPage ||
+          isLoadingOlderRef.current
+        ) {
+          return;
+        }
+
+        isLoadingOlderRef.current = true;
+        prevScrollHeightRef.current = container.scrollHeight;
+        void fetchNextPage();
+      },
+      {
+        root: container,
+        rootMargin: "250px 0px 0px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, messages.length]);
+
+  // Keep the user's viewport anchored when older messages are prepended.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !isLoadingOlderRef.current || isFetchingNextPage) return;
+
+    const delta = container.scrollHeight - prevScrollHeightRef.current;
+    if (delta > 0) {
+      container.scrollTop += delta;
+    }
+
+    isLoadingOlderRef.current = false;
+  }, [isFetchingNextPage, messages.length]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -98,23 +140,16 @@ export default function MessageList({
   }, [messages, currentUserId]);
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-gray-400">Loading messages...</span>
-        </div>
-      </div>
-    );
+    return <MessageSkeleton />;
   }
 
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto flex flex-col">
       {/* Top sentinel for loading older messages */}
-      <div ref={topRef} className="h-1" />
+      <div ref={topSentinelRef} className="h-1" />
       {isFetchingNextPage && (
         <div className="flex justify-center py-2">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
         </div>
       )}
 

@@ -7,6 +7,7 @@ import { CreateReplyDto } from "../interfaces/post.interface";
 import { ReplyService } from "../services/reply.service";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export const useCreateReply = (postId: string) => {
   const router = useRouter();
@@ -25,7 +26,7 @@ export const useCreateReply = (postId: string) => {
 
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["replies", postId] });
-      qc.invalidateQueries({ queryKey: ["postDetail", postId] });
+      qc.invalidateQueries({ queryKey: ["post-detail", postId] });
 
       toast.success("Your reply was sent", {
         action: {
@@ -56,5 +57,6 @@ export const useReplies = (postId: string) => {
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
     enabled: !!postId,
+    ...infiniteQueryOptions,
   });
 };

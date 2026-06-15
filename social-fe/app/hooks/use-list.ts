@@ -8,6 +8,7 @@ import { CreateListData, UpdateList } from "../interfaces/list.interface";
 import { ListService } from "../services/list.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
+import { infiniteQueryOptions } from "./infinite-query-options";
 
 export const useLists = () => {
   const qc = useQueryClient();
@@ -66,13 +67,15 @@ export const useLists = () => {
   };
 };
 
-export const useGetlists = () => {
+export const useGetlists = (username?: string) => {
   return useInfiniteQuery({
-    queryKey: ["lists"],
-    queryFn: ({ pageParam }) => ListService.getLists(pageParam),
+    queryKey: ["lists", username ?? "me"],
+    queryFn: ({ pageParam }) =>
+      ListService.getLists(pageParam, undefined, username),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    ...infiniteQueryOptions,
   });
 };
 

@@ -19,12 +19,12 @@ export const useGlobal = () => {
     return () => {
       globalSocket.off("Post_create", handlePostCreate);
     };
-  }, [globalSocket, isConnected, qc]);
+  }, [globalSocket, isConnected]);
 
   const refreshFeed = () => {
-    qc.resetQueries({ queryKey: ["feed"] });
     setHasNewPosts(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+    qc.resetQueries({ queryKey: ["feed"], exact: true });
   };
 
   return { hasNewPosts, refreshFeed };

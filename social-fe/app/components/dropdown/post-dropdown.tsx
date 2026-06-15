@@ -7,12 +7,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { usePost } from "@/app/hooks/use-post";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { useAuth } from "@/app/hooks/use-auth";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { Loader2, MoreHorizontal, Trash } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useModeration } from "@/app/hooks/use-moderation";
+import { ReportReason } from "@/app/services/moderation.service";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 interface PostDropDownProps {
   post: Feed;
@@ -21,9 +32,15 @@ interface PostDropDownProps {
 
 export default function PostDropDown({ post, items }: PostDropDownProps) {
   const router = useRouter();
+  const qc = useQueryClient();
   const { deletePost, isDeletingPost } = usePost();
+  const { blockUser, muteUser, reportPost, isModerating } = useModeration();
   const { user } = useAuth();
+  const requireAuth = useRequireAuthAction();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
+  const [reportDetails, setReportDetails] = useState("");
   const pathname = usePathname();
 
   const isOwner = user?.id === post?.user?.id;
@@ -42,6 +59,8 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
     : items;
 
   const confirmDelete = () => {
+    if (!requireAuth()) return;
+
     const isOnPostDetail =
       pathname === `/profile/${post.user.username}/post/${post.id}`;
 
@@ -64,6 +83,99 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
     });
   };
 
+  const hidePostFromCaches = () => {
+    const removePost = (old: any): any => {
+      if (!old || typeof old !== "object") return old;
+      if (Array.isArray(old)) return old.filter((item) => item?.id !== post.id);
+      return {
+        ...old,
+        ...(old.pages && {
+          pages: old.pages.map((page: any) => removePost(page)),
+        }),
+        ...(old.posts && {
+          posts: old.posts.filter((item: Feed) => item.id !== post.id),
+        }),
+        ...(old.replies && {
+          replies: old.replies.filter((item: Feed) => item.id !== post.id),
+        }),
+      };
+    };
+
+    qc.setQueryData(["feed"], removePost);
+    qc.getQueriesData({ queryKey: ["userPosts"] }).forEach(([queryKey]) => {
+      qc.setQueryData(queryKey, removePost);
+    });
+    toast.success("Post hidden");
+  };
+
+  const copyPostText = async () => {
+    await navigator.clipboard.writeText(post.content || "");
+    toast.success("Post text copied");
+  };
+
+  const handleDropdownAction = (item: DropdownItem) => {
+    if (item.onClick) {
+      item.onClick();
+      return;
+    }
+
+    switch (item.title) {
+      case "Copy post text":
+        copyPostText();
+        break;
+      case "Hide post for me":
+        hidePostFromCaches();
+        break;
+      case "Mute account":
+        if (!requireAuth()) return;
+        if (isOwner) return toast.info("You cannot mute your own account");
+        muteUser.mutate(post.user.id);
+        break;
+      case "Block account":
+        if (!requireAuth()) return;
+        if (isOwner) return toast.info("You cannot block your own account");
+        blockUser.mutate(post.user.id);
+        break;
+      case "Report post":
+        if (!requireAuth()) return;
+        if (isOwner) return toast.info("You cannot report your own post");
+        setIsReportOpen(true);
+        break;
+      case "Mute thread":
+        hidePostFromCaches();
+        break;
+      case "Translate":
+      case "Show more like this":
+      case "Show less like this":
+      case "Mute words & tags":
+      case "Pin to your profile":
+      case "Edit interaction settings":
+        toast.info("This action is not available yet");
+        break;
+      default:
+        break;
+    }
+  };
+
+  const submitReport = () => {
+    if (!requireAuth()) return;
+
+    reportPost.mutate(
+      {
+        postId: post.id,
+        reason: reportReason,
+        details: reportDetails.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setIsReportOpen(false);
+          setReportReason("SPAM");
+          setReportDetails("");
+        },
+      },
+    );
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -77,7 +189,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
               <React.Fragment key={item.id}>
                 <DropdownMenuItem
                   className={`flex cursor-pointer items-center justify-between py-2.5 font-medium ${item.className || ""}`}
-                  onClick={item.onClick ? item.onClick : undefined}
+                  onClick={() => handleDropdownAction(item)}
                 >
                   <span>{item.title}</span>
                   <span className={item.className ? "" : "text-slate-600"}>
@@ -94,41 +206,139 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Confirm Delete Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-[320px] rounded-[32px] bg-white p-6 shadow-xl animate-in fade-in zoom-in duration-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              Delete this post?
-            </h2>
-            <p className="text-[15px] leading-snug text-gray-600 mb-6">
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          if (!isDeletingPost) setIsModalOpen(open);
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="w-full max-w-80 rounded-[32px] border-none bg-white p-6 shadow-xl"
+          onInteractOutside={(event) => {
+            if (isDeletingPost) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (isDeletingPost) event.preventDefault();
+          }}
+        >
+          <DialogTitle className="text-xl font-bold text-gray-900">
+            Delete this post?
+          </DialogTitle>
+          <DialogDescription asChild>
+            <p className="text-[15px] leading-snug text-gray-600">
               If you remove this post, you won't be able to recover it.
             </p>
+          </DialogDescription>
 
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={confirmDelete}
-                disabled={isDeletingPost}
-                className="flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37] disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isDeletingPost ? (
-                  <Loader2 size={20} className="animate-spin" />
-                ) : (
-                  "Delete"
-                )}
-              </button>
+          <div className="flex flex-col gap-3 pt-2">
+            <button
+              onClick={confirmDelete}
+              disabled={isDeletingPost}
+              className="flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37] disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isDeletingPost ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </button>
 
-              <button
-                onClick={() => setIsModalOpen(false)}
-                disabled={isDeletingPost}
-                className="flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0] disabled:opacity-70"
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              disabled={isDeletingPost}
+              className="flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0] disabled:opacity-70"
+            >
+              Cancel
+            </button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isReportOpen}
+        onOpenChange={(open) => {
+          if (!isModerating) setIsReportOpen(open);
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="w-full max-w-90 rounded-3xl border-none bg-white p-6 shadow-xl"
+          onInteractOutside={(event) => {
+            if (isModerating) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (isModerating) event.preventDefault();
+          }}
+        >
+          <DialogTitle className="text-xl font-bold text-gray-900">
+            Report this post
+          </DialogTitle>
+          <DialogDescription className="text-[15px] leading-snug text-gray-600">
+            Choose the reason that best describes the problem.
+          </DialogDescription>
+
+          <div className="flex flex-col gap-2">
+            {REPORT_REASONS.map((reason) => (
+              <label
+                key={reason.value}
+                className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 px-3 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              >
+                <span>{reason.label}</span>
+                <input
+                  type="radio"
+                  name={`report-${post.id}`}
+                  checked={reportReason === reason.value}
+                  onChange={() => setReportReason(reason.value)}
+                />
+              </label>
+            ))}
+          </div>
+
+          <textarea
+            value={reportDetails}
+            onChange={(event) => setReportDetails(event.target.value)}
+            placeholder="Add details"
+            className="min-h-22 w-full resize-none rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            maxLength={1000}
+          />
+
+          <div className="flex flex-col gap-3 pt-1">
+            <button
+              type="button"
+              onClick={submitReport}
+              disabled={isModerating}
+              className="flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isModerating ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                "Submit report"
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsReportOpen(false)}
+              disabled={isModerating}
+              className="flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0] disabled:opacity-70"
+            >
+              Cancel
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
+const REPORT_REASONS: Array<{ label: string; value: ReportReason }> = [
+  { label: "Spam", value: "SPAM" },
+  { label: "Harassment", value: "HARASSMENT" },
+  { label: "Hate speech", value: "HATE_SPEECH" },
+  { label: "Violence", value: "VIOLENCE" },
+  { label: "Nudity", value: "NUDITY" },
+  { label: "False information", value: "FALSE_INFORMATION" },
+  { label: "Impersonation", value: "IMPERSONATION" },
+  { label: "Other", value: "OTHER" },
+];
