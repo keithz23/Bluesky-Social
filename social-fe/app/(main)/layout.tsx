@@ -32,6 +32,7 @@ import NewPostModal from "../components/dialog/new-post-dialog";
 import BackToTop from "../components/back-to-top";
 import Loading from "../components/loading";
 import { useNotifications } from "../hooks/use-notifications";
+import { useUnreadMessages } from "../hooks/use-unread-messages";
 
 export default function MainLayout({
   children,
@@ -42,6 +43,7 @@ export default function MainLayout({
   const pathname = usePathname();
   const { isAuthenticated, user, logoutMutation, isLoadingProfile } = useAuth();
   const { unreadCount } = useNotifications(isAuthenticated);
+  const { unreadMessagesCount } = useUnreadMessages(isAuthenticated);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -210,6 +212,13 @@ export default function MainLayout({
                   {item.label === "Notifications" && unreadCount > 0 && (
                     <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E42240] px-1 text-[11px] font-bold leading-none text-white">
                       {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                  {item.label === "Chat" && unreadMessagesCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E42240] px-1 text-[11px] font-bold leading-none text-white">
+                      {unreadMessagesCount > 99
+                        ? "99+"
+                        : unreadMessagesCount}
                     </span>
                   )}
                 </span>
@@ -383,6 +392,13 @@ export default function MainLayout({
                       {item.label === "Notifications" && unreadCount > 0 && (
                         <span className="absolute -right-2 -top-2 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#E42240] px-1 text-[10px] font-bold leading-none text-white">
                           {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                      {item.label === "Chat" && unreadMessagesCount > 0 && (
+                        <span className="absolute -right-2 -top-2 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#E42240] px-1 text-[10px] font-bold leading-none text-white">
+                          {unreadMessagesCount > 99
+                            ? "99+"
+                            : unreadMessagesCount}
                         </span>
                       )}
                     </span>
