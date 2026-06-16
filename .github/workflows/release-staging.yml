@@ -45,10 +45,13 @@ jobs:
           . ./social-fe/.env.production
           set +a
 
+          : "${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}"
+          : "${NEXT_PUBLIC_SERVER_URL:?NEXT_PUBLIC_SERVER_URL is required}"
+
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL \
-            --build-arg NEXT_PUBLIC_SERVER_URL \
-            --build-arg NEXT_PUBLIC_CALLBACK_URL \
+            --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+            --build-arg NEXT_PUBLIC_SERVER_URL="${NEXT_PUBLIC_SERVER_URL}" \
+            --build-arg NEXT_PUBLIC_CALLBACK_URL="${NEXT_PUBLIC_CALLBACK_URL}" \
             -t keith0309/social-fe:${{ github.sha }} \
             -t keith0309/social-fe:latest \
             ./social-fe
@@ -109,14 +112,23 @@ jobs:
           echo "public_ip=$EC2_HOST" >> "$GITHUB_OUTPUT"
           echo "ssh_username=$EC2_USERNAME" >> "$GITHUB_OUTPUT"
 
-      - name: Get .env for Backend from AWS SSM
+      - name: Get deployment environment from AWS SSM
         run: |
           aws ssm get-parameter \
             --name "/staging/social/be" \
             --with-decryption \
             --query "Parameter.Value" \
             --output text > .env
-          echo "GITHUB_SHA=${{ github.sha }}" >> .env
+
+          printf "\n" >> .env
+
+          aws ssm get-parameter \
+            --name "/staging/social/fe" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text >> .env
+
+          printf "\nGITHUB_SHA=${{ github.sha }}\n" >> .env
 
       - name: Get EC2 SSH key from AWS SSM
         id: ec2-ssh-key
