@@ -170,7 +170,13 @@ jobs:
           username: ${{ steps.terraform-output.outputs.ssh_username }}
           key: ${{ steps.ec2-ssh-key.outputs.private_key }}
           script: |
+            set -euo pipefail
+
             cd ~/social
+
+            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login \
+              --username "${{ secrets.DOCKER_USERNAME }}" \
+              --password-stdin
 
             sudo docker-compose pull
 
