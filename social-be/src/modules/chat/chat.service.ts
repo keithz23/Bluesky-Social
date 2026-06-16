@@ -11,6 +11,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ConversationQueryDto, MessageQueryDto } from './dto/message-query.dto';
 import { ConversationType, MessageType } from '@prisma/client';
+import { S3Service } from 'src/uploads/s3.service';
 
 const USER_SELECT = {
   id: true,
@@ -91,7 +92,10 @@ const decodeCursor = <T>(cursor?: string): T | null => {
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
+  ) {}
 
   // ─── Conversations ────────────────────────────────────────
 
@@ -453,7 +457,7 @@ export class ChatService {
   }
 
   async createMessage(userId: string, dto: SendMessageDto) {
-    const { conversationId, content, type, replyToId } = dto;
+    const { conversationId, content, type, replyToId, attachments } = dto;
 
     // Verify user is a participant
     const participant = await this.prisma.conversationParticipant.findFirst({
@@ -472,6 +476,19 @@ export class ChatService {
           content: content ?? '',
           type: (type as MessageType) ?? MessageType.TEXT,
           replyToId: replyToId ?? null,
+          attachments: attachments?.length
+            ? {
+                create: attachments.map((attachment) => ({
+                  url: attachment.url,
+                  thumbnailUrl: attachment.thumbnailUrl ?? null,
+                  fileName: attachment.fileName,
+                  fileSize: attachment.fileSize,
+                  mimeType: attachment.mimeType,
+                  width: attachment.width ?? null,
+                  height: attachment.height ?? null,
+                })),
+              }
+            : undefined,
         },
         select: MESSAGE_SELECT,
       });
@@ -502,6 +519,38 @@ export class ChatService {
     });
 
     return message;
+  }
+
+  async createImageMessage(
+    userId: string,
+    conversationId: string,
+    file: Express.Multer.File,
+    content?: string,
+  ) {
+    if (!file?.mimetype?.startsWith('image/')) {
+      throw new BadRequestException('Only image files are supported');
+    }
+
+    const upload = await this.s3Service.uploadImage(
+      file,
+      `chat/${conversationId}`,
+      { resize: true, quality: 85 },
+    );
+
+    return this.createMessage(userId, {
+      conversationId,
+      content,
+      type: 'IMAGE',
+      attachments: [
+        {
+          url: upload.url,
+          thumbnailUrl: upload.url,
+          fileName: file.originalname,
+          fileSize: upload.size,
+          mimeType: upload.mimetype,
+        },
+      ],
+    });
   }
 
   async editMessage(userId: string, messageId: string, content: string) {

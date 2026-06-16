@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
-import { io, Socket } from "socket.io-client";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "@/app/constants/endpoint.constant";
+import { useEffect, useRef, useCallback } from "react";
+import { useSocket } from "@/providers/socket.provider";
 import { Message } from "@/app/interfaces/chat.interface";
-
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
 interface UseChatSocketOptions {
   onNewMessage?: (data: { message: Message; conversationId: string }) => void;
@@ -42,73 +38,86 @@ interface UseChatSocketOptions {
 }
 
 export function useChatSocket(options: UseChatSocketOptions = {}) {
-  const socketRef = useRef<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const { chatSocket, isConnected } = useSocket();
+  const optionsRef = useRef(options);
 
   useEffect(() => {
-    let chatSocket: Socket;
+    optionsRef.current = options;
+  }, [options]);
 
-    const initSocket = async () => {
-      try {
-        const { data } = await axiosInstance.get(
-          API_ENDPOINT.AUTH.SOCKET_TOKEN,
-        );
-        const token = data.token;
+  useEffect(() => {
+    if (!chatSocket) return;
 
-        chatSocket = io(`${SERVER_URL}/chat`, {
-          auth: { token },
-          transports: ["websocket"],
-          reconnection: true,
-          reconnectionAttempts: 5,
-        });
+    const handleNewMessage = (data: { message: Message; conversationId: string }) =>
+      optionsRef.current.onNewMessage?.(data);
+    const handleConversationUpdated = (data: unknown) =>
+      optionsRef.current.onConversationUpdated?.(data);
+    const handleMessageEdited = (data: {
+      messageId: string;
+      content: string;
+      editedAt: string;
+    }) => optionsRef.current.onMessageEdited?.(data);
+    const handleMessageDeleted = (data: {
+      messageId: string;
+      conversationId: string;
+    }) => optionsRef.current.onMessageDeleted?.(data);
+    const handleUserTyping = (data: {
+      userId: string;
+      username: string;
+      conversationId: string;
+    }) => optionsRef.current.onUserTyping?.(data);
+    const handleUserStopTyping = (data: {
+      userId: string;
+      conversationId: string;
+    }) => optionsRef.current.onUserStopTyping?.(data);
+    const handleMessageRead = (data: {
+      userId: string;
+      messageId: string;
+      conversationId: string;
+    }) => optionsRef.current.onMessageRead?.(data);
+    const handleReactionUpdated = (data: {
+      messageId: string;
+      reactions: unknown[];
+    }) => optionsRef.current.onReactionUpdated?.(data);
+    const handleNewConversation = (data: unknown) =>
+      optionsRef.current.onNewConversation?.(data);
 
-        chatSocket.on("connect", () => setIsConnected(true));
-        chatSocket.on("disconnect", () => setIsConnected(false));
-
-        chatSocket.on("new-message", (data) => options.onNewMessage?.(data));
-        chatSocket.on("conversation-updated", (data) =>
-          options.onConversationUpdated?.(data),
-        );
-        chatSocket.on("message-edited", (data) =>
-          options.onMessageEdited?.(data),
-        );
-        chatSocket.on("message-deleted", (data) =>
-          options.onMessageDeleted?.(data),
-        );
-        chatSocket.on("user-typing", (data) => options.onUserTyping?.(data));
-        chatSocket.on("user-stop-typing", (data) =>
-          options.onUserStopTyping?.(data),
-        );
-        chatSocket.on("message-read", (data) => options.onMessageRead?.(data));
-        chatSocket.on("message-reaction-updated", (data) =>
-          options.onReactionUpdated?.(data),
-        );
-        chatSocket.on("new-conversation", (data) =>
-          options.onNewConversation?.(data),
-        );
-
-        socketRef.current = chatSocket;
-      } catch (error) {
-        console.error("Chat socket init failed:", error);
-      }
-    };
-
-    initSocket();
+    chatSocket.on("new-message", handleNewMessage);
+    chatSocket.on("conversation-updated", handleConversationUpdated);
+    chatSocket.on("message-edited", handleMessageEdited);
+    chatSocket.on("message-deleted", handleMessageDeleted);
+    chatSocket.on("user-typing", handleUserTyping);
+    chatSocket.on("user-stop-typing", handleUserStopTyping);
+    chatSocket.on("message-read", handleMessageRead);
+    chatSocket.on("message-reaction-updated", handleReactionUpdated);
+    chatSocket.on("new-conversation", handleNewConversation);
 
     return () => {
-      if (chatSocket) chatSocket.disconnect();
-      socketRef.current = null;
+      chatSocket.off("new-message", handleNewMessage);
+      chatSocket.off("conversation-updated", handleConversationUpdated);
+      chatSocket.off("message-edited", handleMessageEdited);
+      chatSocket.off("message-deleted", handleMessageDeleted);
+      chatSocket.off("user-typing", handleUserTyping);
+      chatSocket.off("user-stop-typing", handleUserStopTyping);
+      chatSocket.off("message-read", handleMessageRead);
+      chatSocket.off("message-reaction-updated", handleReactionUpdated);
+      chatSocket.off("new-conversation", handleNewConversation);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [chatSocket]);
 
-  const joinConversation = useCallback((conversationId: string) => {
-    socketRef.current?.emit("join-conversation", { conversationId });
-  }, []);
+  const joinConversation = useCallback(
+    (conversationId: string) => {
+      chatSocket?.emit("join-conversation", { conversationId });
+    },
+    [chatSocket],
+  );
 
-  const leaveConversation = useCallback((conversationId: string) => {
-    socketRef.current?.emit("leave-conversation", { conversationId });
-  }, []);
+  const leaveConversation = useCallback(
+    (conversationId: string) => {
+      chatSocket?.emit("leave-conversation", { conversationId });
+    },
+    [chatSocket],
+  );
 
   const sendMessage = useCallback(
     (data: {
@@ -117,42 +126,51 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
       type?: string;
       replyToId?: string;
     }) => {
-      socketRef.current?.emit("send-message", data);
+      chatSocket?.emit("send-message", data);
     },
-    [],
+    [chatSocket],
   );
 
-  const startTyping = useCallback((conversationId: string) => {
-    socketRef.current?.emit("typing", { conversationId });
-  }, []);
+  const startTyping = useCallback(
+    (conversationId: string) => {
+      chatSocket?.emit("typing", { conversationId });
+    },
+    [chatSocket],
+  );
 
-  const stopTyping = useCallback((conversationId: string) => {
-    socketRef.current?.emit("stop-typing", { conversationId });
-  }, []);
+  const stopTyping = useCallback(
+    (conversationId: string) => {
+      chatSocket?.emit("stop-typing", { conversationId });
+    },
+    [chatSocket],
+  );
 
   const markRead = useCallback(
     (conversationId: string, messageId: string) => {
-      socketRef.current?.emit("mark-read", { conversationId, messageId });
+      chatSocket?.emit("mark-read", { conversationId, messageId });
     },
-    [],
+    [chatSocket],
   );
 
   const editMessage = useCallback(
     (messageId: string, content: string) => {
-      socketRef.current?.emit("edit-message", { messageId, content });
+      chatSocket?.emit("edit-message", { messageId, content });
     },
-    [],
+    [chatSocket],
   );
 
-  const deleteMessage = useCallback((messageId: string) => {
-    socketRef.current?.emit("delete-message", { messageId });
-  }, []);
+  const deleteMessage = useCallback(
+    (messageId: string) => {
+      chatSocket?.emit("delete-message", { messageId });
+    },
+    [chatSocket],
+  );
 
   const reactToMessage = useCallback(
     (messageId: string, emoji: string) => {
-      socketRef.current?.emit("react-message", { messageId, emoji });
+      chatSocket?.emit("react-message", { messageId, emoji });
     },
-    [],
+    [chatSocket],
   );
 
   return {

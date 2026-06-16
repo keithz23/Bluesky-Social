@@ -8,6 +8,11 @@ import { CreatePostPayload } from "../interfaces/post.interface";
 import { PostService } from "../services/post.service";
 import { toast } from "sonner";
 import { infiniteQueryOptions } from "./infinite-query-options";
+import {
+  extractCreatedPost,
+  prependPostToFeedCache,
+  prependPostToUserPostCaches,
+} from "../utils/post-cache.util";
 
 export function usePost() {
   const qc = useQueryClient();
@@ -28,7 +33,13 @@ export function usePost() {
       return response.data;
     },
 
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const createdPost = extractCreatedPost(data);
+      if (createdPost) {
+        prependPostToFeedCache(qc, createdPost);
+        prependPostToUserPostCaches(qc, createdPost);
+      }
+
       qc.invalidateQueries({ queryKey: ["feed"] });
       qc.invalidateQueries({ queryKey: ["userPosts"] });
       toast.success("Post created successfully");
