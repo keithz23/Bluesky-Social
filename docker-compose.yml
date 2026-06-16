@@ -71,6 +71,9 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt
     restart: always
+    depends_on:
+      - social-fe
+      - app
 
 volumes:
   postgres-data:

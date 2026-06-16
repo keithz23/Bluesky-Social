@@ -148,7 +148,7 @@ jobs:
           host: ${{ steps.terraform-output.outputs.public_ip }}
           username: ${{ steps.terraform-output.outputs.ssh_username }}
           key: ${{ steps.ec2-ssh-key.outputs.private_key }}
-          source: "docker-compose.yml,.env"
+          source: "docker-compose.yml,nginx.conf,.env"
           target: "~/social"
 
       - name: Restart server
