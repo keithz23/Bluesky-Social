@@ -164,6 +164,7 @@ export const API_ENDPOINT = {
         : `/conversations/${id}/messages`;
     },
     SEND_MESSAGE: (id: string) => `/conversations/${id}/messages`,
+    SEND_MEDIA_MESSAGE: (id: string) => `/conversations/${id}/messages/media`,
   },
 
   LISTS: {

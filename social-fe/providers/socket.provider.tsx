@@ -11,21 +11,25 @@ import { io, Socket } from "socket.io-client";
 import { axiosInstance } from "@/lib/axios";
 import { API_ENDPOINT } from "@/app/constants/endpoint.constant";
 import { useGlobal } from "@/app/hooks/use-global";
+import { useChatRealtime } from "@/app/hooks/use-chat-realtime";
 
 interface SocketContextType {
   globalSocket: Socket | null;
   notificationsSocket: Socket | null;
+  chatSocket: Socket | null;
   isConnected: boolean;
 }
 
 const SocketContext = createContext<SocketContextType>({
   globalSocket: null,
   notificationsSocket: null,
+  chatSocket: null,
   isConnected: false,
 });
 
 const GlobalSocketWrapper = ({ children }: { children: React.ReactNode }) => {
   useGlobal();
+  useChatRealtime();
   return <>{children}</>;
 };
 
@@ -35,9 +39,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [sockets, setSockets] = useState<{
     global: Socket | null;
     notifications: Socket | null;
+    chat: Socket | null;
   }>({
     global: null,
     notifications: null,
+    chat: null,
   });
 
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -49,6 +55,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     let globalIo: Socket;
     let notiIo: Socket;
+    let chatIo: Socket;
 
     const initSocket = async () => {
       try {
@@ -68,6 +75,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
         globalIo = io(`${SERVER_URL}/socket`, commonOptions);
         notiIo = io(`${SERVER_URL}/notifications`, commonOptions);
+        chatIo = io(`${SERVER_URL}/chat`, commonOptions);
 
         globalIo.on("connect", () => setIsConnected(true));
         globalIo.on("disconnect", () => setIsConnected(false));
@@ -78,6 +86,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         setSockets({
           global: globalIo,
           notifications: notiIo,
+          chat: chatIo,
         });
       } catch (error) {
         console.error("Get socket token failed:", error);
@@ -90,6 +99,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       if (globalIo) globalIo.disconnect();
       if (notiIo) notiIo.disconnect();
+      if (chatIo) chatIo.disconnect();
       isInitialized.current = false;
     };
   }, []);
@@ -99,6 +109,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         globalSocket: sockets.global,
         notificationsSocket: sockets.notifications,
+        chatSocket: sockets.chat,
         isConnected,
       }}
     >

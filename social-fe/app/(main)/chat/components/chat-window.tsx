@@ -6,8 +6,15 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useMessages } from "@/app/hooks/use-messages";
 import { useChatSocket } from "@/app/hooks/use-chat-socket";
-import { Conversation, Message } from "@/app/interfaces/chat.interface";
+import {
+  Conversation,
+  Message,
+  MessageType,
+  MessagesResponse,
+} from "@/app/interfaces/chat.interface";
+import { ChatService } from "@/app/services/chat.service";
 import { useQueryClient } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import Avatar from "@/app/components/avatar";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
@@ -24,6 +31,9 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
   const [typingUsers, setTypingUsers] = useState<
     { userId: string; username: string }[]
   >([]);
+  const [typingExpiries, setTypingExpiries] = useState<Record<string, number>>(
+    {},
+  );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useMessages(conversation.id);
@@ -35,21 +45,84 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
       .filter((msg, i, arr) => arr.findIndex((m) => m.id === msg.id) === i)
       .reverse() ?? [];
 
+  const upsertLatestMessage = useCallback(
+    (
+      updater: (
+        messages: Message[],
+      ) => Message[],
+    ) => {
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["messages", conversation.id],
+        (old) => {
+          if (!old?.pages?.length) return old;
+
+          const pages = [...old.pages];
+          const latestPage = pages[0];
+          pages[0] = {
+            ...latestPage,
+            messages: updater(latestPage.messages),
+          };
+
+          return { ...old, pages };
+        },
+      );
+    },
+    [conversation.id, queryClient],
+  );
+
+  const patchMessageEverywhere = useCallback(
+    (messageId: string, patch: Partial<Message>) => {
+      queryClient.setQueryData<InfiniteData<MessagesResponse>>(
+        ["messages", conversation.id],
+        (old) => {
+          if (!old?.pages?.length) return old;
+
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((message) =>
+                message.id === messageId ? { ...message, ...patch } : message,
+              ),
+            })),
+          };
+        },
+      );
+    },
+    [conversation.id, queryClient],
+  );
+
   const handleNewMessage = useCallback(
     (msgData: { message: Message; conversationId: string }) => {
       if (msgData.conversationId !== conversation.id) return;
-      queryClient.setQueryData(["messages", conversation.id], (old: any) => {
-        if (!old) return old;
-        const pages = [...old.pages];
-        // Append to the first page (most recent)
-        pages[0] = {
-          ...pages[0],
-          messages: [msgData.message, ...pages[0].messages],
-        };
-        return { ...old, pages };
+      upsertLatestMessage((latestMessages) => {
+        if (latestMessages.some((message) => message.id === msgData.message.id)) {
+          return latestMessages.map((message) =>
+            message.id === msgData.message.id ? msgData.message : message,
+          );
+        }
+
+        const optimisticIndex = latestMessages.findIndex(
+          (message) =>
+            message.id.startsWith("optimistic-") &&
+            message.senderId === msgData.message.senderId &&
+            (message.content === msgData.message.content ||
+              (message.type === msgData.message.type &&
+                message.type === "IMAGE" &&
+                message.attachments.length > 0)),
+        );
+
+        if (optimisticIndex >= 0) {
+          return latestMessages.map((message, index) =>
+            index === optimisticIndex ? msgData.message : message,
+          );
+        }
+
+        return [msgData.message, ...latestMessages];
       });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
-    [conversation.id, queryClient],
+    [conversation.id, queryClient, upsertLatestMessage],
   );
 
   const handleUserTyping = useCallback(
@@ -60,6 +133,10 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
         if (prev.some((u) => u.userId === data.userId)) return prev;
         return [...prev, { userId: data.userId, username: data.username }];
       });
+      setTypingExpiries((prev) => ({
+        ...prev,
+        [data.userId]: Date.now() + 4000,
+      }));
     },
     [conversation.id, currentUser?.id],
   );
@@ -68,9 +145,32 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
     (data: { userId: string; conversationId: string }) => {
       if (data.conversationId !== conversation.id) return;
       setTypingUsers((prev) => prev.filter((u) => u.userId !== data.userId));
+      setTypingExpiries((prev) => {
+        const next = { ...prev };
+        delete next[data.userId];
+        return next;
+      });
     },
     [conversation.id],
   );
+
+  useEffect(() => {
+    if (typingUsers.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setTypingUsers((prev) =>
+        prev.filter((user) => (typingExpiries[user.userId] ?? 0) > now),
+      );
+      setTypingExpiries((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(([, expiresAt]) => expiresAt > now),
+        ),
+      );
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [typingExpiries, typingUsers.length]);
 
   const {
     joinConversation,
@@ -86,7 +186,11 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
     onNewMessage: handleNewMessage,
     onUserTyping: handleUserTyping,
     onUserStopTyping: handleUserStopTyping,
-    onMessageEdited: (data) => {
+    onMessageRead: (data) => {
+      if (data.conversationId !== conversation.id) return;
+      patchMessageEverywhere(data.messageId, { status: "READ" });
+    },
+    onMessageEdited: () => {
       queryClient.invalidateQueries({
         queryKey: ["messages", conversation.id],
       });
@@ -112,14 +216,14 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
   }, [conversation.id, joinConversation, leaveConversation]);
 
   // Mark as read when messages load or new messages arrive
-  const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
-  useEffect(() => {
-    if (lastMessageId) {
-      markRead(conversation.id, lastMessageId);
-      // Also refresh the conversations list to clear unread badge
+  const handleSeenLatest = useCallback(
+    (messageId: string) => {
+      if (messageId.startsWith("optimistic-")) return;
+      markRead(conversation.id, messageId);
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    }
-  }, [conversation.id, lastMessageId, markRead, queryClient]);
+    },
+    [conversation.id, markRead, queryClient],
+  );
 
   // Other participant info
   const otherParticipant = conversation.participants.find(
@@ -131,12 +235,98 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
       ? (otherUser?.displayName ?? "Unknown")
       : (conversation.name ?? "Group Chat");
 
-  const handleSend = (content: string) => {
+  const handleSend = async (content: string, type: MessageType = "TEXT") => {
+    if (!currentUser) return;
+
+    const tempId = `optimistic-${conversation.id}-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      conversationId: conversation.id,
+      senderId: currentUser.id,
+      content,
+      type,
+      status: "SENDING",
+      replyToId: null,
+      replyTo: null,
+      isDeleted: false,
+      isEdited: false,
+      editedAt: null,
+      createdAt: new Date().toISOString(),
+      sender: currentUser,
+      attachments: [],
+      reactions: [],
+    };
+
+    upsertLatestMessage((latestMessages) => [
+      optimisticMessage,
+      ...latestMessages,
+    ]);
+
     sendMessage({
       conversationId: conversation.id,
       content,
-      type: "TEXT",
+      type,
     });
+
+    window.setTimeout(() => {
+      patchMessageEverywhere(tempId, { status: "FAILED" });
+    }, 12_000);
+  };
+
+  const handleSendImage = async (file: File) => {
+    if (!currentUser) return;
+
+    const tempId = `optimistic-${conversation.id}-${Date.now()}`;
+    const previewUrl = URL.createObjectURL(file);
+    const optimisticMessage: Message = {
+      id: tempId,
+      conversationId: conversation.id,
+      senderId: currentUser.id,
+      content: "",
+      type: "IMAGE",
+      status: "SENDING",
+      replyToId: null,
+      replyTo: null,
+      isDeleted: false,
+      isEdited: false,
+      editedAt: null,
+      createdAt: new Date().toISOString(),
+      sender: currentUser,
+      attachments: [
+        {
+          id: `${tempId}-attachment`,
+          url: previewUrl,
+          thumbnailUrl: previewUrl,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          width: null,
+          height: null,
+        },
+      ],
+      reactions: [],
+    };
+
+    upsertLatestMessage((latestMessages) => [
+      optimisticMessage,
+      ...latestMessages,
+    ]);
+
+    try {
+      const uploadedMessage = await ChatService.sendMediaMessage(
+        conversation.id,
+        { file },
+      );
+      upsertLatestMessage((latestMessages) =>
+        latestMessages.map((message) =>
+          message.id === tempId ? uploadedMessage : message,
+        ),
+      );
+    } catch {
+      patchMessageEverywhere(tempId, { status: "FAILED" });
+    } finally {
+      URL.revokeObjectURL(previewUrl);
+    }
   };
 
   return (
@@ -152,7 +342,7 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
           </button>
 
           {otherUser && (
-            <Avatar data={otherUser as any} className="w-9 h-9 text-sm" />
+            <Avatar data={otherUser} className="w-9 h-9 text-sm" />
           )}
 
           <div>
@@ -183,6 +373,7 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
         onEdit={editMessage}
         onDelete={deleteMessage}
         onReact={reactToMessage}
+        onSeenLatest={handleSeenLatest}
       />
 
       {/* Typing indicator */}
@@ -191,6 +382,7 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
       {/* Input */}
       <MessageInput
         onSend={handleSend}
+        onSendImage={handleSendImage}
         onTyping={() => startTyping(conversation.id)}
         onStopTyping={() => stopTyping(conversation.id)}
       />

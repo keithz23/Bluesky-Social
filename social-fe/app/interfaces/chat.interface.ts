@@ -7,6 +7,7 @@ export type MessageType =
   | "VIDEO"
   | "AUDIO"
   | "FILE"
+  | "STICKER"
   | "SYSTEM";
 export type MessageStatus = "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
 export type ParticipantRole = "MEMBER" | "ADMIN" | "OWNER";
