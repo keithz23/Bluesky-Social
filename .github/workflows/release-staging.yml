@@ -178,6 +178,26 @@ jobs:
               --username "${{ secrets.DOCKER_USERNAME }}" \
               --password-stdin
 
+            sudo mkdir -p /etc/letsencrypt /var/lib/letsencrypt
+
+            if [ ! -f /etc/letsencrypt/live/www.th-red.app/fullchain.pem ]; then
+              sudo docker rm -f social-nginx || true
+              sudo docker run --rm \
+                -p 80:80 \
+                -v /etc/letsencrypt:/etc/letsencrypt \
+                -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+                certbot/certbot certonly \
+                --standalone \
+                --non-interactive \
+                --agree-tos \
+                --register-unsafely-without-email \
+                --cert-name www.th-red.app \
+                -d th-red.app \
+                -d www.th-red.app \
+                -d api.th-red.app \
+                -d staging.th-red.app
+            fi
+
             sudo docker-compose pull
 
             sudo docker-compose up -d
