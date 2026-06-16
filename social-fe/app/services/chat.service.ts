@@ -61,4 +61,20 @@ export const ChatService = {
     );
     return response.data;
   },
+
+  sendMediaMessage: async (
+    conversationId: string,
+    body: { file: File; content?: string },
+  ): Promise<Message> => {
+    const formData = new FormData();
+    formData.append("file", body.file);
+    if (body.content) formData.append("content", body.content);
+
+    const response = await axiosInstance.post(
+      API_ENDPOINT.CHAT.SEND_MEDIA_MESSAGE(conversationId),
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+    return response.data;
+  },
 };
