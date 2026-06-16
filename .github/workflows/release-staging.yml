@@ -1,13 +1,19 @@
 name: Deploy Social App to EC2
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - feat/add-staging
 
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -19,11 +25,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-1
 
-      - name: Get ENV
+      - name: Get frontend environment from AWS SSM
         run: |
-          # Call AWS get file configure FE and save to .env.production
           aws ssm get-parameter \
-            --name "/prod/social/social-fe" \
+            --name "/staging/social/fe" \
             --with-decryption \
             --query "Parameter.Value" \
             --output text > ./social-fe/.env.production
@@ -36,18 +41,40 @@ jobs:
 
       - name: Build & Push Frontend Image
         run: |
-          docker build --build-arg NEXT_PUBLIC_API_URL=${{secrets.NEXT_PUBLIC_API_URL}} -t keith0309/social-fe:latest ./social-fe
+          set -a
+          . ./social-fe/.env.production
+          set +a
+
+          : "${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}"
+          : "${NEXT_PUBLIC_SERVER_URL:?NEXT_PUBLIC_SERVER_URL is required}"
+
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+            --build-arg NEXT_PUBLIC_SERVER_URL="${NEXT_PUBLIC_SERVER_URL}" \
+            --build-arg NEXT_PUBLIC_CALLBACK_URL="${NEXT_PUBLIC_CALLBACK_URL}" \
+            -t keith0309/social-fe:${{ github.sha }} \
+            -t keith0309/social-fe:latest \
+            ./social-fe
+          docker push keith0309/social-fe:${{ github.sha }}
           docker push keith0309/social-fe:latest
 
       - name: Build & Push Backend Image
         run: |
-          docker build -t keith0309/social-be:latest ./social-be
+          docker build \
+            -t keith0309/social-be:${{ github.sha }} \
+            -t keith0309/social-be:latest \
+            ./social-be
+          docker push keith0309/social-be:${{ github.sha }}
           docker push keith0309/social-be:latest
 
   deploy-to-ec2:
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: staging
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -55,33 +82,121 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-1
 
-      - name: Get .env for Backend from AWS SSM
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/envs/staging
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=staging/social/terraform.tfstate" \
+            -backend-config="region=ap-southeast-1"
+
+      - name: Get EC2 SSH config from Terraform output
+        id: terraform-output
+        working-directory: infra/envs/staging
+        run: |
+          EC2_HOST="$(terraform output -raw public_ip)"
+          EC2_USERNAME="$(terraform output -raw ssh_username)"
+          if [ -z "$EC2_HOST" ]; then
+            echo "Terraform output public_ip is empty."
+            exit 1
+          fi
+          if [ -z "$EC2_USERNAME" ]; then
+            echo "Terraform output ssh_username is empty."
+            exit 1
+          fi
+          echo "public_ip=$EC2_HOST" >> "$GITHUB_OUTPUT"
+          echo "ssh_username=$EC2_USERNAME" >> "$GITHUB_OUTPUT"
+
+      - name: Get deployment environment from AWS SSM
         run: |
           aws ssm get-parameter \
-            --name "/prod/social/social-be" \
+            --name "/staging/social/be" \
             --with-decryption \
             --query "Parameter.Value" \
             --output text > .env
 
+          printf "\n" >> .env
+
+          aws ssm get-parameter \
+            --name "/staging/social/fe" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text >> .env
+
+          printf "\nGITHUB_SHA=${{ github.sha }}\n" >> .env
+
+      - name: Get EC2 SSH key from AWS SSM
+        id: ec2-ssh-key
+        run: |
+          SSH_KEY="$(aws ssm get-parameter \
+            --name "/staging/social/ec2_ssh_key" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text)"
+
+          if [ -z "$SSH_KEY" ]; then
+            echo "SSM parameter /staging/social/ec2_ssh_key is empty."
+            exit 1
+          fi
+
+          while IFS= read -r line; do
+            echo "::add-mask::$line"
+          done <<< "$SSH_KEY"
+
+          {
+            echo "private_key<<EOF"
+            echo "$SSH_KEY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Copy configure file and Deploy to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml,.env"
+          host: ${{ steps.terraform-output.outputs.public_ip }}
+          username: ${{ steps.terraform-output.outputs.ssh_username }}
+          key: ${{ steps.ec2-ssh-key.outputs.private_key }}
+          source: "docker-compose.yml,nginx.conf,.env"
           target: "~/social"
 
       - name: Restart server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          host: ${{ steps.terraform-output.outputs.public_ip }}
+          username: ${{ steps.terraform-output.outputs.ssh_username }}
+          key: ${{ steps.ec2-ssh-key.outputs.private_key }}
           script: |
+            set -euo pipefail
+
             cd ~/social
 
-            sudo docker-compose down -v
+            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login \
+              --username "${{ secrets.DOCKER_USERNAME }}" \
+              --password-stdin
+
+            sudo mkdir -p /etc/letsencrypt /var/lib/letsencrypt
+
+            if [ ! -f /etc/letsencrypt/live/www.th-red.app/fullchain.pem ]; then
+              sudo docker rm -f social-nginx || true
+              sudo docker run --rm \
+                -p 80:80 \
+                -v /etc/letsencrypt:/etc/letsencrypt \
+                -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+                certbot/certbot certonly \
+                --standalone \
+                --non-interactive \
+                --agree-tos \
+                --register-unsafely-without-email \
+                --cert-name www.th-red.app \
+                -d th-red.app \
+                -d www.th-red.app \
+                -d api.th-red.app \
+                -d staging.th-red.app
+            fi
 
             sudo docker-compose pull
 

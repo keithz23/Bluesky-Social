@@ -2,7 +2,7 @@ services:
   # --- FRONTEND SERVICE ---
   social-fe:
     container_name: social-fe
-    image: keith0309/social-fe:latest 
+    image: keith0309/social-fe:${GITHUB_SHA}
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -15,7 +15,7 @@ services:
   # --- BACKEND SERVICE ---
   app:
     container_name: social-app
-    image: keith0309/social-be:latest
+    image: keith0309/social-be:${GITHUB_SHA}
     depends_on:
       - db
       - redis
@@ -71,6 +71,9 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt
     restart: always
+    depends_on:
+      - social-fe
+      - app
 
 volumes:
   postgres-data:

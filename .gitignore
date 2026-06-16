@@ -8,3 +8,11 @@
 
 .DS_Store
 *.pem
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
