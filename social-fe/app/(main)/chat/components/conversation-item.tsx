@@ -48,7 +48,9 @@ export default function ConversationItem({
     if (lastMsg.isDeleted) {
       preview = "Message deleted";
     } else if (lastMsg.type === "IMAGE") {
-      preview = "Sent a photo";
+      preview = lastMsg.attachments?.length ? "Sent a photo" : "Sent a GIF";
+    } else if (lastMsg.type === "STICKER") {
+      preview = `Sent a sticker ${lastMsg.content ?? ""}`;
     } else {
       preview = lastMsg.content ?? "";
     }
