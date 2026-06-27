@@ -9,7 +9,7 @@ export default function SettingsPage() {
   const router = useRouter();
   return (
     <>
-      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4">
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4">
         <div className="flex items-center gap-6">
           <button
             onClick={() => router.back()}

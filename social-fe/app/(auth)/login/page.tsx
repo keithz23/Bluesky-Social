@@ -1,24 +1,32 @@
 "use client";
 
-import AuthBanner from "@/app/components/auth/auth-banner";
+import AuthShell from "@/app/components/auth/auth-shell";
 import LoginForm from "@/app/components/auth/login-form";
 import { VerifyToast } from "@/app/components/verify-toast";
+import Link from "next/link";
 import { Suspense } from "react";
 
 export default function LoginPage() {
   return (
     <>
-      <div className="min-h-screen grid grid-cols-1 md:grid-cols-3">
-        <div className="col-span-1 flex flex-col justify-center items-end bg-[#f9fafb]">
-          <AuthBanner
-            title="Sign in"
-            description="Enter your username and password"
-          />
-        </div>
-        <div className="col-span-2 flex flex-col justify-center items-start px-12">
-          <LoginForm />
-        </div>
-      </div>
+      <AuthShell
+        title="Log In"
+        description={
+          <>
+            By continuing, you agree to our{" "}
+            <Link href="/" className="text-blue-600 hover:underline">
+              User Agreement
+            </Link>{" "}
+            and acknowledge that you understand the{" "}
+            <Link href="/" className="text-blue-600 hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </>
+        }
+      >
+        <LoginForm />
+      </AuthShell>
 
       <Suspense fallback={null}>
         <VerifyToast />
