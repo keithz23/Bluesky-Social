@@ -56,9 +56,9 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="flex flex-col w-full bg-white min-h-screen pb-20">
+    <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md">
+      <div className="sticky top-28 z-20 bg-white/90 backdrop-blur-md lg:top-14">
         <div className="flex items-center justify-between p-4">
           <h1 className="text-xl font-bold text-gray-900">Notifications</h1>
           <div className="flex items-center gap-2">
