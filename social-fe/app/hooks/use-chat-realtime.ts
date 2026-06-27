@@ -33,10 +33,26 @@ type ConversationUpdatedPayload = {
   conversation?: Conversation;
 };
 
+type MessageReadPayload = {
+  userId: string;
+  messageId: string;
+  conversationId: string;
+};
+
 const getActiveConversationId = (pathname: string) => {
   const match = pathname.match(/^\/chat\/([^/?#]+)/);
   return match ? decodeURIComponent(match[1]) : null;
 };
+
+const matchesOptimisticMessage = (candidate: Message, message: Message) =>
+  candidate.id.startsWith("optimistic-") &&
+  candidate.conversationId === message.conversationId &&
+  candidate.senderId === message.senderId &&
+  candidate.type === message.type &&
+  (candidate.content === message.content ||
+    (candidate.type === "IMAGE" &&
+      candidate.attachments.length > 0 &&
+      message.attachments.length > 0));
 
 const playMessageSound = () => {
   if (typeof window === "undefined") return;
@@ -87,26 +103,48 @@ export function useChatRealtime() {
         (old) => {
           if (!old?.pages?.length) return old;
 
+          let inserted = false;
+
+          const pages = old.pages.map((page, pageIndex) => {
+            const hasRealMessage = page.messages.some(
+              (item) => item.id === message.id,
+            );
+            const hasOptimisticMessage = page.messages.some((item) =>
+              matchesOptimisticMessage(item, message),
+            );
+
+            if (hasRealMessage || hasOptimisticMessage) {
+              inserted = true;
+              const messages = page.messages
+                .map((item) =>
+                  item.id === message.id ||
+                  matchesOptimisticMessage(item, message)
+                    ? message
+                    : item,
+                )
+                .filter(
+                  (item, index, items) =>
+                    items.findIndex((other) => other.id === item.id) === index,
+                );
+
+              return { ...page, messages };
+            }
+
+            if (pageIndex !== 0) return page;
+
+            return page;
+          });
+
+          if (!inserted) {
+            pages[0] = {
+              ...pages[0],
+              messages: [message, ...pages[0].messages],
+            };
+          }
+
           return {
             ...old,
-            pages: old.pages.map((page, pageIndex) => {
-              const exists = page.messages.some((item) => item.id === message.id);
-              if (exists) {
-                return {
-                  ...page,
-                  messages: page.messages.map((item) =>
-                    item.id === message.id ? message : item,
-                  ),
-                };
-              }
-
-              if (pageIndex !== 0) return page;
-
-              return {
-                ...page,
-                messages: [message, ...page.messages],
-              };
-            }),
+            pages,
           };
         },
       );
@@ -193,6 +231,56 @@ export function useChatRealtime() {
       maybeAlertIncomingMessage(lastMessage);
     };
 
+    const handleMessageRead = ({
+      userId,
+      messageId,
+      conversationId,
+    }: MessageReadPayload) => {
+      qc.setQueryData<InfiniteMessagesData>(
+        ["messages", conversationId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((message) =>
+                message.id === messageId ? { ...message, status: "READ" } : message,
+              ),
+            })),
+          };
+        },
+      );
+
+      qc.setQueryData<InfiniteConversationsData>(["conversations"], (old) => {
+        if (!old?.pages?.length) return old;
+
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            conversations: page.conversations.map((conversation) =>
+              conversation.id === conversationId
+                ? {
+                    ...conversation,
+                    participants: conversation.participants.map((participant) =>
+                      participant.userId === userId
+                        ? {
+                            ...participant,
+                            unreadCount: 0,
+                            lastReadMessageId: messageId,
+                          }
+                        : participant,
+                    ),
+                  }
+                : conversation,
+            ),
+          })),
+        };
+      });
+    };
+
     const handleNewConversation = (conversation: Conversation) => {
       qc.setQueryData<InfiniteConversationsData>(["conversations"], (old) => {
         if (!old?.pages?.length) return old;
@@ -215,11 +303,13 @@ export function useChatRealtime() {
 
     chatSocket.on("new-message", handleNewMessage);
     chatSocket.on("conversation-updated", handleConversationUpdated);
+    chatSocket.on("message-read", handleMessageRead);
     chatSocket.on("new-conversation", handleNewConversation);
 
     return () => {
       chatSocket.off("new-message", handleNewMessage);
       chatSocket.off("conversation-updated", handleConversationUpdated);
+      chatSocket.off("message-read", handleMessageRead);
       chatSocket.off("new-conversation", handleNewConversation);
     };
   }, [chatSocket, isConnected, pathname, qc, user?.id]);
