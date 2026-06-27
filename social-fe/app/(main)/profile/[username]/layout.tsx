@@ -50,7 +50,7 @@ export default function ProfileLayout({
   }
 
   return (
-    <div className="flex flex-col w-full bg-white min-h-screen pb-20">
+    <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       {/* --- COVER & AVATAR --- */}
       <div className="h-32 relative" style={{ backgroundColor: "#f1f5f9" }}>
         {profile?.coverUrl && (
@@ -141,7 +141,7 @@ export default function ProfileLayout({
       </div>
 
       {/* --- TABS --- */}
-      <div className="flex overflow-x-auto border-b border-gray-200 no-scrollbar sticky top-0 z-20 bg-white/95 backdrop-blur-sm">
+      <div className="flex overflow-x-auto border-b border-gray-200 no-scrollbar sticky top-28 z-20 bg-white/95 backdrop-blur-sm lg:top-14">
         {tabs.map((tab) => (
           <Link
             key={tab.name}

@@ -92,39 +92,6 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
     [conversation.id, queryClient],
   );
 
-  const handleNewMessage = useCallback(
-    (msgData: { message: Message; conversationId: string }) => {
-      if (msgData.conversationId !== conversation.id) return;
-      upsertLatestMessage((latestMessages) => {
-        if (latestMessages.some((message) => message.id === msgData.message.id)) {
-          return latestMessages.map((message) =>
-            message.id === msgData.message.id ? msgData.message : message,
-          );
-        }
-
-        const optimisticIndex = latestMessages.findIndex(
-          (message) =>
-            message.id.startsWith("optimistic-") &&
-            message.senderId === msgData.message.senderId &&
-            (message.content === msgData.message.content ||
-              (message.type === msgData.message.type &&
-                message.type === "IMAGE" &&
-                message.attachments.length > 0)),
-        );
-
-        if (optimisticIndex >= 0) {
-          return latestMessages.map((message, index) =>
-            index === optimisticIndex ? msgData.message : message,
-          );
-        }
-
-        return [msgData.message, ...latestMessages];
-      });
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-    [conversation.id, queryClient, upsertLatestMessage],
-  );
-
   const handleUserTyping = useCallback(
     (data: { userId: string; username: string; conversationId: string }) => {
       if (data.conversationId !== conversation.id) return;
@@ -183,7 +150,6 @@ export default function ChatWindow({ conversation }: ChatWindowProps) {
     deleteMessage,
     reactToMessage,
   } = useChatSocket({
-    onNewMessage: handleNewMessage,
     onUserTyping: handleUserTyping,
     onUserStopTyping: handleUserStopTyping,
     onMessageRead: (data) => {

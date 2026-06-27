@@ -30,8 +30,8 @@ export default function SettingsLayout({
       : "Settings";
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-white pb-20">
-      <div className="sticky top-0 z-40 flex h-12 items-center border-b border-gray-200 bg-white px-4">
+    <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
+      <div className="sticky top-28 z-20 flex h-12 items-center border-b border-gray-200 bg-white px-4 lg:top-14">
         <button
           type="button"
           onClick={() => router.back()}
