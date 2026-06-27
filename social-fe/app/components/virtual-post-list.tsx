@@ -57,10 +57,18 @@ export default function VirtualPostList({
       return;
     }
 
-    const listTop = container.getBoundingClientRect().top + window.scrollY;
-    const viewportTop = window.scrollY - listTop - OVERSCAN_PX;
-    const viewportBottom =
-      window.scrollY - listTop + window.innerHeight + OVERSCAN_PX;
+    const scrollRoot = container.closest("[data-main-scroll]") as
+      | HTMLElement
+      | null;
+    const containerRect = container.getBoundingClientRect();
+    const rootRect = scrollRoot?.getBoundingClientRect();
+    const scrollTop = scrollRoot?.scrollTop ?? window.scrollY;
+    const viewportHeight = scrollRoot?.clientHeight ?? window.innerHeight;
+    const listTop = scrollRoot
+      ? containerRect.top - (rootRect?.top ?? 0) + scrollRoot.scrollTop
+      : containerRect.top + window.scrollY;
+    const viewportTop = scrollTop - listTop - OVERSCAN_PX;
+    const viewportBottom = scrollTop - listTop + viewportHeight + OVERSCAN_PX;
 
     let start = 0;
     while (
@@ -82,12 +90,17 @@ export default function VirtualPostList({
   }, [offsets, uniquePosts.length]);
 
   useEffect(() => {
+    const scrollRoot = containerRef.current?.closest("[data-main-scroll]") as
+      | HTMLElement
+      | null;
+    const scrollTarget = scrollRoot ?? window;
+
     updateRange();
-    window.addEventListener("scroll", updateRange, { passive: true });
+    scrollTarget.addEventListener("scroll", updateRange, { passive: true });
     window.addEventListener("resize", updateRange);
 
     return () => {
-      window.removeEventListener("scroll", updateRange);
+      scrollTarget.removeEventListener("scroll", updateRange);
       window.removeEventListener("resize", updateRange);
     };
   }, [updateRange]);

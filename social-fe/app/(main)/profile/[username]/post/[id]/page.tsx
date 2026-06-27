@@ -38,7 +38,7 @@ export default function PostDetailPage() {
 
   return (
     <>
-      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-2">
+      <div className="sticky top-28 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-2 lg:top-14">
         <button
           onClick={() => router.back()}
           className="p-2 mr-4 hover:bg-gray-100 rounded-full transition cursor-pointer"

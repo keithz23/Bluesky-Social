@@ -6,7 +6,7 @@ export default function ChatLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full bg-white h-screen overflow-hidden">
+    <div className="h-[calc(100dvh-7rem)] w-full overflow-hidden bg-white lg:h-[calc(100dvh-3.5rem)]">
       {children}
     </div>
   );
