@@ -4,6 +4,7 @@ import { infiniteQueryOptions } from "./infinite-query-options";
 
 export function useMessages(conversationId: string | undefined) {
   return useInfiniteQuery({
+    ...infiniteQueryOptions,
     queryKey: ["messages", conversationId],
     queryFn: ({ pageParam }) =>
       ChatService.getMessages(conversationId!, {
@@ -13,6 +14,9 @@ export function useMessages(conversationId: string | undefined) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!conversationId,
-    ...infiniteQueryOptions,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }

@@ -291,24 +291,26 @@ export default function MessageBubble({
                 </div>
                 <DropdownMenuSeparator />
                 {isOwn && !message.id.startsWith("optimistic-") && (
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setEditContent(message.content ?? "");
-                      setIsEditing(true);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditContent(message.content ?? "");
+                        setIsEditing(true);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onDelete?.(message.id)}
+                      className="cursor-pointer text-red-500 focus:text-red-500"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
                 )}
-                <DropdownMenuItem
-                  onClick={() => onDelete?.(message.id)}
-                  className="cursor-pointer text-red-500 focus:text-red-500"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
