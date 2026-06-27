@@ -50,7 +50,7 @@ export default function ConversationItem({
     } else if (lastMsg.type === "IMAGE") {
       preview = lastMsg.attachments?.length ? "Sent a photo" : "Sent a GIF";
     } else if (lastMsg.type === "STICKER") {
-      preview = `Sent a sticker ${lastMsg.content ?? ""}`;
+      preview = "Sent a sticker";
     } else {
       preview = lastMsg.content ?? "";
     }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogTrigger,
@@ -296,15 +296,15 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
     const payload = hasImages
       ? {
-          content: postText,
-          replyPrivacy: privacyData,
-          images: selectedImages.map((img) => img.file), // File[]
-        }
+        content: postText,
+        replyPrivacy: privacyData,
+        images: selectedImages.map((img) => img.file), // File[]
+      }
       : {
-          content: postText,
-          replyPrivacy: privacyData,
-          gifUrl: selectedGif ?? undefined, // string | undefined
-        };
+        content: postText,
+        replyPrivacy: privacyData,
+        gifUrl: selectedGif ?? undefined, // string | undefined
+      };
 
     createPost.mutate(payload, {
       onSuccess: () => {
@@ -369,11 +369,10 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                   <Button
                     onClick={handleCreatePost}
                     disabled={isSubmitDisabled}
-                    className={`rounded-full font-medium px-5 h-9 shadow-none transition-colors ${
-                      !isSubmitDisabled
+                    className={`rounded-full font-medium px-5 h-9 shadow-none transition-colors ${!isSubmitDisabled
                         ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
                         : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
-                    }`}
+                      }`}
                   >
                     {createPost.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -441,11 +440,10 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                             key={user.id}
                             onClick={() => insertMention(user.username)}
                             onMouseEnter={() => setActiveIndex(i)}
-                            className={`relative flex cursor-pointer select-none items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none transition-colors ${
-                              i === activeIndex
+                            className={`relative flex cursor-pointer select-none items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none transition-colors ${i === activeIndex
                                 ? "bg-accent text-accent-foreground"
                                 : "hover:bg-accent hover:text-accent-foreground"
-                            }`}
+                              }`}
                           >
                             <Avatar data={user} className="w-8 h-8" />
                             <div className="flex flex-col min-w-0">
@@ -596,11 +594,10 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                         ? "Maximum of 4 images reached"
                         : "Add images"
                   }
-                  className={`p-1.5 rounded-full transition-colors ${
-                    imageDisabled
+                  className={`p-1.5 rounded-full transition-colors ${imageDisabled
                       ? "opacity-40 cursor-not-allowed text-gray-400"
                       : "hover:bg-blue-50 text-[#0066FF] cursor-pointer"
-                  }`}
+                    }`}
                 >
                   <ImageIcon className="w-5.5 h-5.5" />
                 </button>
@@ -616,18 +613,16 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                       ? "Remove images before adding a GIF"
                       : "Add a GIF"
                   }
-                  className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${
-                    gifDisabled
+                  className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${gifDisabled
                       ? "opacity-40 cursor-not-allowed"
                       : "hover:bg-blue-50 cursor-pointer"
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`border-2 rounded-lg text-[10px] font-bold w-5.5 h-5.5 flex items-center justify-center ${
-                      gifDisabled
+                    className={`border-2 rounded-lg text-[10px] font-bold w-5.5 h-5.5 flex items-center justify-center ${gifDisabled
                         ? "border-gray-400 text-gray-400"
                         : "border-[#0066FF] text-[#0066FF]"
-                    }`}
+                      }`}
                   >
                     GIF
                   </div>
@@ -646,7 +641,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                 <button className="text-[#0066FF] font-medium text-[15px] hover:underline">
                   English
                 </button>
-              <span className="text-gray-900 text-[15px]">
+                <span className="text-gray-900 text-[15px]">
                   {MAX_POST_LENGTH - postText.length}
                 </span>
                 <div className="w-7 h-7 rounded-full border border-gray-200"></div>
