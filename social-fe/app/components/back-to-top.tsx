@@ -1,31 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function BackToTop() {
+type BackToTopProps = {
+  scrollContainerRef?: RefObject<HTMLElement | null>;
+};
+
+export default function BackToTop({ scrollContainerRef }: BackToTopProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const scrollContainer = scrollContainerRef?.current;
+
     const toggleVisibility = () => {
-      if (window.scrollY > 300) {
+      const scrollTop = scrollContainer?.scrollTop ?? window.scrollY;
+
+      if (scrollTop > 300) {
         setIsVisible(true);
       } else {
         setIsVisible(false);
       }
     };
 
-    window.addEventListener("scroll", toggleVisibility);
-    return () => window.removeEventListener("scroll", toggleVisibility);
-  }, []);
+    toggleVisibility();
+
+    const target = scrollContainer ?? window;
+    target.addEventListener("scroll", toggleVisibility, { passive: true });
+
+    return () => target.removeEventListener("scroll", toggleVisibility);
+  }, [scrollContainerRef]);
 
   const scrollToTop = () => {
-    window.scrollTo({
+    const scrollContainer = scrollContainerRef?.current;
+    const options: ScrollToOptions = {
       top: 0,
       behavior: "smooth",
-    });
+    };
+
+    if (scrollContainer) {
+      scrollContainer.scrollTo(options);
+      return;
+    }
+
+    window.scrollTo(options);
   };
 
   return (
