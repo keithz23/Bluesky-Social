@@ -1,34 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { ImageIcon, Laugh, SendHorizontal, Sticker, X } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { GiphyFetch } from "@giphy/js-fetch-api";
+import { Grid } from "@giphy/react-components";
+import EmojiPicker from "emoji-picker-react";
+import { ImageIcon, SendHorizontal, Sticker, X } from "lucide-react";
 import { MessageType } from "@/app/interfaces/chat.interface";
 
-const STICKERS = [
-  "\u{1F44D}",
-  "\u{2764}\u{FE0F}",
-  "\u{1F602}",
-  "\u{1F525}",
-  "\u{1F389}",
-  "\u{1F60E}",
-  "\u{1F979}",
-  "\u{1F64F}",
-];
+const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 
-const GIFS = [
-  {
-    label: "Nice",
-    url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbnFvOXlkY3NpMHhpbjU1cGVkdWQxdTRveHI1dGVubm0zZ2RkYWpjdiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/111ebonMs90YLu/giphy.gif",
-  },
-  {
-    label: "Haha",
-    url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExa3FzcGh3Nm52YWNqdHg2ZG9kdWk1cHJ1bHMybHB0bnQxbmJtMmQ0ZSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/10JhviFuU2gWD6/giphy.gif",
-  },
-  {
-    label: "Done",
-    url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG9ubml6a2tlaWszb2cwbDFrMTR6N3B3emI1Z3IxNG80Z2Ztd3hwZSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/l0MYt5jPR6QX5pnqM/giphy.gif",
-  },
-];
+type ActivePanel = "stickers" | "gifs" | null;
 
 interface MessageInputProps {
   onSend: (content: string, type?: MessageType) => void;
@@ -46,14 +27,34 @@ export default function MessageInput({
   disabled,
 }: MessageInputProps) {
   const [value, setValue] = useState("");
-  const [activePanel, setActivePanel] = useState<"sticker" | "gif" | null>(
-    null,
-  );
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchGifs = useCallback(
+    (offset: number) => gf.trending({ offset, limit: 10 }),
+    [],
+  );
+
+  const stopTypingNow = useCallback(() => {
+    if (typingDebounceRef.current) {
+      clearTimeout(typingDebounceRef.current);
+      typingDebounceRef.current = null;
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      onStopTyping();
+    }
+  }, [onStopTyping]);
 
   const handleTyping = useCallback(() => {
     if (!isTypingRef.current && !typingDebounceRef.current) {
@@ -64,49 +65,29 @@ export default function MessageInput({
       }, 500);
     }
 
-    if (isTypingRef.current) {
-      isTypingRef.current = true;
-    }
-
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      if (typingDebounceRef.current) {
-        clearTimeout(typingDebounceRef.current);
-        typingDebounceRef.current = null;
-      }
-      isTypingRef.current = false;
-      onStopTyping();
+      stopTypingNow();
     }, 4000);
-  }, [onTyping, onStopTyping]);
+  }, [onTyping, stopTypingNow]);
 
-  useEffect(() => {
-    return () => {
-      if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      if (isTypingRef.current) onStopTyping();
-    };
-  }, [onStopTyping]);
+  useEffect(() => stopTypingNow, [stopTypingNow]);
 
-  const handleSend = () => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-
-    onSend(trimmed, "TEXT");
-    setValue("");
-
-    if (typingDebounceRef.current) {
-      clearTimeout(typingDebounceRef.current);
-      typingDebounceRef.current = null;
-    }
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (isTypingRef.current) {
-      isTypingRef.current = false;
-      onStopTyping();
-    }
-
+  const resetTextareaHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
+  };
+
+  const handleSend = () => {
+    const trimmed = value.trim();
+    if (!trimmed || disabled) return;
+
+    onSend(trimmed, "TEXT");
+    setValue("");
+    setActivePanel(null);
+    stopTypingNow();
+    resetTextareaHeight();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -120,16 +101,13 @@ export default function MessageInput({
     setValue(e.target.value);
     handleTyping();
 
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+    e.target.style.height = "auto";
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 96)}px`;
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type.startsWith("image/")) {
+    if (file?.type.startsWith("image/")) {
       onSendImage(file);
     }
 
@@ -138,13 +116,19 @@ export default function MessageInput({
   };
 
   const handleSendSticker = (sticker: string) => {
+    if (disabled) return;
     onSend(sticker, "STICKER");
     setActivePanel(null);
   };
 
   const handleSendGif = (url: string) => {
+    if (disabled) return;
     onSend(url, "IMAGE");
     setActivePanel(null);
+  };
+
+  const togglePanel = (panel: Exclude<ActivePanel, null>) => {
+    setActivePanel((current) => (current === panel ? null : panel));
   };
 
   const hasContent = value.trim().length > 0;
@@ -152,10 +136,10 @@ export default function MessageInput({
   return (
     <div className="relative border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur">
       {activePanel && (
-        <div className="absolute bottom-full left-3 mb-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute bottom-full left-3 z-40 mb-2 w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-900">
-              {activePanel === "sticker" ? "Stickers" : "GIFs"}
+              {activePanel === "stickers" ? "Stickers" : "GIFs"}
             </span>
             <button
               type="button"
@@ -167,38 +151,25 @@ export default function MessageInput({
             </button>
           </div>
 
-          {activePanel === "sticker" ? (
-            <div className="grid grid-cols-4 gap-2">
-              {STICKERS.map((sticker) => (
-                <button
-                  key={sticker}
-                  type="button"
-                  className="flex h-12 items-center justify-center rounded-xl bg-slate-50 text-2xl transition hover:bg-primary/10"
-                  onClick={() => handleSendSticker(sticker)}
-                >
-                  {sticker}
-                </button>
-              ))}
+          {activePanel === "stickers" ? (
+            <div className="overflow-hidden rounded-xl">
+              <EmojiPicker
+                onEmojiClick={(emoji) => handleSendSticker(emoji.emoji)}
+                searchDisabled
+                skinTonesDisabled
+              />
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {GIFS.map((gif) => (
-                <button
-                  key={gif.url}
-                  type="button"
-                  className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50 text-left transition hover:border-primary/30"
-                  onClick={() => handleSendGif(gif.url)}
-                  title={gif.label}
-                >
-                  <img
-                    src={gif.url}
-                    alt={gif.label}
-                    className="h-20 w-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </button>
-              ))}
+            <div className="h-[350px] overflow-y-auto rounded-xl">
+              <Grid
+                width={296}
+                columns={2}
+                fetchGifs={fetchGifs}
+                onGifClick={(gif, e) => {
+                  e.preventDefault();
+                  handleSendGif(gif.images.original.url);
+                }}
+              />
             </div>
           )}
         </div>
@@ -211,6 +182,7 @@ export default function MessageInput({
         className="hidden"
         onChange={handleImageChange}
       />
+
       <div className="flex items-end gap-2">
         <div className="flex h-11 shrink-0 items-center gap-1">
           <button
@@ -219,33 +191,36 @@ export default function MessageInput({
             title="Add image"
             aria-label="Add image"
             disabled={disabled}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              setActivePanel(null);
+              fileInputRef.current?.click();
+            }}
           >
             <ImageIcon className="h-4.5 w-4.5" />
           </button>
+
           <button
             type="button"
             className="app-icon-button size-8"
             title="Add sticker"
             aria-label="Add sticker"
             disabled={disabled}
-            onClick={() =>
-              setActivePanel((panel) => (panel === "sticker" ? null : "sticker"))
-            }
+            onClick={() => togglePanel("stickers")}
           >
             <Sticker className="h-4.5 w-4.5" />
           </button>
+
           <button
             type="button"
             className="app-icon-button size-8"
             title="Add GIF"
             aria-label="Add GIF"
             disabled={disabled}
-            onClick={() =>
-              setActivePanel((panel) => (panel === "gif" ? null : "gif"))
-            }
+            onClick={() => togglePanel("gifs")}
           >
-            <Laugh className="h-4.5 w-4.5" />
+            <span className="rounded-md border border-current px-1 py-0.5 text-[10px] font-bold leading-none">
+              GIF
+            </span>
           </button>
         </div>
 
@@ -263,15 +238,16 @@ export default function MessageInput({
         </div>
 
         <button
+          type="button"
           onClick={handleSend}
           disabled={!hasContent || disabled}
           className={`flex size-11 shrink-0 items-center justify-center rounded-full transition-colors ${
-            hasContent
-              ? "bg-primary text-white hover:bg-primary/90 cursor-pointer"
-              : "bg-slate-100 text-slate-300 cursor-default"
+            hasContent && !disabled
+              ? "cursor-pointer bg-primary text-white hover:bg-primary/90"
+              : "cursor-default bg-slate-100 text-slate-300"
           }`}
         >
-          <SendHorizontal className="w-5 h-5" />
+          <SendHorizontal className="h-5 w-5" />
         </button>
       </div>
     </div>
