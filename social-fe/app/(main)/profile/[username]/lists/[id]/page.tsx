@@ -74,9 +74,9 @@ export default function ListDetailPage() {
 
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-white pb-20 relative">
+      <div className="relative flex min-h-[calc(100dvh-7rem)] flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
         {/* --- HEADER --- */}
-        <div className="sticky top-0 z-50 h-14 bg-white/90 backdrop-blur-md flex items-center justify-between px-4 border-b border-gray-100">
+        <div className="sticky top-28 z-20 h-14 bg-white/90 backdrop-blur-md flex items-center justify-between px-4 border-b border-gray-100 lg:top-14">
           <button
             onClick={() => router.back()}
             className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
@@ -133,7 +133,7 @@ export default function ListDetailPage() {
         </div>
 
         {/* --- TABS NAV --- */}
-        <div className="sticky top-14 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2">
+        <div className="sticky top-[10.5rem] z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2 lg:top-28">
           <button
             onClick={() => setActiveTab("posts")}
             className="flex-1 flex items-center justify-center h-12 relative hover:bg-gray-50 transition-colors cursor-pointer"

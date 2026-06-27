@@ -91,8 +91,8 @@ function SearchPageContent() {
     posts.length === 0;
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-white pb-20">
-      <div className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-md">
+    <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
+      <div className="sticky top-28 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-md lg:top-14">
         <div className="flex items-center gap-3 p-4">
           <button
             type="button"

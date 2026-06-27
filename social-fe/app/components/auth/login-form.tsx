@@ -1,7 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AtSign, LockKeyhole } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,25 +11,35 @@ import Link from "next/link";
 import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-// 1. Define Zod Schema
 const loginSchema = z.object({
   account: z.string().min(1, "Username or email is required"),
-  password: z.string().min(1, "Password is required"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .max(128, "Password must be at least 8 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain uppercase, lowercase, number and special character",
+    ),
 });
 
-// Type inference
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
-  // 2. Initialize Hook Form
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const googleAuthUrl = process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
+    : "";
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    mode: "onChange",
     defaultValues: {
       account: "",
       password: "",
@@ -50,114 +62,118 @@ export default function LoginForm() {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-2xl space-y-6"
-    >
-      {/* --- Account Field --- */}
-      <div className="space-y-1">
-        <Label
-          htmlFor="account"
-          className="text-xs font-semibold text-gray-500"
+    <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-4">
+      {googleAuthUrl && (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-full rounded-full border-slate-300 bg-white text-sm font-medium shadow-none hover:bg-slate-50"
+          onClick={() => {
+            window.location.href = googleAuthUrl;
+          }}
         >
-          Account
-        </Label>
+          <span className="text-base font-black text-blue-600">G</span>
+          Continue with Google
+        </Button>
+      )}
 
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <AtSign
-              className={`h-4 w-4 transition ${errors.account ? "text-red-400" : "text-gray-400 group-focus-within:text-blue-500"}`}
-            />
-          </div>
-          <input
+      {googleAuthUrl && (
+        <div className="flex items-center gap-4 py-2">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-medium uppercase text-slate-500">
+            OR
+          </span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="account" className="sr-only">
+          Email or username
+        </Label>
+        <div className="relative">
+          <Input
             id="account"
             type="text"
-            placeholder="Username or email address"
+            autoComplete="username"
+            placeholder="Email or username *"
+            aria-invalid={Boolean(errors.account)}
             {...register("account")}
-            className={`w-full bg-gray-100 border-none rounded-xl p-4 pl-10 pr-4 text-sm focus:ring-2 focus:bg-white transition
-              ${errors.account ? "focus:ring-red-500 ring-1 ring-red-500 bg-red-50" : "focus:ring-blue-500"}
+            className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+              ${errors.account ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
             `}
           />
         </div>
-        {/* Error Message */}
         {errors.account && (
-          <p className="text-red-500 text-xs mt-1 ml-1">
+          <p className="ml-1 text-xs font-medium text-red-500">
             {errors.account.message}
           </p>
         )}
       </div>
 
-      {/* --- Password Field --- */}
-      <div className="space-y-1">
-        <Label
-          htmlFor="password"
-          className="text-xs font-semibold text-gray-500"
-        >
+      <div className="space-y-1.5">
+        <Label htmlFor="password" className="sr-only">
           Password
         </Label>
-
-        <div className="relative group">
-          {/* Icon */}
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <LockKeyhole
-              className={`h-4 w-4 transition ${errors.password ? "text-red-400" : "text-gray-400 group-focus-within:text-blue-500"}`}
-            />
-          </div>
-
-          {/* Input */}
-          <input
+        <div className="relative">
+          <Input
             id="password"
-            type="password"
-            placeholder="Password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            placeholder="Password *"
+            aria-invalid={Boolean(errors.password)}
             {...register("password")}
-            className={`w-full bg-gray-100 border-none rounded-xl p-4 pl-10 pr-20 text-sm focus:ring-2 focus:bg-white transition
-              ${errors.password ? "focus:ring-red-500 ring-1 ring-red-500 bg-red-50" : "focus:ring-blue-500"}
+            className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 pr-12 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+              ${errors.password ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
             `}
           />
 
-          <Link href={"/forgot"}>
-            <button
-              type="button"
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-200 px-2 py-1 rounded-md cursor-pointer transition"
-            >
-              Forgot?
-            </button>
-          </Link>
+          <button
+            type="button"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            onClick={() => setShowPassword((current) => !current)}
+            className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-200"
+            tabIndex={1}
+          >
+            {showPassword ? (
+              <EyeOff className="size-5" />
+            ) : (
+              <Eye className="size-5" />
+            )}
+          </button>
         </div>
-
-        {/* Error Message */}
         {errors.password && (
-          <p className="text-red-500 text-xs mt-1 ml-1">
+          <p className="ml-1 text-xs font-medium text-red-500">
             {errors.password.message}
           </p>
         )}
       </div>
 
-      {/* --- Buttons --- */}
-      <div className="flex items-center justify-between pt-4">
-        <Link href={"/"}>
-          <button
-            type="button"
-            className="px-6 py-2.5 rounded-full bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition cursor-pointer"
-          >
-            Back
-          </button>
+      <div className="space-y-3 pt-2 text-sm">
+        <Link href="/forgot" className="font-medium text-blue-600 hover:underline" tabIndex={1}>
+          Forgot password?
         </Link>
-
-        <button
-          type="submit"
-          className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-sm cursor-pointer"
-          disabled={isLoggingIn}
-        >
-          {isLoggingIn ? (
-            <div className="flex items-center gap-x-3">
-              <Spinner /> Processing
-            </div>
-          ) : (
-            "Next"
-          )}
-        </button>
+        <p className="text-slate-700">
+          New to Konekt?{" "}
+          <Link href="/signup" className="font-medium text-blue-600 hover:underline" tabIndex={1}>
+            Sign Up
+          </Link>
+        </p>
       </div>
+
+      <Button
+        type="submit"
+        className="mt-2 h-12 w-full rounded-full bg-blue-600 font-bold text-white shadow-none hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
+        disabled={isLoggingIn || !isValid}
+      >
+        {isLoggingIn ? (
+          <>
+            <Spinner /> Processing
+          </>
+        ) : (
+          "Log In"
+        )}
+      </Button>
     </form>
   );
 }
