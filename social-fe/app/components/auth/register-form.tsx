@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AtSign, Calendar, LockKeyhole } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -11,9 +13,6 @@ import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
 
-// --- SCHEMAS ---
-
-// Schema Step 1: Account Info
 const step1Schema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email address"),
 
@@ -32,7 +31,6 @@ const step1Schema = z.object({
   }, "You must be at least 13 years old"),
 });
 
-// Schema Step 2: Username
 const step2Schema = z.object({
   username: z
     .string()
@@ -40,7 +38,6 @@ const step2Schema = z.object({
     .regex(/^[a-zA-Z0-9]+$/, "Username can only contain letters and numbers"),
 });
 
-// Types
 type Step1Values = z.infer<typeof step1Schema>;
 type Step2Values = z.infer<typeof step2Schema>;
 
@@ -73,7 +70,7 @@ export default function RegisterFlow() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full">
       {step === 1 && (
         <Step1Form
           defaultValues={formData as Step1Values}
@@ -92,7 +89,6 @@ export default function RegisterFlow() {
   );
 }
 
-// --- COMPONENT STEP 1 ---
 function Step1Form({
   onNext,
   defaultValues,
@@ -103,9 +99,10 @@ function Step1Form({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm<Step1Values>({
     resolver: zodResolver(step1Schema),
+    mode: "onChange",
     defaultValues: {
       email: defaultValues?.email || "",
       password: defaultValues?.password || "",
@@ -116,101 +113,100 @@ function Step1Form({
   return (
     <form
       onSubmit={handleSubmit(onNext)}
-      className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300"
+      className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300"
     >
-      <div className="space-y-1">
-        <span className="text-gray-500 font-medium">Step 1 of 2</span>
-        <h1 className="text-2xl text-gray-900 font-bold">Your account</h1>
-      </div>
-
-      <div className="pt-2">
-        <p className="text-gray-500">
-          You are creating an account on{" "}
-          <span className="text-gray-700 font-semibold">Bluesky Social</span>
+      <div className="space-y-1 text-center">
+        <span className="text-sm font-medium text-slate-500">Step 1 of 2</span>
+        <p className="text-sm font-medium text-slate-700">
+          Create your Konekt account.
         </p>
       </div>
 
-      <div className="space-y-4">
-        {/* Email */}
-        <div className="space-y-1">
-          <Label className="text-xs font-bold text-gray-500 uppercase">
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <Label className="sr-only" htmlFor="signup-email">
             Email
           </Label>
-          <div className="relative group">
-            <AtSign className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
-            <input
+          <div className="relative">
+            <AtSign className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+            <Input
+              id="signup-email"
               type="text"
-              placeholder="Enter your email address"
+              autoComplete="email"
+              placeholder="Email *"
+              aria-invalid={Boolean(errors.email)}
               {...register("email")}
-              className={`w-full bg-gray-100/50 border-none rounded-xl p-4 pl-10 pr-4 text-sm focus:ring-2 focus:bg-white transition ${errors.email ? "ring-2 ring-red-500 bg-red-50" : "focus:ring-blue-500"}`}
+              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] pl-11 pr-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35 ${errors.email ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
             />
           </div>
           {errors.email && (
-            <p className="text-red-500 text-xs font-medium">
+            <p className="ml-1 text-xs font-medium text-red-500">
               {errors.email.message}
             </p>
           )}
         </div>
 
-        {/* Password */}
-        <div className="space-y-1">
-          <Label className="text-xs font-bold text-gray-500 uppercase">
+        <div className="space-y-1.5">
+          <Label className="sr-only" htmlFor="signup-password">
             Password
           </Label>
-          <div className="relative group">
-            <LockKeyhole className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
-            <input
+          <div className="relative">
+            <LockKeyhole className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+            <Input
+              id="signup-password"
               type="password"
-              placeholder="Password"
+              autoComplete="new-password"
+              placeholder="Password *"
+              aria-invalid={Boolean(errors.password)}
               {...register("password")}
-              className={`w-full bg-gray-100/50 border-none rounded-xl p-4 pl-10 pr-4 text-sm focus:ring-2 focus:bg-white transition ${errors.password ? "ring-2 ring-red-500 bg-red-50" : "focus:ring-blue-500"}`}
+              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] pl-11 pr-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35 ${errors.password ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
             />
           </div>
           {errors.password && (
-            <p className="text-red-500 text-xs font-medium">
+            <p className="ml-1 text-xs font-medium text-red-500">
               {errors.password.message}
             </p>
           )}
         </div>
 
-        {/* Date of Birth */}
-        <div className="space-y-1">
-          <Label className="text-xs font-bold text-gray-500 uppercase">
+        <div className="space-y-1.5">
+          <Label className="sr-only" htmlFor="signup-date-of-birth">
             Your birth date
           </Label>
-          <div className="relative group">
-            <Calendar className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
-            <input
+          <div className="relative">
+            <Calendar className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+            <Input
+              id="signup-date-of-birth"
               type="date"
+              aria-invalid={Boolean(errors.dateOfBirth)}
               {...register("dateOfBirth")}
-              className={`w-full bg-gray-100/50 border-none rounded-xl p-4 pl-10 pr-4 text-sm focus:ring-2 focus:bg-white transition ${errors.dateOfBirth ? "ring-2 ring-red-500 bg-red-50" : "focus:ring-blue-500"}`}
+              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] pl-11 pr-4 text-base font-medium shadow-none focus-visible:bg-white focus-visible:ring-blue-600/35 ${errors.dateOfBirth ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
             />
           </div>
           {errors.dateOfBirth && (
-            <p className="text-red-500 text-xs font-medium">
+            <p className="ml-1 text-xs font-medium text-red-500">
               {errors.dateOfBirth.message}
             </p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-4">
-        <Link href={"/"}>
-          <button
-            type="button"
-            className="px-6 py-2.5 rounded-full bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition cursor-pointer"
-          >
-            Back
-          </button>
-        </Link>
-
-        <button
-          type="submit"
-          className="px-8 py-2.5 rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition shadow-sm cursor-pointer"
-        >
-          Next
-        </button>
+      <div className="space-y-3 pt-2 text-sm">
+        <p className="text-slate-700">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-blue-600 hover:underline">
+            Log In
+          </Link>
+        </p>
       </div>
+
+      <Button
+        type="submit"
+        className="h-12 w-full rounded-full bg-blue-600 font-bold text-white shadow-none hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
+        disabled={!isValid}
+      >
+        Next
+      </Button>
     </form>
   );
 }
@@ -227,70 +223,73 @@ function Step2Form({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm<Step2Values>({
     resolver: zodResolver(step2Schema),
+    mode: "onChange",
   });
 
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300"
+      className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300"
     >
-      <div className="space-y-1">
-        <span className="text-gray-500 font-medium text-sm">Step 2 of 2</span>
-        <h1 className="text-2xl text-gray-900 font-bold">
-          Choose your username
-        </h1>
+      <div className="space-y-1 text-center">
+        <span className="text-sm font-medium text-slate-500">Step 2 of 2</span>
+        <p className="text-sm font-medium text-slate-700">
+          Choose your public username.
+        </p>
       </div>
 
-      <div className="pt-6 pb-20">
+      <div className="pt-2">
         <div
           className={`
-          flex items-center w-full bg-gray-100 rounded-xl px-4 py-3 border-2 transition-all
-          ${errors.username ? "border-red-500 bg-red-50" : "border-transparent focus-within:border-blue-500 focus-within:bg-white"}
+          flex h-14 w-full items-center rounded-[18px] bg-[#eef3f6] px-4 transition
+          ${errors.username ? "bg-red-50 ring-2 ring-red-500" : "focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-600/35"}
         `}
         >
-          <span className="text-gray-400 text-lg font-medium mr-1">@</span>
+          <span className="mr-1 text-lg font-medium text-slate-500">@</span>
 
           <input
             type="text"
             placeholder="username"
+            aria-invalid={Boolean(errors.username)}
             {...register("username")}
-            className="flex-1 bg-transparent border-none outline-none text-gray-900 placeholder:text-gray-400 font-medium"
+            className="flex-1 border-none bg-transparent font-medium text-slate-900 outline-none placeholder:text-slate-500"
             autoFocus
           />
         </div>
 
         {errors.username && (
-          <p className="text-red-500 text-sm mt-2 font-medium ml-1">
+          <p className="ml-1 mt-2 text-xs font-medium text-red-500">
             {errors.username.message}
           </p>
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-8 py-2.5 rounded-full bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition cursor-pointer"
-        >
-          Back
-        </button>
-
-        <button
+      <div className="space-y-3 pt-2">
+        <Button
           type="submit"
-          className="px-8 py-2.5 rounded-full bg-blue-500 text-white font-bold hover:bg-blue-600 transition shadow-sm cursor-pointer"
-          disabled={isRegistering}
+          className="h-12 w-full rounded-full bg-blue-600 font-bold text-white shadow-none hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
+          disabled={isRegistering || !isValid}
         >
           {isRegistering ? (
-            <div className="flex items-center gap-x-3">
+            <>
               <Spinner /> Processing
-            </div>
+            </>
           ) : (
-            "Next"
+            "Create account"
           )}
-        </button>
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onBack}
+          className="h-12 w-full rounded-full border-slate-300 font-bold shadow-none"
+        >
+          Back
+        </Button>
       </div>
     </form>
   );

@@ -1,21 +1,28 @@
 "use client";
-import AuthBanner from "@/app/components/auth/auth-banner";
+import AuthShell from "@/app/components/auth/auth-shell";
 import RegisterForm from "@/app/components/auth/register-form";
+import Link from "next/link";
 
 export default function RegisterPage() {
   return (
-    <>
-      <div className="min-h-screen grid grid-cols-1 md:grid-cols-3">
-        <div className="hidden md:flex col-span-1 flex-col justify-center items-end bg-[#f9fafb]">
-          <AuthBanner
-            title="Create Account"
-            description="We're so excited to have you join us!"
-          />
-        </div>
-        <div className="col-span-2 flex flex-col justify-center items-start px-12">
-          <RegisterForm />
-        </div>
-      </div>
-    </>
+    <AuthShell
+      title="Sign Up"
+      description={
+        <>
+          By continuing, you agree to our{" "}
+          <Link href="/" className="text-blue-600 hover:underline">
+            User Agreement
+          </Link>{" "}
+          and acknowledge that you understand the{" "}
+          <Link href="/" className="text-blue-600 hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </>
+      }
+      className="sm:px-16"
+    >
+      <RegisterForm />
+    </AuthShell>
   );
 }
