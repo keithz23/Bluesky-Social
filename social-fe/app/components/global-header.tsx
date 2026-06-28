@@ -98,6 +98,7 @@ function SearchAvatar({ user }: { user: Pick<User, "avatarUrl" | "username"> }) 
 function HeaderSearch() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -150,26 +151,26 @@ function HeaderSearch() {
   useEffect(() => {
     if (!isOpen) return;
 
-    const scrollY = window.scrollY;
-    const { body } = document;
-    const previousStyles = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      width: body.style.width,
+    const preventOutsideScroll = (event: WheelEvent | TouchEvent) => {
+      const target = event.target as Node;
+
+      if (dropdownRef.current?.contains(target)) {
+        return;
+      }
+
+      event.preventDefault();
     };
 
-    body.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.width = "100%";
+    document.addEventListener("wheel", preventOutsideScroll, {
+      passive: false,
+    });
+    document.addEventListener("touchmove", preventOutsideScroll, {
+      passive: false,
+    });
 
     return () => {
-      body.style.overflow = previousStyles.overflow;
-      body.style.position = previousStyles.position;
-      body.style.top = previousStyles.top;
-      body.style.width = previousStyles.width;
-      window.scrollTo(0, scrollY);
+      document.removeEventListener("wheel", preventOutsideScroll);
+      document.removeEventListener("touchmove", preventOutsideScroll);
     };
   }, [isOpen]);
 
@@ -198,7 +199,10 @@ function HeaderSearch() {
       </form>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <div
+          ref={dropdownRef}
+          className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+        >
           {!hasQuery ? (
             <div className="px-4 py-6 text-center text-sm text-slate-500">
               Search for people, posts, or hashtags.
