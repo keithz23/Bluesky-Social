@@ -43,6 +43,7 @@ export function useAuth() {
     },
     onSuccess: async (data) => {
       setAuth(data.accessToken, data.user.username, data.user.email || '')
+      qc.setQueryData(["me"], data.user);
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Glad to have you back.");
     },
