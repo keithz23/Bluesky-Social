@@ -18,11 +18,6 @@ const loginSchema = z.object({
   password: z
     .string()
     .min(1, "Password is required")
-    .max(128, "Password must be at least 8 characters")
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain uppercase, lowercase, number and special character",
-    ),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -52,7 +47,8 @@ export default function LoginForm() {
       { loginDto: data },
       {
         onSuccess: () => {
-          router.push("/");
+          router.replace("/");
+          router.refresh();
         },
         onError: (error) => {
           console.error("Login error:", error);
