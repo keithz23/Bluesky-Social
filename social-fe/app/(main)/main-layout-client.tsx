@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Bell,
   Bookmark,
   CircleUser,
-  Ellipsis,
   Hash,
   Home,
   List,
@@ -21,13 +20,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "../hooks/use-auth";
 import { useNotifications } from "../hooks/use-notifications";
 import { useUnreadMessages } from "../hooks/use-unread-messages";
@@ -372,8 +364,18 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
     notifications: unreadCount,
     messages: unreadMessagesCount,
   };
+  const isPublicRoute = pathname === "/";
+  const shouldRedirectToLogin =
+    !isLoadingProfile && !isAuthenticated && !isPublicRoute;
 
-  if (isLoadingProfile) {
+  useEffect(() => {
+    if (shouldRedirectToLogin) {
+      router.replace("/login");
+      router.refresh();
+    }
+  }, [router, shouldRedirectToLogin]);
+
+  if (isLoadingProfile || shouldRedirectToLogin) {
     return <Loading />;
   }
 
