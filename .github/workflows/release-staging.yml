@@ -195,7 +195,8 @@ jobs:
                 -d th-red.app \
                 -d www.th-red.app \
                 -d api.th-red.app \
-                -d staging.th-red.app
+                -d staging.th-red.app \
+                -d staging-api.th-red.app
             fi
 
             sudo docker-compose pull

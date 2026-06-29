@@ -141,7 +141,7 @@ export default function ProfileLayout({
       </div>
 
       {/* --- TABS --- */}
-      <div className="flex overflow-x-auto border-b border-gray-200 no-scrollbar sticky top-28 z-20 bg-white/95 backdrop-blur-sm lg:top-14">
+      <div className="flex overflow-x-auto border-b border-gray-200 no-scrollbar sticky top-14 z-20 bg-white/95 backdrop-blur-sm lg:top-14">
         {tabs.map((tab) => (
           <Link
             key={tab.name}

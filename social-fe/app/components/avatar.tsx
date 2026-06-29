@@ -1,5 +1,6 @@
 import React from "react";
 import { User } from "../interfaces/user.interface";
+import { cn } from "@/lib/utils";
 
 interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
   data: User;
@@ -11,7 +12,10 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       <div
         ref={ref}
         {...props}
-        className={`w-12 h-12 rounded-full bg-[#FF4F5A] flex items-center justify-center text-xl text-white font-bold shrink-0 overflow-hidden cursor-pointer ${className || ""}`}
+        className={cn(
+          "size-10 rounded-full bg-[#FF4F5A] flex items-center justify-center text-lg text-white font-bold shrink-0 overflow-hidden cursor-pointer sm:size-12 sm:text-xl",
+          className,
+        )}
       >
         {data?.avatarUrl ? (
           <img
