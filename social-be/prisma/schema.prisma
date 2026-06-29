@@ -22,7 +22,7 @@ model User {
   coverUrl     String? @map("cover_url")
 
   googleId    String?  @unique
-  dateOfBirth DateTime @map("date_of_birth") @db.Date
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
 
   // Status
   verified   Boolean   @default(false)
