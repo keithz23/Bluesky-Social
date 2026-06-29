@@ -13,7 +13,7 @@ export default function SavedPostsPage() {
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       {/* Header */}
-      <div className="sticky top-28 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-4 lg:top-14">
+      <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-4 lg:top-14">
         <button
           onClick={() => router.back()}
           className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"

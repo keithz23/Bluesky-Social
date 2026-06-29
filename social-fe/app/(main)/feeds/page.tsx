@@ -85,7 +85,7 @@ export default function FeedsPage() {
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       {/* --- HEADER --- */}
-      <div className="sticky top-28 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4 lg:top-14">
+      <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4 lg:top-14">
         <div className="flex items-center gap-6">
           <button
             onClick={() => router.back()}
