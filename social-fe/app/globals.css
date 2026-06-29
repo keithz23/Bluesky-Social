@@ -152,6 +152,15 @@ html {
   scrollbar-gutter: stable;
 }
 
+body {
+  scrollbar-gutter: stable;
+}
+
+body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
 .mention-highlight {
   background-color: rgba(0, 102, 255, 0.1);
   color: transparent;

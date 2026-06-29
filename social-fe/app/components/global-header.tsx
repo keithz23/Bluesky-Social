@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   Bell,
   LogOut,
+  Menu,
   PlusSquare,
   Search,
   Settings,
@@ -33,6 +34,13 @@ import { useSearchUsers } from "../hooks/use-user";
 import { useSearchPosts } from "../hooks/use-post";
 import type { Feed } from "../interfaces/feed.interface";
 import type { User } from "../interfaces/user.interface";
+
+
+type GlobalHeaderProps = {
+  canOpenMenu: boolean;
+  isMenuOpen: boolean;
+  onMenuToggle: () => void;
+};
 
 function LogoMark({
   size = 28,
@@ -337,7 +345,11 @@ function HeaderSearch() {
   );
 }
 
-export default function GlobalHeader() {
+export default function GlobalHeader({
+  canOpenMenu,
+  isMenuOpen,
+  onMenuToggle,
+}: GlobalHeaderProps) {
   const router = useRouter();
   const { user, isAuthenticated, logoutMutation } = useAuth();
   const { unreadCount } = useNotifications(isAuthenticated);
@@ -357,10 +369,24 @@ export default function GlobalHeader() {
         <Link
           href="/"
           aria-label="Konekt home"
-          className="flex h-10 w-10 shrink-0 items-center justify-center justify-self-start rounded-full hover:bg-slate-100"
+          className="hidden h-10 w-10 shrink-0 items-center justify-center justify-self-start rounded-full hover:bg-slate-100 lg:block"
         >
           <LogoMark />
         </Link>
+
+        <div className="lg:hidden sm:block">
+          {canOpenMenu && (
+            <button
+              type="button"
+              onClick={onMenuToggle}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={isMenuOpen}
+              className="cursor-pointer rounded-full p-2 text-blue-500 transition hover:bg-gray-100"
+            >
+              <Menu className="h-7 w-7" />
+            </button>
+          )}
+        </div>
 
         <HeaderSearch />
 
