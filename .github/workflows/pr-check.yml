@@ -1,0 +1,103 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  frontend:
+    name: social-fe check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: social-fe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: social-fe/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint social-fe
+        run: npm run lint --if-present
+
+      - name: Build social-fe
+        run: npm run build
+
+      - name: Run social-fe tests
+        run: npm test --if-present
+
+  backend:
+    name: social-be check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: social-be
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: social-be/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Prisma validate
+        run: npx prisma validate
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Lint social-be
+        run: npm run lint --if-present
+
+      - name: Build social-be
+        run: npm run build
+
+      - name: Run social-be tests
+        run: npm test --if-present
+
+  docker-build:
+    name: Docker build check
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build social-fe image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./social-fe
+          push: false
+          tags: social-fe-pr-check:latest
+
+      - name: Build social-be image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./social-be
+          push: false
+          tags: social-be-pr-check:latest
