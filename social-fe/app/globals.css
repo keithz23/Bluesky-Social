@@ -156,9 +156,19 @@ body {
   scrollbar-gutter: stable;
 }
 
-body[data-scroll-locked] {
+body[data-scroll-locked][data-scroll-locked] {
+  overflow-y: scroll !important;
   margin-right: 0 !important;
   padding-right: 0 !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+body[data-scroll-locked][data-scroll-locked] .right-scroll-bar-position {
+  right: 0 !important;
+}
+
+body[data-scroll-locked][data-scroll-locked] .width-before-scroll-bar {
+  margin-right: 0 !important;
 }
 
 .mention-highlight {
