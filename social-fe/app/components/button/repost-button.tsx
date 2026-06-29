@@ -21,11 +21,11 @@ const RepostButton = ({
         if (!requireAuth()) return;
         toggleRepost();
       }}
-      className={`flex items-center gap-1 group cursor-pointer ${
+      className={`group flex cursor-pointer items-center gap-0.5 sm:gap-1 ${
         isReposted ? "text-green-600" : "text-gray-500"
       }`}
     >
-      <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
+      <div className="rounded-full p-1.5 transition-colors group-hover:bg-green-50 sm:p-2">
         <Repeat2
           size={18}
           strokeWidth={2.2}
