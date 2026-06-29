@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axiosInstance } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
-import { updatePostInCaches } from "@/lib/query-util";
+import { rollbackPostCaches, snapshotPostCaches, updatePostEverywhere } from "../utils/post-cache.util";
 
 export const useGetBookmarks = () => {
   return useQuery({
@@ -29,50 +29,26 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
       await qc.cancelQueries({ queryKey: ["userPosts"] });
       await qc.cancelQueries({ queryKey: ["bookmarks"] });
 
-      const previousFeed = qc.getQueryData(["feed"]);
-      const previousBookmarks = qc.getQueryData(["bookmarks"]);
-      const userPostsCache = qc.getQueriesData({ queryKey: ["userPosts"] });
-      const postDetailCache = qc.getQueriesData({ queryKey: ["post-detail"] });
+      const snapshot = snapshotPostCaches(qc);
 
-      const allCacheKeys = [
-        ["feed"],
-        ...postDetailCache.map(([key]) => key as any[]),
-        ...userPostsCache.map(([key]) => key as any[]),
-      ];
-
-      updatePostInCaches(qc, allCacheKeys, postId, (p) => ({
-        ...p,
+      updatePostEverywhere(qc, postId, (post) => ({
+        ...post,
         isBookmarked: !isBookmarked,
-        bookmarkCount: !isBookmarked
-          ? p.bookmarkCount + 1
-          : p.bookmarkCount - 1,
-      }));
+        bookmarkCount: Math.max(0, post.bookmarkCount + (!isBookmarked ? 1 : -1)),
+      }))
 
-      qc.setQueryData(["bookmarks"], (old: any) => {
-        if (!old) return old;
-        return isBookmarked
-          ? old.filter((b: any) => b.post.id !== postId)
-          : old;
-      });
-
-      return { previousFeed, previousBookmarks, userPostsCache, postDetailCache };
+      return snapshot;
     },
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
     },
 
-    onError: (_err, _vars, context) => {
-      if (context?.previousFeed)
-        qc.setQueryData(["feed"], context.previousFeed);
-      if (context?.previousBookmarks)
-        qc.setQueryData(["bookmarks"], context.previousBookmarks);
-      context?.postDetailCache?.forEach(([queryKey, data]) => {
-        qc.setQueryData(queryKey, data);
-      });
-      context?.userPostsCache?.forEach(([queryKey, data]) => {
-        qc.setQueryData(queryKey, data);
-      });
+    onError: (_err, _vars, snapshot) => {
+      if (snapshot) rollbackPostCaches(qc, snapshot);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["post-detail"] });
     },
   });
 };
