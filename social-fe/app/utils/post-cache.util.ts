@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { Feed } from "@/app/interfaces/feed.interface";
+import { updateBookmarkCache, updatePostInCaches } from "@/lib/query-util";
 
 type InfinitePostsData = {
   pages: Array<{
@@ -12,10 +13,50 @@ type InfinitePostsData = {
 const isFeedPost = (value: unknown): value is Feed => {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      "id" in value &&
-      "user" in value,
+    typeof value === "object" &&
+    "id" in value &&
+    "user" in value,
   );
+};
+
+export const snapshotPostCaches = (qc: QueryClient) => ({
+  feed: qc.getQueryData(["feed"]),
+  bookmark: qc.getQueryData(["bookmark"]),
+  reposts: qc.getQueryData(["reposts"]),
+  userPosts: qc.getQueriesData({ queryKey: ["userPosts"] }),
+  postDetails: qc.getQueriesData({ queryKey: ["post-detail"] })
+})
+
+export const rollbackPostCaches = (qc: QueryClient, snapshot: ReturnType<typeof snapshotPostCaches>) => {
+  qc.setQueryData(["feed"], snapshot.feed);
+  qc.setQueryData(["bookmark"], snapshot.bookmark);
+  qc.setQueryData(["reposts"], snapshot.reposts);
+
+  snapshot.userPosts.forEach(([key, data]) => qc.setQueryData(key, data));
+  snapshot.postDetails.forEach(([key, data]) => qc.setQueryData(key, data));
+}
+
+export const updatePostEverywhere = (
+  qc: QueryClient,
+  postId: string,
+  updater: (post: Feed) => Feed,
+) => {
+  const postDetailKeys = qc.getQueriesData({ queryKey: ["post-detail"] });
+  const userPostKeys = qc.getQueriesData({ queryKey: ["userPosts"] });
+
+  updatePostInCaches(
+    qc,
+    [
+      ["feed"],
+      ["reposts"],
+      ...postDetailKeys.map(([key]) => key as any[]),
+      ...userPostKeys.map(([key]) => key as any[]),
+    ],
+    postId,
+    updater,
+  );
+
+  updateBookmarkCache(qc, postId, updater);
 };
 
 export const extractCreatedPost = (payload: unknown): Feed | null => {
