@@ -24,14 +24,14 @@ export default function UserHoverCard({
       <HoverCardTrigger asChild>
         <button
           type="button"
-          className="cursor-pointer flex items-center gap-x-1"
+          className="flex min-w-0 max-w-full cursor-pointer items-center gap-x-1"
           onClick={(e) => {
             e.stopPropagation();
             handleProfileClick?.();
           }}
         >
-          {data.user.displayName}
-          <span className="text-gray-400 font-medium">
+          <span className="truncate">{data.user.displayName}</span>
+          <span className="truncate font-medium text-gray-400">
             @{data.user.username}
           </span>
         </button>
