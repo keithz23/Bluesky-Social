@@ -78,7 +78,7 @@ export class AuthService {
     private redisService: CacheService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
@@ -313,9 +313,9 @@ export class AuthService {
       // Get old image before update to delete later
       const oldUser = uploadedKeys.length
         ? await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { avatarUrl: true, coverUrl: true },
-          })
+          where: { id: userId },
+          select: { avatarUrl: true, coverUrl: true },
+        })
         : null;
 
       const user = await this.prisma.user.update({
@@ -755,6 +755,13 @@ export class AuthService {
     }
 
     if (user && user.googleId) {
+      if (!user.avatarUrl && googleUser.picture) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { avatarUrl: googleUser.picture },
+        });
+      }
+
       const tokens = await this.generateTokens(
         user.id,
         user.email,
@@ -788,7 +795,6 @@ export class AuthService {
         email: googleUser.email,
         username: username,
         googleId: googleUser.googleId,
-        dateOfBirth: '',
         avatarUrl: googleUser.picture,
         verified: true,
         displayName: username,
