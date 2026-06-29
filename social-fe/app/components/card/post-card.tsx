@@ -107,15 +107,15 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
 
   return (
     <div
-      className="p-4 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer"
+      className="border-b border-gray-100 p-3 transition hover:bg-gray-50 sm:p-4 cursor-pointer"
       onClick={handlePostDetailClick}
     >
-      <div className="flex gap-3">
+      <div className="flex min-w-0 gap-2.5 sm:gap-3">
         <AvatarHoverCard data={post} handleProfileClick={handleProfileClick} />
 
-        <div className="flex-1">
-          <div className="flex items-center gap-x-1">
-            <div className="font-bold text-[15px]">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-x-1">
+            <div className="min-w-0 truncate text-[15px] font-bold">
               <UserHoverCard
                 data={post}
                 handleProfileClick={handleProfileClick}
@@ -139,19 +139,23 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
           <PostContent content={post.content} />
 
           {post.media?.length > 0 && (
-            <Carousel opts={{ align: "start" }} className="w-full mb-3">
+            <Carousel opts={{ align: "start" }} className="mb-2 w-full sm:mb-3">
               <CarouselContent>
                 {post.media.map((m: PostMedia, i: number) => (
                   <CarouselItem
                     key={m.id}
                     className={
-                      post.media.length === 1 ? "basis-full" : "basis-[85%]"
+                      post.media.length === 1
+                        ? "basis-full"
+                        : "basis-[88%] sm:basis-[85%]"
                     }
                   >
                     <div
                       onClick={(e) => handleImageClick(e, i)}
-                      className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${
-                        post.media.length === 1 ? "aspect-video" : "h-64"
+                      className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${
+                        post.media.length === 1
+                          ? "aspect-video"
+                          : "h-56 sm:h-64"
                       }`}
                     >
                       <img
@@ -168,10 +172,10 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
           )}
 
           <div
-            className="flex items-center justify-between mt-3 text-gray-500 text-sm"
+            className="mt-2 flex items-center justify-between gap-1 overflow-hidden text-xs text-gray-500 sm:mt-3 sm:text-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-8">
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:justify-start sm:gap-8">
               <div className="flex items-center gap-1 group cursor-pointer">
                 <ReplyPostModal post={post} />
                 <span className="group-hover:text-blue-500 transition-colors">
@@ -192,7 +196,7 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-0 sm:gap-2">
               <BookMarkButton
                 postId={post.id}
                 isBookmarked={post.isBookmarked}
@@ -201,11 +205,11 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
               <button
                 type="button"
                 onClick={handleShare}
-                className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors"
+                className="cursor-pointer rounded-full p-1.5 transition-colors hover:bg-gray-100 sm:p-2"
               >
                 <Share size={18} strokeWidth={2.2} />
               </button>
-              <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
+              <div className="cursor-pointer rounded-full p-1.5 transition-colors hover:bg-gray-100 sm:p-2">
                 <PostDropDown post={post} items={dropdownItems} />
               </div>
             </div>
