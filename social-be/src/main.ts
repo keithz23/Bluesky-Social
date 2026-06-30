@@ -14,6 +14,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import { ServerOptions } from 'socket.io';
+import { createRedisOptions } from './config/redis-options';
 
 class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
@@ -24,14 +25,7 @@ class RedisIoAdapter extends IoAdapter {
 
   async connectToRedis(): Promise<void> {
     const configService = this.app.get(ConfigService);
-
-    const isElastiCache = configService.get<string>('config.redis.tls') === 'true';
-
-    const redisOptions = {
-      host: configService.get<string>('config.redis.host'),
-      port: configService.get<number>('config.redis.port'),
-      tls: isElastiCache ? { rejectUnauthorized: false } : undefined,
-    };
+    const redisOptions = createRedisOptions(configService);
 
     const pubClient = new Redis(redisOptions);
     const subClient = pubClient.duplicate();
