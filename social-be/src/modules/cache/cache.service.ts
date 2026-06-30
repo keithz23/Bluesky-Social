@@ -1,20 +1,10 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
-import { ConfigService } from '@nestjs/config';
+import { REDIS_CLIENT } from './redis-client.token';
 
 @Injectable()
-export class CacheService implements OnModuleInit {
-  private redis: Redis;
-
-  constructor(private configService: ConfigService) {}
-
-  async onModuleInit() {
-    const url = this.configService.get<string>('config.redis.url');
-    if (!url) {
-      throw new Error('Redis URL is not configured (config.redis.url)');
-    }
-    this.redis = new Redis(url);
-  }
+export class CacheService {
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   async set(key: string, value: string, ttl?: number): Promise<void> {
     if (ttl) {
@@ -44,6 +34,4 @@ export class CacheService implements OnModuleInit {
   ): Promise<void> {
     await this.redis.setex(key, seconds, value);
   }
-
-  
 }
