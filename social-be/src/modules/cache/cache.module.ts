@@ -1,9 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { createRedisOptions } from 'src/config/redis-options';
 import { CacheService } from './cache.service';
-
-export const REDIS_CLIENT = 'REDIS_CLIENT';
+import { REDIS_CLIENT } from './redis-client.token';
 
 @Global()
 @Module({
@@ -11,15 +11,16 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       inject: [ConfigService],
-      useFactory: (cfg: ConfigService) =>
-        new Redis({
-          host: cfg.get<string>('config.redis.host'),
-          port: Number(cfg.get<number>('config.redis.port')),
+      useFactory: (cfg: ConfigService) => {
+        return new Redis(
+          createRedisOptions(cfg, {
           maxRetriesPerRequest: 3,
-        }),
+          }),
+        );
+      },
     },
     CacheService,
   ],
   exports: [REDIS_CLIENT, CacheService],
 })
-export class CacheModule {}
+export class CacheModule { }
