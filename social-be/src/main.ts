@@ -87,10 +87,12 @@ async function bootstrap() {
   // Swagger documentation
   setupSwagger(app);
 
-  // Setup Redis Adapter globally
-  const redisIoAdapter = new RedisIoAdapter(app);
-  await redisIoAdapter.connectToRedis();
-  app.useWebSocketAdapter(redisIoAdapter);
+  // ElastiCache Serverless does not support PSUBSCRIBE, which is used by this adapter.
+  if (configService.get<boolean>('config.socket.redisAdapterEnabled')) {
+    const redisIoAdapter = new RedisIoAdapter(app);
+    await redisIoAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisIoAdapter);
+  }
 
   const port = configService.get('config.port');
   await app.listen(port);

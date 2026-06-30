@@ -27,6 +27,11 @@ export default registerAs('config', () => ({
     username: process.env.REDIS_USERNAME,
     password: process.env.REDIS_PASSWORD,
     tls: process.env.REDIS_TLS || false,
+    bullPrefix: process.env.REDIS_BULL_PREFIX || '{bull}',
+  },
+
+  socket: {
+    redisAdapterEnabled: process.env.SOCKET_REDIS_ADAPTER_ENABLED !== 'false',
   },
 
   ttl: {
