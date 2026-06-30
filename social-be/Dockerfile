@@ -15,6 +15,14 @@ COPY . .
 
 RUN npm run build
 
+RUN npx tsc prisma/seed-perf.ts \
+  --outDir dist/prisma \
+  --module commonjs \
+  --target ES2023 \
+  --moduleResolution node \
+  --esModuleInterop \
+  --skipLibCheck
+
 
 FROM node:20-alpine AS production
 

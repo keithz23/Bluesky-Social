@@ -52,6 +52,7 @@ import { createRedisOptions } from './config/redis-options';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
+        prefix: configService.get<string>('config.redis.bullPrefix'),
         connection: createRedisOptions(configService, {
           maxRetriesPerRequest: null,
         }),
