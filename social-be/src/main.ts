@@ -23,10 +23,21 @@ class RedisIoAdapter extends IoAdapter {
   }
 
   async connectToRedis(): Promise<void> {
-    const pubClient = new Redis(
-      process.env.REDIS_URL || 'redis://localhost:6379',
-    );
+    const configService = this.app.get(ConfigService);
+
+    const isElastiCache = configService.get<string>('config.redis.tls') === 'true';
+
+    const redisOptions = {
+      host: configService.get<string>('config.redis.host'),
+      port: configService.get<number>('config.redis.port'),
+      tls: isElastiCache ? { rejectUnauthorized: false } : undefined,
+    };
+
+    const pubClient = new Redis(redisOptions);
     const subClient = pubClient.duplicate();
+
+    pubClient.on('error', (err) => console.error('[Redis Pub Error]', err));
+    subClient.on('error', (err) => console.error('[Redis Sub Error]', err));
 
     this.adapterConstructor = createAdapter(pubClient, subClient);
   }

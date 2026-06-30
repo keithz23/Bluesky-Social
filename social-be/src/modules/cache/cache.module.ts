@@ -11,15 +11,19 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       inject: [ConfigService],
-      useFactory: (cfg: ConfigService) =>
-        new Redis({
+      useFactory: (cfg: ConfigService) => {
+        const isElastiCache = cfg.get<string>('config.redis.tls') === 'true';
+
+        return new Redis({
           host: cfg.get<string>('config.redis.host'),
           port: Number(cfg.get<number>('config.redis.port')),
           maxRetriesPerRequest: 3,
-        }),
+          tls: isElastiCache ? { rejectUnauthorized: false } : undefined,
+        });
+      },
     },
     CacheService,
   ],
   exports: [REDIS_CLIENT, CacheService],
 })
-export class CacheModule {}
+export class CacheModule { }
