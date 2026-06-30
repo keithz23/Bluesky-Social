@@ -9,6 +9,12 @@ A full-stack social networking application with a Next.js frontend and a NestJS 
 - Infrastructure: Docker Compose, Nginx, PostgreSQL, Redis
 - Storage and mail integrations: S3-compatible object storage, Nodemailer
 
+## AWS Deployment Flow
+
+![AWS ECS production baseline flow](assets/flowchart.png)
+
+> Note: The current AWS deployment is a production baseline designed around AWS Free Tier oriented resources. It is suitable for validating the deployment flow and small-scale usage, but it is not yet a high-scale or highly available production architecture.
+
 ## Repository Structure
 
 ```text
@@ -90,6 +96,18 @@ AWS_BUCKET_NAME=
 AWS_ENDPOINT=
 CLOUDFRONT_DOMAIN=
 ```
+
+For the current AWS Free Tier oriented deployment, the backend uses ElastiCache with TLS enabled and disables the Socket.IO Redis adapter:
+
+```env
+REDIS_TLS=true
+REDIS_BULL_PREFIX={bull}
+SOCKET_REDIS_ADAPTER_ENABLED=false
+```
+
+- `REDIS_TLS=true` enables TLS for AWS ElastiCache connections.
+- `REDIS_BULL_PREFIX={bull}` keeps BullMQ keys in the same Redis cluster hash slot.
+- `SOCKET_REDIS_ADAPTER_ENABLED=false` avoids `PSUBSCRIBE`, which is not supported by ElastiCache Serverless. Redis is still used for cache, OTP storage, and BullMQ queues. With this adapter disabled, Socket.IO is intended for a single backend task; use a compatible Redis/Valkey setup before scaling realtime sockets across multiple backend tasks.
 
 ### Frontend: `social-fe/.env`
 
