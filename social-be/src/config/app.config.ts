@@ -24,6 +24,9 @@ export default registerAs('config', () => ({
     host: process.env.REDIS_HOST || 'localhost',
     port: process.env.REDIS_PORT || 6380,
     url: process.env.REDIS_URL || 'redis://localhost:6380',
+    username: process.env.REDIS_USERNAME,
+    password: process.env.REDIS_PASSWORD,
+    tls: process.env.REDIS_TLS || false,
   },
 
   ttl: {

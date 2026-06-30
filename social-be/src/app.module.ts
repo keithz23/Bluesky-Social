@@ -28,6 +28,7 @@ import { ListsModule } from './modules/lists/lists.module';
 import { ListsMemberModule } from './modules/lists-member/lists-member.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
+import { createRedisOptions } from './config/redis-options';
 
 @Module({
   imports: [
@@ -51,11 +52,9 @@ import { ModerationModule } from './modules/moderation/moderation.module';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('config.redis.host') || 'localhost',
-          port: Number(configService.get('config.redis.port') || 6379),
-          password: configService.get<string>('config.redis.password'),
-        },
+        connection: createRedisOptions(configService, {
+          maxRetriesPerRequest: null,
+        }),
         defaultJobOptions: {
           attempts: 3,
           backoff: {
