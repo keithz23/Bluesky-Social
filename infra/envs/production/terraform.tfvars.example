@@ -12,7 +12,6 @@ backend_image  = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-be:la
 jwt_secret         = "change-me"
 jwt_refresh_secret = "change-me-too"
 
-redis_host = "social-elasticache-xxxxx.serverless.apse1.cache.amazonaws.com"
 redis_port = 6379
 
 s3_media_bucket_name        = "social-media-production"
