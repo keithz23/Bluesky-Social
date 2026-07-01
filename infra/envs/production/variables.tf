@@ -143,6 +143,28 @@ variable "jwt_refresh_secret" {
   }
 }
 
+variable "google_client_id" {
+  type      = string
+  sensitive = true
+  default   = ""
+
+  validation {
+    condition     = length(trimspace(var.google_client_id)) > 0
+    error_message = "google_client_id is required. Set GitHub secret PROD_GOOGLE_CLIENT_ID."
+  }
+}
+
+variable "google_client_secret" {
+  type      = string
+  sensitive = true
+  default   = ""
+
+  validation {
+    condition     = length(trimspace(var.google_client_secret)) > 0
+    error_message = "google_client_secret is required. Set GitHub secret PROD_GOOGLE_CLIENT_SECRET."
+  }
+}
+
 variable "redis_port" {
   type    = number
   default = 6379

@@ -11,6 +11,8 @@ backend_image  = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-be:la
 
 jwt_secret         = "change-me"
 jwt_refresh_secret = "change-me-too"
+google_client_id     = "google-client-id"
+google_client_secret = "google-client-secret"
 
 redis_port = 6379
 
