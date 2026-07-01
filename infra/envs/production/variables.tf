@@ -27,6 +27,11 @@ variable "certificate_arn" {
   description = "ACM certificate ARN used by the ALB HTTPS listener."
   type        = string
   default     = ""
+
+  validation {
+    condition     = length(trimspace(var.certificate_arn)) > 0
+    error_message = "certificate_arn is required. Set GitHub secret PROD_ACM_CERTIFICATE_ARN to the ACM certificate ARN for th-red.app."
+  }
 }
 
 variable "vpc_cidr_block" {
@@ -68,12 +73,22 @@ variable "frontend_image" {
   description = "Frontend container image URI."
   type        = string
   default     = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-fe:latest"
+
+  validation {
+    condition     = length(trimspace(var.frontend_image)) > 0
+    error_message = "frontend_image must not be empty."
+  }
 }
 
 variable "backend_image" {
   description = "Backend container image URI."
   type        = string
   default     = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-be:latest"
+
+  validation {
+    condition     = length(trimspace(var.backend_image)) > 0
+    error_message = "backend_image must not be empty."
+  }
 }
 
 variable "frontend_desired_count" {
@@ -106,23 +121,26 @@ variable "backend_memory" {
   default = 1024
 }
 
-variable "database_url" {
-  description = "Production PostgreSQL DATABASE_URL. Prefer moving this to Secrets Manager/SSM before enabling apply in CI."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "jwt_secret" {
   type      = string
   sensitive = true
   default   = ""
+
+  validation {
+    condition     = length(trimspace(var.jwt_secret)) > 0
+    error_message = "jwt_secret is required. Set GitHub secret PROD_JWT_SECRET."
+  }
 }
 
 variable "jwt_refresh_secret" {
   type      = string
   sensitive = true
   default   = ""
+
+  validation {
+    condition     = length(trimspace(var.jwt_refresh_secret)) > 0
+    error_message = "jwt_refresh_secret is required. Set GitHub secret PROD_JWT_REFRESH_SECRET."
+  }
 }
 
 variable "redis_host" {
@@ -154,6 +172,11 @@ variable "rds_password" {
   type      = string
   sensitive = true
   default   = ""
+
+  validation {
+    condition     = length(var.rds_password) >= 8
+    error_message = "rds_password must be at least 8 characters. Set GitHub secret PROD_RDS_PASSWORD."
+  }
 }
 
 variable "rds_instance_class" {

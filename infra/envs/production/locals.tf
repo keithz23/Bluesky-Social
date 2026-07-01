@@ -13,13 +13,14 @@ locals {
   app_subnet_keys      = ["public_a", "app_b"]
   database_subnet_keys = ["public_a", "private_b"]
 
-  cors_origin = "https://${var.domain_name},https://www.${var.domain_name}"
+  cors_origin  = "https://${var.domain_name},https://www.${var.domain_name}"
+  database_url = "postgresql://${var.rds_username}:${var.rds_password}@${aws_db_instance.postgres.address}:5432/social"
 
   backend_environment = [
     { name = "NODE_ENV", value = "production" },
     { name = "PORT", value = tostring(local.backend_port) },
     { name = "API_PREFIX", value = "api/v1" },
-    { name = "DATABASE_URL", value = var.database_url },
+    { name = "DATABASE_URL", value = local.database_url },
     { name = "REDIS_HOST", value = var.redis_host },
     { name = "REDIS_PORT", value = tostring(var.redis_port) },
     { name = "REDIS_TLS", value = "true" },
