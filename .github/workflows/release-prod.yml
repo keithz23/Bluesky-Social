@@ -159,6 +159,27 @@ jobs:
             --task-definition "$CURRENT_TASK_DEFINITION_ARN" \
             --query 'taskDefinition' > backend-current-task-definition.json
 
+          MISSING_ENV="$(jq -r \
+            --arg container "$BACKEND_CONTAINER_NAME" \
+            '[
+              "DATABASE_URL",
+              "REDIS_HOST",
+              "GOOGLE_CLIENT_ID",
+              "GOOGLE_CLIENT_SECRET",
+              "GOOGLE_CALLBACK_URL"
+            ] as $required
+            | (.containerDefinitions[] | select(.name == $container) | .environment // []) as $env
+            | $required
+            | map(select(. as $name | any($env[]; .name == $name) | not))
+            | join(",")' \
+            backend-current-task-definition.json)"
+
+          if [ -n "$MISSING_ENV" ]; then
+            echo "Current backend task definition is missing required environment variables: $MISSING_ENV"
+            echo "Run terraform-production.yml with apply=true first, then rerun release."
+            exit 1
+          fi
+
           jq \
             --arg image "$BACKEND_IMAGE" \
             --arg container "$BACKEND_CONTAINER_NAME" \
