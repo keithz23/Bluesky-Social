@@ -108,6 +108,35 @@ jobs:
           : "${ECS_FRONTEND_SERVICE:?Set production variable PROD_ECS_FRONTEND_SERVICE_NAME}"
           : "${ECS_BACKEND_SERVICE:?Set production variable PROD_ECS_BACKEND_SERVICE_NAME}"
 
+          echo "ECS cluster: $ECS_CLUSTER"
+          echo "Frontend service: $ECS_FRONTEND_SERVICE"
+          echo "Backend service: $ECS_BACKEND_SERVICE"
+
+          SERVICES="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_FRONTEND_SERVICE" "$ECS_BACKEND_SERVICE" \
+            --output json)"
+
+          FAILURES="$(echo "$SERVICES" | jq -r '.failures[]?.reason')"
+          if [ -n "$FAILURES" ]; then
+            echo "$SERVICES" | jq .
+            echo "One or more ECS services could not be found. Check PROD_ECS_CLUSTER_NAME, PROD_ECS_FRONTEND_SERVICE_NAME, and PROD_ECS_BACKEND_SERVICE_NAME."
+            exit 1
+          fi
+
+          FRONTEND_TASK_DEFINITION="$(echo "$SERVICES" | jq -r --arg service "$ECS_FRONTEND_SERVICE" '.services[] | select(.serviceName == $service) | .taskDefinition')"
+          BACKEND_TASK_DEFINITION="$(echo "$SERVICES" | jq -r --arg service "$ECS_BACKEND_SERVICE" '.services[] | select(.serviceName == $service) | .taskDefinition')"
+
+          if [ -z "$FRONTEND_TASK_DEFINITION" ] || [ "$FRONTEND_TASK_DEFINITION" = "null" ]; then
+            echo "Frontend ECS service does not have a task definition yet."
+            exit 1
+          fi
+
+          if [ -z "$BACKEND_TASK_DEFINITION" ] || [ "$BACKEND_TASK_DEFINITION" = "null" ]; then
+            echo "Backend ECS service does not have a task definition yet."
+            exit 1
+          fi
+
       - name: Register backend task definition
         id: backend-task-definition
         env:
@@ -120,6 +149,11 @@ jobs:
             --services "$ECS_BACKEND_SERVICE" \
             --query 'services[0].taskDefinition' \
             --output text)"
+
+          if [ "$CURRENT_TASK_DEFINITION_ARN" = "None" ] || [ -z "$CURRENT_TASK_DEFINITION_ARN" ]; then
+            echo "Could not find current backend task definition. Check ECS backend service name: $ECS_BACKEND_SERVICE"
+            exit 1
+          fi
 
           aws ecs describe-task-definition \
             --task-definition "$CURRENT_TASK_DEFINITION_ARN" \
@@ -217,6 +251,11 @@ jobs:
             --services "$ECS_FRONTEND_SERVICE" \
             --query 'services[0].taskDefinition' \
             --output text)"
+
+          if [ "$CURRENT_TASK_DEFINITION_ARN" = "None" ] || [ -z "$CURRENT_TASK_DEFINITION_ARN" ]; then
+            echo "Could not find current frontend task definition. Check ECS frontend service name: $ECS_FRONTEND_SERVICE"
+            exit 1
+          fi
 
           aws ecs describe-task-definition \
             --task-definition "$CURRENT_TASK_DEFINITION_ARN" \
