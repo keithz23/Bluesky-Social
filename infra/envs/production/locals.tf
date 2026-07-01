@@ -21,7 +21,7 @@ locals {
     { name = "PORT", value = tostring(local.backend_port) },
     { name = "API_PREFIX", value = "api/v1" },
     { name = "DATABASE_URL", value = local.database_url },
-    { name = "REDIS_HOST", value = var.redis_host },
+    { name = "REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
     { name = "REDIS_PORT", value = tostring(var.redis_port) },
     { name = "REDIS_TLS", value = "true" },
     { name = "REDIS_BULL_PREFIX", value = "{bull}" },

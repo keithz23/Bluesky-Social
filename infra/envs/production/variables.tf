@@ -143,11 +143,6 @@ variable "jwt_refresh_secret" {
   }
 }
 
-variable "redis_host" {
-  type    = string
-  default = ""
-}
-
 variable "redis_port" {
   type    = number
   default = 6379
