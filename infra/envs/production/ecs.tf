@@ -102,10 +102,6 @@ resource "aws_ecs_service" "frontend" {
     container_port   = local.frontend_port
   }
 
-  lifecycle {
-    ignore_changes = [task_definition]
-  }
-
   depends_on = [aws_lb_listener.https]
 }
 
@@ -126,10 +122,6 @@ resource "aws_ecs_service" "backend" {
     target_group_arn = aws_lb_target_group.backend.arn
     container_name   = "social-be"
     container_port   = local.backend_port
-  }
-
-  lifecycle {
-    ignore_changes = [task_definition]
   }
 
   depends_on = [aws_lb_listener_rule.api]
