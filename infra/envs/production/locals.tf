@@ -31,7 +31,10 @@ locals {
     { name = "CORS_ORIGIN", value = local.cors_origin },
     { name = "CORS_CREDENTIALS", value = "true" },
     { name = "JWT_SECRET", value = var.jwt_secret },
-    { name = "JWT_REFRESH_SECRET", value = var.jwt_refresh_secret }
+    { name = "JWT_REFRESH_SECRET", value = var.jwt_refresh_secret },
+    { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
+    { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
+    { name = "GOOGLE_CALLBACK_URL", value = "https://${var.api_domain_name}/api/v1/auth/google/callback" }
   ]
 
   frontend_environment = [
