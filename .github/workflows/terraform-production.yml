@@ -44,12 +44,9 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
       TF_INPUT: "false"
       TF_VAR_certificate_arn: ${{ secrets.PROD_ACM_CERTIFICATE_ARN }}
-      TF_VAR_database_url: ${{ secrets.PROD_DATABASE_URL }}
       TF_VAR_jwt_secret: ${{ secrets.PROD_JWT_SECRET }}
       TF_VAR_jwt_refresh_secret: ${{ secrets.PROD_JWT_REFRESH_SECRET }}
       TF_VAR_rds_password: ${{ secrets.PROD_RDS_PASSWORD }}
-      TF_VAR_frontend_image: ${{ vars.PROD_FRONTEND_IMAGE }}
-      TF_VAR_backend_image: ${{ vars.PROD_BACKEND_IMAGE }}
       TF_VAR_redis_host: ${{ vars.PROD_REDIS_HOST }}
       TF_VAR_s3_media_bucket_name: ${{ vars.PROD_S3_MEDIA_BUCKET_NAME }}
       TF_VAR_redis_serverless_cache_name: ${{ vars.PROD_REDIS_SERVERLESS_CACHE_NAME }}

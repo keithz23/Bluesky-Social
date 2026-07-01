@@ -9,7 +9,6 @@ certificate_arn = "arn:aws:acm:ap-southeast-1:<account-id>:certificate/<certific
 frontend_image = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-fe:latest"
 backend_image  = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-be:latest"
 
-database_url       = "postgresql://user:password@social-db.xxxxx.ap-southeast-1.rds.amazonaws.com:5432/social"
 jwt_secret         = "change-me"
 jwt_refresh_secret = "change-me-too"
 
