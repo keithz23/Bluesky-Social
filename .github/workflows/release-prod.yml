@@ -1,23 +1,260 @@
-name: Test AWS Role
+name: Release Production
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "social-fe/**"
+      - "social-be/**"
+      - ".github/workflows/release-prod.yml"
 
 permissions:
-  id-token: write
   contents: read
+  id-token: write
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+  FRONTEND_REPOSITORY: ${{ vars.PROD_FRONTEND_ECR_REPOSITORY || 'social-fe' }}
+  BACKEND_REPOSITORY: ${{ vars.PROD_BACKEND_ECR_REPOSITORY || 'social-be' }}
+  ECS_CLUSTER: ${{ vars.PROD_ECS_CLUSTER_NAME }}
+  ECS_FRONTEND_SERVICE: ${{ vars.PROD_ECS_FRONTEND_SERVICE_NAME }}
+  ECS_BACKEND_SERVICE: ${{ vars.PROD_ECS_BACKEND_SERVICE_NAME }}
+  FRONTEND_CONTAINER_NAME: ${{ vars.PROD_FRONTEND_CONTAINER_NAME || 'social-fe' }}
+  BACKEND_CONTAINER_NAME: ${{ vars.PROD_BACKEND_CONTAINER_NAME || 'social-be' }}
+  NEXT_PUBLIC_API_URL: ${{ vars.PROD_NEXT_PUBLIC_API_URL || 'https://api.th-red.app/api/v1' }}
+  NEXT_PUBLIC_SERVER_URL: ${{ vars.PROD_NEXT_PUBLIC_SERVER_URL || 'https://api.th-red.app' }}
+  NEXT_PUBLIC_CALLBACK_URL: ${{ vars.PROD_NEXT_PUBLIC_CALLBACK_URL }}
 
 jobs:
-  test:
+  build-and-push:
+    name: Build and push images
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      frontend_image: ${{ steps.images.outputs.frontend_image }}
+      backend_image: ${{ steps.images.outputs.backend_image }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - run: aws sts get-caller-identity
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker images
+        id: images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+
+          FRONTEND_IMAGE="$ECR_REGISTRY/$FRONTEND_REPOSITORY:${{ github.sha }}"
+          FRONTEND_LATEST_IMAGE="$ECR_REGISTRY/$FRONTEND_REPOSITORY:latest"
+          BACKEND_IMAGE="$ECR_REGISTRY/$BACKEND_REPOSITORY:${{ github.sha }}"
+          BACKEND_LATEST_IMAGE="$ECR_REGISTRY/$BACKEND_REPOSITORY:latest"
+
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+            --build-arg NEXT_PUBLIC_SERVER_URL="$NEXT_PUBLIC_SERVER_URL" \
+            --build-arg NEXT_PUBLIC_CALLBACK_URL="$NEXT_PUBLIC_CALLBACK_URL" \
+            -t "$FRONTEND_IMAGE" \
+            -t "$FRONTEND_LATEST_IMAGE" \
+            ./social-fe
+
+          docker build \
+            -t "$BACKEND_IMAGE" \
+            -t "$BACKEND_LATEST_IMAGE" \
+            ./social-be
+
+          docker push "$FRONTEND_IMAGE"
+          docker push "$FRONTEND_LATEST_IMAGE"
+          docker push "$BACKEND_IMAGE"
+          docker push "$BACKEND_LATEST_IMAGE"
+
+          echo "frontend_image=$FRONTEND_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "backend_image=$BACKEND_IMAGE" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Migrate and deploy ECS
+    runs-on: ubuntu-latest
+    environment: production
+    needs:
+      - build-and-push
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate required variables
+        run: |
+          set -euo pipefail
+          : "${ECS_CLUSTER:?Set production variable PROD_ECS_CLUSTER_NAME}"
+          : "${ECS_FRONTEND_SERVICE:?Set production variable PROD_ECS_FRONTEND_SERVICE_NAME}"
+          : "${ECS_BACKEND_SERVICE:?Set production variable PROD_ECS_BACKEND_SERVICE_NAME}"
+
+      - name: Register backend task definition
+        id: backend-task-definition
+        env:
+          BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend_image }}
+        run: |
+          set -euo pipefail
+
+          CURRENT_TASK_DEFINITION_ARN="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_BACKEND_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)"
+
+          aws ecs describe-task-definition \
+            --task-definition "$CURRENT_TASK_DEFINITION_ARN" \
+            --query 'taskDefinition' > backend-current-task-definition.json
+
+          jq \
+            --arg image "$BACKEND_IMAGE" \
+            --arg container "$BACKEND_CONTAINER_NAME" \
+            'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )
+            | .containerDefinitions |= map(
+                if .name == $container then .image = $image else . end
+              )' \
+            backend-current-task-definition.json > backend-next-task-definition.json
+
+          NEXT_TASK_DEFINITION_ARN="$(aws ecs register-task-definition \
+            --cli-input-json file://backend-next-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+
+          echo "arn=$NEXT_TASK_DEFINITION_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Run Prisma migrate
+        run: |
+          set -euo pipefail
+
+          NETWORK_CONFIGURATION="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_BACKEND_SERVICE" \
+            --query 'services[0].networkConfiguration' \
+            --output json)"
+
+          TASK_ARN="$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --launch-type FARGATE \
+            --task-definition "${{ steps.backend-task-definition.outputs.arn }}" \
+            --network-configuration "$NETWORK_CONFIGURATION" \
+            --overrides "{\"containerOverrides\":[{\"name\":\"$BACKEND_CONTAINER_NAME\",\"command\":[\"sh\",\"-c\",\"npm_config_yes=true npx prisma migrate deploy\"]}]}" \
+            --query 'tasks[0].taskArn' \
+            --output text)"
+
+          if [ "$TASK_ARN" = "None" ] || [ -z "$TASK_ARN" ]; then
+            echo "Failed to start migration task."
+            exit 1
+          fi
+
+          aws ecs wait tasks-stopped \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$TASK_ARN"
+
+          EXIT_CODE="$(aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --query "tasks[0].containers[?name=='$BACKEND_CONTAINER_NAME'].exitCode | [0]" \
+            --output text)"
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$TASK_ARN" \
+              --query 'tasks[0].containers' \
+              --output json
+            exit 1
+          fi
+
+      - name: Deploy backend service
+        run: |
+          set -euo pipefail
+
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_BACKEND_SERVICE" \
+            --task-definition "${{ steps.backend-task-definition.outputs.arn }}"
+
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_BACKEND_SERVICE"
+
+      - name: Register frontend task definition
+        id: frontend-task-definition
+        env:
+          FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_image }}
+        run: |
+          set -euo pipefail
+
+          CURRENT_TASK_DEFINITION_ARN="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_FRONTEND_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)"
+
+          aws ecs describe-task-definition \
+            --task-definition "$CURRENT_TASK_DEFINITION_ARN" \
+            --query 'taskDefinition' > frontend-current-task-definition.json
+
+          jq \
+            --arg image "$FRONTEND_IMAGE" \
+            --arg container "$FRONTEND_CONTAINER_NAME" \
+            'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )
+            | .containerDefinitions |= map(
+                if .name == $container then .image = $image else . end
+              )' \
+            frontend-current-task-definition.json > frontend-next-task-definition.json
+
+          NEXT_TASK_DEFINITION_ARN="$(aws ecs register-task-definition \
+            --cli-input-json file://frontend-next-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+
+          echo "arn=$NEXT_TASK_DEFINITION_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend service
+        run: |
+          set -euo pipefail
+
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_FRONTEND_SERVICE" \
+            --task-definition "${{ steps.frontend-task-definition.outputs.arn }}"
+
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_FRONTEND_SERVICE"

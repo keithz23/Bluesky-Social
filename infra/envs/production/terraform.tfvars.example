@@ -1,0 +1,23 @@
+aws_region      = "ap-southeast-1"
+project_name    = "social"
+environment     = "production"
+domain_name     = "th-red.app"
+api_domain_name = "api.th-red.app"
+
+certificate_arn = "arn:aws:acm:ap-southeast-1:<account-id>:certificate/<certificate-id>"
+
+frontend_image = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-fe:latest"
+backend_image  = "061093365552.dkr.ecr.ap-southeast-1.amazonaws.com/social-be:latest"
+
+database_url       = "postgresql://user:password@social-db.xxxxx.ap-southeast-1.rds.amazonaws.com:5432/social"
+jwt_secret         = "change-me"
+jwt_refresh_secret = "change-me-too"
+
+redis_host = "social-elasticache-xxxxx.serverless.apse1.cache.amazonaws.com"
+redis_port = 6379
+
+s3_media_bucket_name        = "social-media-production"
+rds_identifier              = "social-db"
+rds_username                = "postgres"
+rds_password                = "change-me"
+redis_serverless_cache_name = "social-elasticache"

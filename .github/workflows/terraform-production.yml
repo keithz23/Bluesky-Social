@@ -1,0 +1,90 @@
+name: Terraform Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply the Terraform plan"
+        required: true
+        type: boolean
+        default: false
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "infra/envs/production/**"
+      - ".github/workflows/terraform-production.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/envs/production/**"
+      - ".github/workflows/terraform-production.yml"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: read
+
+concurrency:
+  group: terraform-production
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: Terraform production
+    runs-on: ubuntu-latest
+    environment: production
+
+    defaults:
+      run:
+        working-directory: infra/envs/production
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+      TF_INPUT: "false"
+      TF_VAR_certificate_arn: ${{ secrets.PROD_ACM_CERTIFICATE_ARN }}
+      TF_VAR_database_url: ${{ secrets.PROD_DATABASE_URL }}
+      TF_VAR_jwt_secret: ${{ secrets.PROD_JWT_SECRET }}
+      TF_VAR_jwt_refresh_secret: ${{ secrets.PROD_JWT_REFRESH_SECRET }}
+      TF_VAR_rds_password: ${{ secrets.PROD_RDS_PASSWORD }}
+      TF_VAR_frontend_image: ${{ vars.PROD_FRONTEND_IMAGE }}
+      TF_VAR_backend_image: ${{ vars.PROD_BACKEND_IMAGE }}
+      TF_VAR_redis_host: ${{ vars.PROD_REDIS_HOST }}
+      TF_VAR_s3_media_bucket_name: ${{ vars.PROD_S3_MEDIA_BUCKET_NAME }}
+      TF_VAR_redis_serverless_cache_name: ${{ vars.PROD_REDIS_SERVERLESS_CACHE_NAME }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -reconfigure
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform apply
+        if: github.event_name == 'workflow_dispatch' && inputs.apply == true
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform output
+        if: github.event_name == 'workflow_dispatch' && inputs.apply == true
+        run: terraform output
