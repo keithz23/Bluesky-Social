@@ -40,6 +40,8 @@ jobs:
   backend:
     name: social-be check
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/social_pr_check
 
     defaults:
       run:
