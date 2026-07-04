@@ -44,6 +44,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
       TF_INPUT: "false"
       TF_VAR_certificate_arn: ${{ secrets.PROD_ACM_CERTIFICATE_ARN }}
+      TF_VAR_cloudfront_certificate_arn: ${{ secrets.PROD_CLOUDFRONT_CERTIFICATE_ARN }}
       TF_VAR_jwt_secret: ${{ secrets.PROD_JWT_SECRET }}
       TF_VAR_jwt_refresh_secret: ${{ secrets.PROD_JWT_REFRESH_SECRET }}
       TF_VAR_google_client_id: ${{ secrets.PROD_GOOGLE_CLIENT_ID }}

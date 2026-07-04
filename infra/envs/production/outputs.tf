@@ -21,3 +21,15 @@ output "api_url" {
 output "ecs_cluster_name" {
   value = aws_ecs_cluster.main.name
 }
+
+output "cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.media.domain_name
+}
+
+output "media_domain_name" {
+  value = var.media_domain_name
+}
+
+output "media_url" {
+  value = "https://${var.media_domain_name}"
+}
