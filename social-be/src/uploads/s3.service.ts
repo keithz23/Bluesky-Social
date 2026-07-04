@@ -19,13 +19,21 @@ export class S3Service {
   constructor(private configService: ConfigService) {
     this.region = this.configService.get<string>('config.aws.region') ?? '';
     this.bucketName = this.configService.get<string>('config.aws.bucket') ?? '';
+    const accessKeyId = this.configService.get<string>('config.aws.accessKey');
+    const secretAccessKey = this.configService.get<string>(
+      'config.aws.secretAccessKey',
+    );
+
     this.s3Client = new S3Client({
       region: this.region,
-      credentials: {
-        accessKeyId: this.configService.get('config.aws.accessKey') ?? '',
-        secretAccessKey:
-          this.configService.get('config.aws.secretAccessKey') ?? '',
-      },
+      ...(accessKeyId && secretAccessKey
+        ? {
+            credentials: {
+              accessKeyId,
+              secretAccessKey,
+            },
+          }
+        : {}),
       ...(process.env.AWS_ENDPOINT
         ? {
             endpoint: process.env.AWS_ENDPOINT,

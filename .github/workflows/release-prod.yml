@@ -163,6 +163,8 @@ jobs:
             --arg container "$BACKEND_CONTAINER_NAME" \
             '[
               "DATABASE_URL",
+              "AWS_REGION",
+              "AWS_BUCKET_NAME",
               "REDIS_HOST",
               "GOOGLE_CLIENT_ID",
               "GOOGLE_CLIENT_SECRET",
