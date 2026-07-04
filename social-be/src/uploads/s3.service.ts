@@ -190,7 +190,6 @@ export class S3Service {
       Key: key,
       Body: buffer,
       ContentType: 'image/jpeg',
-      ACL: 'public-read',
     });
 
     await this.s3Client.send(command);

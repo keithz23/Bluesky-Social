@@ -23,6 +23,12 @@ variable "api_domain_name" {
   default = "api.th-red.app"
 }
 
+variable "media_domain_name" {
+  description = "Custom domain name used by CloudFront for media assets."
+  type        = string
+  default     = "img.th-red.app"
+}
+
 variable "certificate_arn" {
   description = "ACM certificate ARN used by the ALB HTTPS listener."
   type        = string
@@ -31,6 +37,17 @@ variable "certificate_arn" {
   validation {
     condition     = length(trimspace(var.certificate_arn)) > 0
     error_message = "certificate_arn is required. Set GitHub secret PROD_ACM_CERTIFICATE_ARN to the ACM certificate ARN for th-red.app."
+  }
+}
+
+variable "cloudfront_certificate_arn" {
+  description = "ACM certificate ARN in us-east-1 used by the CloudFront media distribution."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = can(regex("^arn:aws:acm:us-east-1:[0-9]{12}:certificate/.+", var.cloudfront_certificate_arn))
+    error_message = "cloudfront_certificate_arn is required and must be an ACM certificate ARN from us-east-1. Set GitHub secret PROD_CLOUDFRONT_CERTIFICATE_ARN for img.th-red.app."
   }
 }
 

@@ -165,6 +165,7 @@ jobs:
               "DATABASE_URL",
               "AWS_REGION",
               "AWS_BUCKET_NAME",
+              "CLOUDFRONT_DOMAIN",
               "REDIS_HOST",
               "GOOGLE_CLIENT_ID",
               "GOOGLE_CLIENT_SECRET",
@@ -178,8 +179,50 @@ jobs:
 
           if [ -n "$MISSING_ENV" ]; then
             echo "Current backend task definition is missing required environment variables: $MISSING_ENV"
-            echo "Run terraform-production.yml with apply=true first, then rerun release."
-            exit 1
+            echo "Searching for the latest active social-backend task definition with the required environment..."
+
+            FOUND_VALID_TASK_DEFINITION=""
+            for TASK_DEFINITION_ARN in $(aws ecs list-task-definitions \
+              --family-prefix social-backend \
+              --status ACTIVE \
+              --sort DESC \
+              --query 'taskDefinitionArns[]' \
+              --output text); do
+              aws ecs describe-task-definition \
+                --task-definition "$TASK_DEFINITION_ARN" \
+                --query 'taskDefinition' > backend-current-task-definition.json
+
+              CANDIDATE_MISSING_ENV="$(jq -r \
+                --arg container "$BACKEND_CONTAINER_NAME" \
+                '[
+                  "DATABASE_URL",
+                  "AWS_REGION",
+                  "AWS_BUCKET_NAME",
+                  "CLOUDFRONT_DOMAIN",
+                  "REDIS_HOST",
+                  "GOOGLE_CLIENT_ID",
+                  "GOOGLE_CLIENT_SECRET",
+                  "GOOGLE_CALLBACK_URL"
+                ] as $required
+                | (.containerDefinitions[] | select(.name == $container) | .environment // []) as $env
+                | $required
+                | map(select(. as $name | any($env[]; .name == $name) | not))
+                | join(",")' \
+                backend-current-task-definition.json)"
+
+              if [ -z "$CANDIDATE_MISSING_ENV" ]; then
+                FOUND_VALID_TASK_DEFINITION="$TASK_DEFINITION_ARN"
+                break
+              fi
+            done
+
+            if [ -z "$FOUND_VALID_TASK_DEFINITION" ]; then
+              echo "No active social-backend task definition has all required environment variables."
+              echo "Run terraform-production.yml with apply=true first, then rerun release."
+              exit 1
+            fi
+
+            echo "Using valid backend task definition as base: $FOUND_VALID_TASK_DEFINITION"
           fi
 
           jq \

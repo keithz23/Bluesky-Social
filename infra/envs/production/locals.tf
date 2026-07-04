@@ -22,6 +22,7 @@ locals {
     { name = "API_PREFIX", value = "api/v1" },
     { name = "AWS_REGION", value = var.aws_region },
     { name = "AWS_BUCKET_NAME", value = aws_s3_bucket.media.bucket },
+    { name = "CLOUDFRONT_DOMAIN", value = "https://${var.media_domain_name}" },
     { name = "DATABASE_URL", value = local.database_url },
     { name = "REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
     { name = "REDIS_PORT", value = tostring(var.redis_port) },
