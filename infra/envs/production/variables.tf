@@ -40,17 +40,6 @@ variable "certificate_arn" {
   }
 }
 
-variable "cloudfront_certificate_arn" {
-  description = "ACM certificate ARN in us-east-1 used by the CloudFront media distribution."
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = can(regex("^arn:aws:acm:us-east-1:[0-9]{12}:certificate/.+", var.cloudfront_certificate_arn))
-    error_message = "cloudfront_certificate_arn is required and must be an ACM certificate ARN from us-east-1. Set GitHub secret PROD_CLOUDFRONT_CERTIFICATE_ARN for img.th-red.app."
-  }
-}
-
 variable "vpc_cidr_block" {
   type    = string
   default = "10.0.0.0/16"
