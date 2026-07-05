@@ -90,6 +90,11 @@ resource "aws_ecs_service" "frontend" {
   desired_count   = var.frontend_desired_count
   launch_type     = "FARGATE"
 
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   network_configuration {
     subnets          = [for key in local.app_subnet_keys : aws_subnet.this[key].id]
     security_groups  = [aws_security_group.ecs.id]
@@ -103,6 +108,10 @@ resource "aws_ecs_service" "frontend" {
   }
 
   depends_on = [aws_lb_listener.https]
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 resource "aws_ecs_service" "backend" {
@@ -111,6 +120,11 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.backend_desired_count
   launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     subnets          = [for key in local.app_subnet_keys : aws_subnet.this[key].id]
@@ -125,4 +139,8 @@ resource "aws_ecs_service" "backend" {
   }
 
   depends_on = [aws_lb_listener_rule.api]
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }

@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: deploy-staging
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-push:
@@ -180,7 +180,7 @@ jobs:
 
             sudo mkdir -p /etc/letsencrypt /var/lib/letsencrypt
 
-            if [ ! -f /etc/letsencrypt/live/www.th-red.app/fullchain.pem ]; then
+            if [ ! -f /etc/letsencrypt/live/staging.th-red.app/fullchain.pem ]; then
               sudo docker rm -f social-nginx || true
               sudo docker run --rm \
                 -p 80:80 \
@@ -191,16 +191,37 @@ jobs:
                 --non-interactive \
                 --agree-tos \
                 --register-unsafely-without-email \
-                --cert-name www.th-red.app \
-                -d th-red.app \
-                -d www.th-red.app \
-                -d api.th-red.app \
+                --cert-name staging.th-red.app \
                 -d staging.th-red.app \
                 -d staging-api.th-red.app
             fi
 
             sudo docker-compose pull
 
-            sudo docker-compose up -d
+            sudo docker-compose up -d db redis
+
+            sudo docker-compose run --rm -T app ./node_modules/.bin/prisma migrate deploy
+
+            sudo docker-compose run --rm -T app npm run seed:perf:prod
+
+            sudo docker-compose up -d --remove-orphans
+
+            for url in \
+              "http://localhost:8000/api/v1/health/ready" \
+              "http://localhost:3000/"; do
+              for attempt in $(seq 1 24); do
+                if curl --fail --silent --show-error "$url" > /dev/null; then
+                  break
+                fi
+
+                if [ "$attempt" -eq 24 ]; then
+                  sudo docker-compose ps
+                  sudo docker-compose logs --tail=100 app social-fe
+                  exit 1
+                fi
+
+                sleep 5
+              done
+            done
 
             sudo docker image prune -f
