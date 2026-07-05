@@ -47,8 +47,8 @@ resource "aws_lb_target_group" "backend" {
     enabled             = true
     healthy_threshold   = 2
     interval            = 30
-    matcher             = "200-499"
-    path                = "/api/v1/auth/me"
+    matcher             = "200"
+    path                = "/api/v1/health/ready"
     port                = "traffic-port"
     protocol            = "HTTP"
     timeout             = 5

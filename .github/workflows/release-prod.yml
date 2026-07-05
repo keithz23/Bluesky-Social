@@ -27,6 +27,7 @@ env:
   ECS_BACKEND_SERVICE: ${{ vars.PROD_ECS_BACKEND_SERVICE_NAME }}
   FRONTEND_CONTAINER_NAME: ${{ vars.PROD_FRONTEND_CONTAINER_NAME || 'social-fe' }}
   BACKEND_CONTAINER_NAME: ${{ vars.PROD_BACKEND_CONTAINER_NAME || 'social-be' }}
+  FRONTEND_URL: ${{ vars.PROD_FRONTEND_URL || 'https://th-red.app' }}
   NEXT_PUBLIC_API_URL: ${{ vars.PROD_NEXT_PUBLIC_API_URL || 'https://api.th-red.app/api/v1' }}
   NEXT_PUBLIC_SERVER_URL: ${{ vars.PROD_NEXT_PUBLIC_SERVER_URL || 'https://api.th-red.app' }}
   NEXT_PUBLIC_CALLBACK_URL: ${{ vars.PROD_NEXT_PUBLIC_CALLBACK_URL }}
@@ -264,7 +265,7 @@ jobs:
             --launch-type FARGATE \
             --task-definition "${{ steps.backend-task-definition.outputs.arn }}" \
             --network-configuration "$NETWORK_CONFIGURATION" \
-            --overrides "{\"containerOverrides\":[{\"name\":\"$BACKEND_CONTAINER_NAME\",\"command\":[\"sh\",\"-c\",\"npm_config_yes=true npx prisma migrate deploy\"]}]}" \
+            --overrides "{\"containerOverrides\":[{\"name\":\"$BACKEND_CONTAINER_NAME\",\"command\":[\"./node_modules/.bin/prisma\",\"migrate\",\"deploy\"]}]}" \
             --query 'tasks[0].taskArn' \
             --output text)"
 
@@ -304,6 +305,16 @@ jobs:
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_BACKEND_SERVICE"
+
+      - name: Smoke test backend
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            --retry 12 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            "$NEXT_PUBLIC_API_URL/health/ready" > /dev/null
 
       - name: Register frontend task definition
         id: frontend-task-definition
@@ -363,3 +374,13 @@ jobs:
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_FRONTEND_SERVICE"
+
+      - name: Smoke test frontend
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            --retry 12 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            "$FRONTEND_URL/" > /dev/null
