@@ -2,6 +2,12 @@ name: Deploy Social App to EC2
 
 on:
   workflow_dispatch:
+    inputs:
+      seed_perf:
+        description: "Run performance seed after migrations"
+        required: false
+        type: boolean
+        default: false
   push:
     branches:
       - feat/add-staging
@@ -201,6 +207,10 @@ jobs:
             sudo docker-compose up -d db redis
 
             sudo docker-compose run --rm -T app ./node_modules/.bin/prisma migrate deploy
+
+            if [ "${{ github.event_name == 'workflow_dispatch' && inputs.seed_perf == true }}" = "true" ]; then
+              sudo docker-compose run --rm -T app npm run seed:perf:prod
+            fi
 
             sudo docker-compose up -d --remove-orphans
 
