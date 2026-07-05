@@ -180,7 +180,7 @@ jobs:
 
             sudo mkdir -p /etc/letsencrypt /var/lib/letsencrypt
 
-            if [ ! -f /etc/letsencrypt/live/www.th-red.app/fullchain.pem ]; then
+            if [ ! -f /etc/letsencrypt/live/staging.th-red.app/fullchain.pem ]; then
               sudo docker rm -f social-nginx || true
               sudo docker run --rm \
                 -p 80:80 \
@@ -191,7 +191,7 @@ jobs:
                 --non-interactive \
                 --agree-tos \
                 --register-unsafely-without-email \
-                --cert-name www.th-red.app \
+                --cert-name staging.th-red.app \
                 -d staging.th-red.app \
                 -d staging-api.th-red.app
             fi
