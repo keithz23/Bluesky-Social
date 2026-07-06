@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useProfile } from "@/app/hooks/use-profile";
 import { ArrowLeft, MoreHorizontal, BadgeCheck } from "lucide-react";
 import Link from "next/link";
@@ -13,25 +14,27 @@ export default function ProfileLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const { username } = useParams<{ username: string }>();
   const { data: profile, isLoading } = useProfile(username);
   const pathname = usePathname();
   const router = useRouter();
+  const profileRoot = `/profile/${username}`;
 
   const tabs = [
-    { name: "Posts", href: `/profile/${username}` },
-    { name: "Replies", href: `/profile/${username}/replies` },
-    { name: "Media", href: `/profile/${username}/media` },
-    { name: "Videos", href: `/profile/${username}/videos` },
-    { name: "Likes", href: `/profile/${username}/likes` },
-    { name: "Feeds", href: `/profile/${username}/feeds` },
-    { name: "Starter Packs", href: `/profile/${username}/starter-packs` },
-    { name: "Lists", href: `/profile/${username}/lists` },
+    { name: "Posts", href: profileRoot },
+    { name: "Replies", href: `${profileRoot}/replies` },
+    { name: "Media", href: `${profileRoot}/media` },
+    { name: "Videos", href: `${profileRoot}/videos` },
+    { name: "Likes", href: `${profileRoot}/likes` },
+    { name: "Feeds", href: `${profileRoot}/feeds` },
+    { name: "Starter Packs", href: `${profileRoot}/starter-packs` },
+    { name: "Lists", href: `${profileRoot}/lists` },
   ];
 
   const isActiveTab = (href: string) => {
-    if (href === `/profile/${username}`) {
-      return pathname === `/profile/${username}`;
+    if (href === profileRoot) {
+      return pathname === profileRoot;
     }
     return pathname.startsWith(href);
   };
@@ -41,10 +44,10 @@ export default function ProfileLayout({
   }
 
   if (
-    pathname === `/profile/${username}/follows` ||
-    pathname === `/profile/${username}/followers` ||
-    pathname.startsWith(`/profile/${username}/post/`) ||
-    pathname.startsWith(`/profile/${username}/lists/`)
+    pathname === `${profileRoot}/follows` ||
+    pathname === `${profileRoot}/followers` ||
+    pathname.startsWith(`${profileRoot}/post/`) ||
+    pathname.startsWith(`${profileRoot}/lists/`)
   ) {
     return children;
   }
@@ -52,28 +55,30 @@ export default function ProfileLayout({
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       {/* --- COVER & AVATAR --- */}
-      <div className="h-32 relative" style={{ backgroundColor: "#f1f5f9" }}>
+      <div className="relative h-32 bg-slate-100">
         {profile?.coverUrl && (
           <img
             src={profile.coverUrl}
             alt="cover"
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
         )}
 
         <button
+          type="button"
           onClick={() => router.back()}
-          className="absolute top-4 left-4 p-1.5 bg-black/20 hover:bg-black/30 rounded-full transition text-white z-10 cursor-pointer"
+          aria-label="Go back"
+          className="absolute left-4 top-4 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-black/20 text-white transition hover:bg-black/30"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="h-5 w-5" />
         </button>
 
-        <div className="absolute -bottom-10 left-4 w-21 h-21 rounded-full border-4 border-white bg-[#FF4F5A] flex items-center justify-center text-[40px] text-white font-bold shadow-sm z-10 overflow-hidden">
+        <div className="absolute -bottom-10 left-4 z-10 flex h-21 w-21 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#FF4F5A] text-[40px] font-bold text-white shadow-sm">
           {profile?.avatarUrl ? (
             <img
               src={profile.avatarUrl}
               alt={profile.username}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
             />
           ) : (
             profile?.username?.charAt(0).toUpperCase()
@@ -84,15 +89,22 @@ export default function ProfileLayout({
       {/* --- ACTION BUTTONS --- */}
       <div className="flex justify-end gap-2 px-4 pt-3">
         {profile?.isOwner ? (
-          // <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
-          //   Edit Profile
-          // </button>
-          <EditProfileModal profile={profile} />
+          <button
+            type="button"
+            onClick={() => setIsEditProfileModalOpen(true)}
+            className="h-9 cursor-pointer rounded-full bg-gray-100 px-4 text-sm font-bold text-gray-900 transition hover:bg-gray-200"
+          >
+            Edit Profile
+          </button>
         ) : (
           <FollowButton targetUserId={profile?.id} />
         )}
-        <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 p-1.5 rounded-full transition cursor-pointer">
-          <MoreHorizontal className="w-5 h-5" />
+        <button
+          type="button"
+          aria-label="More profile actions"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-900 transition hover:bg-gray-200"
+        >
+          <MoreHorizontal className="h-5 w-5" />
         </button>
       </div>
 
@@ -147,11 +159,10 @@ export default function ProfileLayout({
             key={tab.name}
             href={tab.href}
             className={`px-4 py-3 text-[15px] font-bold whitespace-nowrap cursor-pointer transition
-        ${
-          isActiveTab(tab.href)
-            ? "text-gray-900 border-b-[3px] border-blue-600"
-            : "text-gray-500 hover:bg-gray-100"
-        }`}
+              ${isActiveTab(tab.href)
+                ? "text-gray-900 border-b-[3px] border-blue-600"
+                : "text-gray-500 hover:bg-gray-100"
+              }`}
           >
             {tab.name}
           </Link>
@@ -159,6 +170,12 @@ export default function ProfileLayout({
       </div>
 
       {children}
+
+      <EditProfileModal
+        profile={profile}
+        open={isEditProfileModalOpen}
+        onOpenChange={setIsEditProfileModalOpen}
+      />
     </div>
   );
 }
