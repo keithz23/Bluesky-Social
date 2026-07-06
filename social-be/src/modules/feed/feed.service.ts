@@ -65,6 +65,10 @@ export class FeedService {
         repostCount: true,
         bookmarkCount: true,
         viewCount: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
         user: {
           select: {
             id: true,
@@ -98,6 +102,7 @@ export class FeedService {
     let likedSet = new Set<string>();
     let bookmarkedSet = new Set<string>();
     let repostedSet = new Set<string>();
+    let authorFollowsMeSet = new Set<string>();
     const followingSet = new Set(followingIds);
     const now = Date.now();
 
@@ -133,22 +138,32 @@ export class FeedService {
 
     if (currentUserId) {
       const postIds = pagePosts.map((p) => p.id);
+      const authorIds = [...new Set(pagePosts.map((p) => p.user.id))];
 
-      const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
-        this.prisma.like.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-        }),
-        this.prisma.bookmark.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-        }),
-        this.prisma.repost.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-        }),
-      ]);
+      const [likedPosts, bookmarkedPosts, repostedPosts, authorFollowsMe] =
+        await Promise.all([
+          this.prisma.like.findMany({
+            where: { userId: currentUserId, postId: { in: postIds } },
+          }),
+          this.prisma.bookmark.findMany({
+            where: { userId: currentUserId, postId: { in: postIds } },
+          }),
+          this.prisma.repost.findMany({
+            where: { userId: currentUserId, postId: { in: postIds } },
+          }),
+          this.prisma.follow.findMany({
+            where: {
+              followerId: { in: authorIds },
+              followingId: currentUserId,
+            },
+            select: { followerId: true },
+          }),
+        ]);
 
       likedSet = new Set(likedPosts.map((l) => l.postId));
       bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
       repostedSet = new Set(repostedPosts.map((r) => r.postId));
+      authorFollowsMeSet = new Set(authorFollowsMe.map((f) => f.followerId));
     }
 
     const result = pagePosts.map((post) => ({
@@ -165,6 +180,9 @@ export class FeedService {
             : followingSet.has(post.user.id)
               ? 'following'
               : 'none',
+        isFollowedByAuthor: currentUserId
+          ? authorFollowsMeSet.has(post.user.id)
+          : false,
       },
     }));
 

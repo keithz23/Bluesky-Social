@@ -1,9 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useState, useRef } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Globe,
@@ -25,6 +21,7 @@ import { useMention } from "@/app/hooks/use-metion";
 import { User } from "@/app/interfaces/user.interface";
 import { useAuth } from "@/app/hooks/use-auth";
 import Avatar from "../avatar";
+import ComposerFloatingPicker from "./composer-floating-picker";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_POST_LENGTH = 300;
@@ -123,38 +120,12 @@ export default function NewPostModal({
   const hasChanges = postText.trim().length > 0 || hasImages || hasGif;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
-  const gifPickerRef = useRef<HTMLDivElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
 
   const { createPost } = usePost();
 
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(event.target as Node) &&
-        emojiButtonRef.current &&
-        !emojiButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowEmojiPicker(false);
-      }
-      if (
-        gifPickerRef.current &&
-        !gifPickerRef.current.contains(event.target as Node) &&
-        gifButtonRef.current &&
-        !gifButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowGifPicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
 
   const handleSelectRadio = (type: ReplyType) => {
     setReplyType(type);
@@ -181,9 +152,7 @@ export default function NewPostModal({
   };
 
   const appendText = (value: string) => {
-    setPostText((current) =>
-      `${current}${value}`.slice(0, MAX_POST_LENGTH),
-    );
+    setPostText((current) => `${current}${value}`.slice(0, MAX_POST_LENGTH));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,6 +258,21 @@ export default function NewPostModal({
     );
   };
 
+  const isFloatingPickerInteraction = (event: Event) => {
+    const target = event.target;
+    return (
+      event
+        .composedPath()
+        .some(
+          (node) =>
+            node instanceof Element &&
+            node.hasAttribute("data-composer-floating-picker"),
+        ) ||
+      (target instanceof Element &&
+        Boolean(target.closest("[data-composer-floating-picker='true']")))
+    );
+  };
+
   const handleCreatePost = () => {
     if (isSubmitDisabled) return;
 
@@ -300,15 +284,15 @@ export default function NewPostModal({
 
     const payload = hasImages
       ? {
-        content: postText,
-        replyPrivacy: privacyData,
-        images: selectedImages.map((img) => img.file), // File[]
-      }
+          content: postText,
+          replyPrivacy: privacyData,
+          images: selectedImages.map((img) => img.file), // File[]
+        }
       : {
-        content: postText,
-        replyPrivacy: privacyData,
-        gifUrl: selectedGif ?? undefined, // string | undefined
-      };
+          content: postText,
+          replyPrivacy: privacyData,
+          gifUrl: selectedGif ?? undefined, // string | undefined
+        };
 
     createPost.mutate(payload, {
       onSuccess: () => {
@@ -328,7 +312,10 @@ export default function NewPostModal({
         <DialogContent
           className="max-h-[88vh] max-w-155 overflow-y-auto overflow-x-hidden gap-0 rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl [&>button]:hidden"
           onInteractOutside={(e) => {
-            if (isPrivacyDialogInteraction(e.detail.originalEvent)) {
+            if (
+              isPrivacyDialogInteraction(e.detail.originalEvent) ||
+              isFloatingPickerInteraction(e.detail.originalEvent)
+            ) {
               e.preventDefault();
               return;
             }
@@ -350,315 +337,332 @@ export default function NewPostModal({
             }
           }}
         >
-            <DialogTitle asChild>
-              <div className="sticky top-0 z-20 grid h-14 grid-cols-[2.25rem_1fr_auto] items-center gap-3 border-b border-slate-100 bg-white/95 px-4 backdrop-blur">
-                <button
-                  onClick={handleCancel}
-                  aria-label="Close post dialog"
-                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-                <h2 className="justify-self-center text-base font-bold text-slate-950">
-                  Create post
-                </h2>
-                <Button
-                  onClick={handleCreatePost}
-                  disabled={isSubmitDisabled}
-                  className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${!isSubmitDisabled
+          <DialogTitle asChild>
+            <div className="sticky top-0 z-20 grid h-14 grid-cols-[2.25rem_1fr_auto] items-center gap-3 border-b border-slate-100 bg-white/95 px-4 backdrop-blur">
+              <button
+                onClick={handleCancel}
+                aria-label="Close post dialog"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 className="justify-self-center text-base font-bold text-slate-950">
+                Create post
+              </h2>
+              <Button
+                onClick={handleCreatePost}
+                disabled={isSubmitDisabled}
+                className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${
+                  !isSubmitDisabled
                     ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
                     : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
-                    }`}
-                >
-                  {createPost.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Post"
-                  )}
-                </Button>
-              </div>
-            </DialogTitle>
-
-            <div className="flex min-w-0 gap-3 px-4 py-4">
-              {user ? (
-                <Avatar data={user} className="h-11 w-11 sm:h-11 sm:w-11" />
-              ) : (
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FF4F5A] text-lg font-bold text-white">
-                  @
-                </div>
-              )}
-              <div className="relative min-w-0 flex-1 pt-1">
-                <div className="relative min-h-32 min-w-0 flex-1">
-                  <div
-                    className="pointer-events-none absolute inset-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none px-0 text-[17px] leading-6 select-none"
-                    aria-hidden="true"
-                  >
-                    {postText.split(/(\s+)/).map((part, i) => {
-                      if (part.match(/^@\S+/)) {
-                        return (
-                          <span
-                            key={i}
-                            className="bg-[#0066FF]/15 text-[#0066FF] rounded-[3px] py-px"
-                          >
-                            {part}
-                          </span>
-                        );
-                      }
-                      return <span key={i}>{part}</span>;
-                    })}
-                  </div>
-
-                  <textarea
-                    ref={textareaRef}
-                    value={postText}
-                    onChange={(e) => {
-                      handleTextChange(
-                        e.target.value,
-                        e.target.selectionStart ?? 0,
-                      );
-                    }}
-                    onKeyDown={handleKeyDown}
-                    className="relative z-10 min-h-32 w-full resize-none overflow-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none bg-transparent text-[17px] leading-6 text-transparent caret-slate-950 outline-none placeholder:text-slate-400 focus:ring-0"
-                    placeholder="What's happening?"
-                    spellCheck={false}
-                  />
-                </div>
-
-                {/* Mention Dropdown */}
-                {isMentionOpen && (isLoading || mentionResults.length > 0) && (
-                  <div className="absolute top-full left-0 z-60 mt-2 w-76 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-xl animate-in fade-in zoom-in-95 duration-100">
-                    <div className="max-h-72 overflow-y-auto p-1.5">
-                      {isLoading ? (
-                        <div className="flex items-center justify-center gap-2 p-4 text-sm text-slate-500">
-                          <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                          <span>Searching...</span>
-                        </div>
-                      ) : (
-                        mentionResults.map((user: User, i) => (
-                          <div
-                            key={user.id}
-                            onClick={() => insertMention(user.username)}
-                            onMouseEnter={() => setActiveIndex(i)}
-                            className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${i === activeIndex
-                              ? "bg-blue-50 text-blue-700"
-                              : "hover:bg-slate-50"
-                              }`}
-                          >
-                            <Avatar data={user} className="h-8 w-8 sm:h-8 sm:w-8" />
-                            <div className="flex min-w-0 flex-col">
-                              <p className="truncate text-[14px] font-semibold">
-                                {user.username}
-                              </p>
-                              <p className="truncate text-[12px] text-slate-500">
-                                @{user.username}
-                              </p>
-                            </div>
-                            {i === activeIndex && (
-                              <Check className="ml-auto h-4 w-4 shrink-0 text-blue-600" />
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                }`}
+              >
+                {createPost.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Post"
                 )}
-              </div>
+              </Button>
             </div>
+          </DialogTitle>
 
-            {/* PREVIEW: Multiple Images */}
-            {hasImages && (
-              <div className="ml-18 min-w-0 px-4 pb-3">
-                <div className={`grid ${getGridClass(imageCount)} gap-2`}>
-                  {selectedImages.map((img, i) => {
-                    const isThreeFirst = imageCount === 3 && i === 0;
-                    return (
-                      <div
-                        key={i}
-                        className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 ${isThreeFirst ? "col-span-2" : ""}`}
-                      >
-                        <img
-                          src={img.preview}
-                          alt={`Selected media ${i + 1}`}
-                          className={`w-full object-cover ${isThreeFirst ? "max-h-56" : "max-h-48"}`}
-                        />
-                        <button
-                          onClick={() => removeImage(i)}
-                          className="absolute top-2 right-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-slate-950/65 text-white transition hover:bg-slate-950"
+          <div className="flex min-w-0 gap-3 px-4 py-4">
+            {user ? (
+              <Avatar data={user} className="h-11 w-11 sm:h-11 sm:w-11" />
+            ) : (
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FF4F5A] text-lg font-bold text-white">
+                @
+              </div>
+            )}
+            <div className="relative min-w-0 flex-1 pt-1">
+              <div className="relative min-h-32 min-w-0 flex-1">
+                <div
+                  className="pointer-events-none absolute inset-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none px-0 text-[17px] leading-6 select-none"
+                  aria-hidden="true"
+                >
+                  {postText.split(/(\s+)/).map((part, i) => {
+                    if (part.match(/^@\S+/)) {
+                      return (
+                        <span
+                          key={i}
+                          className="bg-[#0066FF]/15 text-[#0066FF] rounded-[3px] py-px"
                         >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
+                          {part}
+                        </span>
+                      );
+                    }
+                    return <span key={i}>{part}</span>;
                   })}
                 </div>
-                {imageCount < 4 && (
-                  <p className="mt-2 text-xs text-slate-400">
-                    {imageCount}/4 images - {4 - imageCount} remaining
-                  </p>
-                )}
-              </div>
-            )}
 
-            {/* PREVIEW: GIF */}
-            {hasGif && (
-              <div className="relative ml-18 inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
-                <img
-                  src={selectedGif!}
-                  alt="Selected GIF"
-                  className="max-h-72 max-w-full rounded-2xl border border-slate-200 object-cover"
+                <textarea
+                  ref={textareaRef}
+                  value={postText}
+                  onChange={(e) => {
+                    handleTextChange(
+                      e.target.value,
+                      e.target.selectionStart ?? 0,
+                    );
+                  }}
+                  onKeyDown={handleKeyDown}
+                  className="relative z-10 min-h-32 w-full resize-none overflow-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none bg-transparent text-[17px] leading-6 text-transparent caret-slate-950 outline-none placeholder:text-slate-400 focus:ring-0"
+                  placeholder="What's happening?"
+                  spellCheck={false}
                 />
-                <button
-                  onClick={removeGif}
-                  className="absolute top-2 right-6 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-slate-950/65 text-white transition hover:bg-slate-950"
-                >
-                  <X className="h-4 w-4" />
-                </button>
               </div>
-            )}
 
-            <div className="mt-1 px-4 pb-4 pl-18">
+              {/* Mention Dropdown */}
+              {isMentionOpen && (isLoading || mentionResults.length > 0) && (
+                <div className="absolute top-full left-0 z-60 mt-2 w-76 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                  <div className="max-h-72 overflow-y-auto p-1.5">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-2 p-4 text-sm text-slate-500">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span>Searching...</span>
+                      </div>
+                    ) : (
+                      mentionResults.map((user: User, i) => (
+                        <div
+                          key={user.id}
+                          onClick={() => insertMention(user.username)}
+                          onMouseEnter={() => setActiveIndex(i)}
+                          className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                            i === activeIndex
+                              ? "bg-blue-50 text-blue-700"
+                              : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <Avatar
+                            data={user}
+                            className="h-8 w-8 sm:h-8 sm:w-8"
+                          />
+                          <div className="flex min-w-0 flex-col">
+                            <p className="truncate text-[14px] font-semibold">
+                              {user.username}
+                            </p>
+                            <p className="truncate text-[12px] text-slate-500">
+                              @{user.username}
+                            </p>
+                          </div>
+                          {i === activeIndex && (
+                            <Check className="ml-auto h-4 w-4 shrink-0 text-blue-600" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* PREVIEW: Multiple Images */}
+          {hasImages && (
+            <div className="ml-18 min-w-0 px-4 pb-3">
+              <div className={`grid ${getGridClass(imageCount)} gap-2`}>
+                {selectedImages.map((img, i) => {
+                  const isThreeFirst = imageCount === 3 && i === 0;
+                  return (
+                    <div
+                      key={i}
+                      className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 ${isThreeFirst ? "col-span-2" : ""}`}
+                    >
+                      <img
+                        src={img.preview}
+                        alt={`Selected media ${i + 1}`}
+                        className={`w-full object-cover ${isThreeFirst ? "max-h-56" : "max-h-48"}`}
+                      />
+                      <button
+                        onClick={() => removeImage(i)}
+                        className="absolute top-2 right-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-slate-950/65 text-white transition hover:bg-slate-950"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {imageCount < 4 && (
+                <p className="mt-2 text-xs text-slate-400">
+                  {imageCount}/4 images - {4 - imageCount} remaining
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* PREVIEW: GIF */}
+          {hasGif && (
+            <div className="relative ml-18 inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
+              <img
+                src={selectedGif!}
+                alt="Selected GIF"
+                className="max-h-72 max-w-full rounded-2xl border border-slate-200 object-cover"
+              />
               <button
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={openPrivacySettings}
-                className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                onClick={removeGif}
+                className="absolute top-2 right-6 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-slate-950/65 text-white transition hover:bg-slate-950"
               >
-                <Globe className="h-4 w-4" strokeWidth={2} />
-                {replyType === "anyone"
-                  ? "Anyone can interact"
-                  : replyType === "nobody"
-                    ? "Nobody can reply"
-                    : "Custom interactions"}
-                <ChevronDown
-                  className="h-4 w-4"
-                  strokeWidth={2}
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="mt-1 px-4 pb-4 pl-18">
+            <button
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={openPrivacySettings}
+              className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+            >
+              <Globe className="h-4 w-4" strokeWidth={2} />
+              {replyType === "anyone"
+                ? "Anyone can interact"
+                : replyType === "nobody"
+                  ? "Nobody can reply"
+                  : "Custom interactions"}
+              <ChevronDown className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
+
+          <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
+            <ComposerFloatingPicker
+              open={showEmojiPicker}
+              anchorRef={emojiButtonRef}
+              width={320}
+              maxHeight={380}
+              onClose={() => setShowEmojiPicker(false)}
+            >
+              <EmojiPicker
+                onEmojiClick={(e) => appendText(e.emoji)}
+                searchDisabled
+                skinTonesDisabled
+                width={320}
+                height={380}
+                previewConfig={{ showPreview: false }}
+              />
+            </ComposerFloatingPicker>
+
+            <ComposerFloatingPicker
+              open={showGifPicker}
+              anchorRef={gifButtonRef}
+              width={320}
+              maxHeight={352}
+              onClose={() => setShowGifPicker(false)}
+            >
+              <div className="p-2">
+                <Grid
+                  width={304}
+                  columns={2}
+                  fetchGifs={fetchGifs}
+                  onGifClick={(gif, e) => {
+                    e.preventDefault();
+                    revokeImagePreviews(selectedImages);
+                    setSelectedGif(gif.images.original.url);
+                    setSelectedImages([]);
+                    setShowGifPicker(false);
+                  }}
                 />
+              </div>
+            </ComposerFloatingPicker>
+
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+
+            <div className="flex min-w-0 items-center gap-1 rounded-full bg-blue-50/70 p-1 text-[#0066FF]">
+              <button
+                onClick={() => !imageDisabled && fileInputRef.current?.click()}
+                disabled={imageDisabled}
+                title={
+                  hasGif
+                    ? "Remove the GIF before adding images"
+                    : imageCount >= 4
+                      ? "Maximum of 4 images reached"
+                      : "Add images"
+                }
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  imageDisabled
+                    ? "cursor-not-allowed text-slate-300 opacity-50"
+                    : "cursor-pointer text-[#0066FF] hover:bg-white"
+                }`}
+              >
+                <ImageIcon className="h-5 w-5" />
+              </button>
+
+              <button
+                ref={gifButtonRef}
+                onClick={() => {
+                  if (gifDisabled) return;
+                  setShowEmojiPicker(false);
+                  setShowGifPicker((current) => !current);
+                }}
+                disabled={gifDisabled}
+                title={
+                  gifDisabled
+                    ? "Remove images before adding a GIF"
+                    : "Add a GIF"
+                }
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  gifDisabled
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer hover:bg-white"
+                }`}
+              >
+                <div
+                  className={`flex h-5 w-5 items-center justify-center rounded-md border-2 text-[9px] font-bold ${
+                    gifDisabled
+                      ? "border-slate-300 text-slate-300"
+                      : "border-[#0066FF] text-[#0066FF]"
+                  }`}
+                >
+                  GIF
+                </div>
+              </button>
+
+              <button
+                ref={emojiButtonRef}
+                onClick={() => {
+                  setShowGifPicker(false);
+                  setShowEmojiPicker((current) => !current);
+                }}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white"
+              >
+                <Smile className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
-              {showEmojiPicker && (
-                <div
-                  ref={emojiPickerRef}
-                  className="absolute bottom-full left-4 z-50 mb-2 rounded-xl shadow-xl"
-                >
-                  <EmojiPicker
-                    onEmojiClick={(e) => appendText(e.emoji)}
-                    searchDisabled
-                    skinTonesDisabled
-                  />
-                </div>
-              )}
-
-              {showGifPicker && (
-                <div
-                  ref={gifPickerRef}
-                  className="absolute bottom-full left-4 z-50 mb-2 h-87.5 w-75 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
-                >
-                  <Grid
-                    width={280}
-                    columns={2}
-                    fetchGifs={fetchGifs}
-                    onGifClick={(gif, e) => {
-                      e.preventDefault();
-                      revokeImagePreviews(selectedImages);
-                      setSelectedGif(gif.images.original.url);
-                      setSelectedImages([]);
-                      setShowGifPicker(false);
-                    }}
-                  />
-                </div>
-              )}
-
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                multiple
-                ref={fileInputRef}
-                onChange={handleFileChange}
-              />
-
-              <div className="flex min-w-0 items-center gap-1 rounded-full bg-blue-50/70 p-1 text-[#0066FF]">
-                <button
-                  onClick={() =>
-                    !imageDisabled && fileInputRef.current?.click()
-                  }
-                  disabled={imageDisabled}
-                  title={
-                    hasGif
-                      ? "Remove the GIF before adding images"
-                      : imageCount >= 4
-                        ? "Maximum of 4 images reached"
-                        : "Add images"
-                  }
-                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${imageDisabled
-                    ? "cursor-not-allowed text-slate-300 opacity-50"
-                    : "cursor-pointer text-[#0066FF] hover:bg-white"
-                    }`}
-                >
-                  <ImageIcon className="h-5 w-5" />
-                </button>
-
-                <button
-                  ref={gifButtonRef}
-                  onClick={() =>
-                    !gifDisabled && setShowGifPicker(!showGifPicker)
-                  }
-                  disabled={gifDisabled}
-                  title={
-                    gifDisabled
-                      ? "Remove images before adding a GIF"
-                      : "Add a GIF"
-                  }
-                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${gifDisabled
-                    ? "cursor-not-allowed opacity-50"
-                    : "cursor-pointer hover:bg-white"
-                    }`}
-                >
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded-md border-2 text-[9px] font-bold ${gifDisabled
-                      ? "border-slate-300 text-slate-300"
-                      : "border-[#0066FF] text-[#0066FF]"
-                      }`}
-                  >
-                    GIF
-                  </div>
-                </button>
-
-                <button
-                  ref={emojiButtonRef}
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white"
-                >
-                  <Smile className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-3">
-                <span
-                  className={`text-sm font-medium ${MAX_POST_LENGTH - postText.length < 30
+            <div className="flex shrink-0 items-center gap-3">
+              <span
+                className={`text-sm font-medium ${
+                  MAX_POST_LENGTH - postText.length < 30
                     ? "text-amber-600"
                     : "text-slate-500"
-                    }`}
-                >
-                  {MAX_POST_LENGTH - postText.length}
-                </span>
-                <Button
-                  onClick={handleCreatePost}
-                  disabled={isSubmitDisabled}
-                  className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${!isSubmitDisabled
+                }`}
+              >
+                {MAX_POST_LENGTH - postText.length}
+              </span>
+              <Button
+                onClick={handleCreatePost}
+                disabled={isSubmitDisabled}
+                className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${
+                  !isSubmitDisabled
                     ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
                     : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
-                    }`}
-                >
-                  {createPost.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Post"
-                  )}
-                </Button>
-              </div>
+                }`}
+              >
+                {createPost.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Post"
+                )}
+              </Button>
             </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -669,148 +673,146 @@ export default function NewPostModal({
           showCloseButton={false}
           className="max-w-100 p-6 border-none rounded-xl shadow-xl bg-white gap-0"
         >
-            <DialogTitle className="flex justify-between items-center mb-4 text-xl font-bold text-black">
-              Post interaction settings
-              <button
-                onClick={() => setIsPrivacyModalOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+          <DialogTitle className="flex justify-between items-center mb-4 text-xl font-bold text-black">
+            Post interaction settings
+            <button
+              onClick={() => setIsPrivacyModalOpen(false)}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </DialogTitle>
+
+          <p className="text-sm font-semibold mb-3">Who can reply</p>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <div
+                onClick={() => handleSelectRadio("anyone")}
+                className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${replyType === "anyone" ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
               >
-                <X className="w-5 h-5" />
-              </button>
-            </DialogTitle>
-
-            <p className="text-sm font-semibold mb-3">Who can reply</p>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
                 <div
-                  onClick={() => handleSelectRadio("anyone")}
-                  className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${replyType === "anyone" ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] ${replyType === "anyone" ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
                 >
-                  <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] ${replyType === "anyone" ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                  >
-                    {replyType === "anyone" && (
-                      <div className="w-2 h-2 rounded-full bg-white"></div>
-                    )}
-                  </div>
-                  <span className="text-[15px] font-medium">Anyone</span>
-                </div>
-
-                <div
-                  onClick={() => handleSelectRadio("nobody")}
-                  className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${replyType === "nobody" ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] ${replyType === "nobody" ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                  >
-                    {replyType === "nobody" && (
-                      <div className="w-2 h-2 rounded-full bg-white"></div>
-                    )}
-                  </div>
-                  <span className="text-[15px] font-medium">Nobody</span>
-                </div>
-              </div>
-
-              {[
-                { id: "followers", label: "Your followers" },
-                { id: "following", label: "People you follow" },
-                { id: "mentioned", label: "People you mention" },
-              ].map((item) => {
-                const isActive =
-                  customSettings[item.id as keyof typeof customSettings];
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() =>
-                      handleToggleCustom(item.id as keyof typeof customSettings)
-                    }
-                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-lg flex items-center justify-center border-[1.5px] ${isActive ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
-                    >
-                      {isActive && (
-                        <Check
-                          className="w-3.5 h-3.5 text-white"
-                          strokeWidth={3}
-                        />
-                      )}
-                    </div>
-                    <span className="text-[15px] font-medium">
-                      {item.label}
-                    </span>
-                  </div>
-                );
-              })}
-
-              <div className="bg-[#F2F4F8] rounded-xl overflow-hidden mt-1">
-                <div
-                  onClick={() => setIsListsExpanded(!isListsExpanded)}
-                  className="flex items-center justify-between p-3 cursor-pointer text-[#444746]"
-                >
-                  <span className="text-[15px] font-medium">
-                    Select from your lists
-                  </span>
-                  {isListsExpanded ? (
-                    <ChevronUp className="w-5 h-5" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5" />
+                  {replyType === "anyone" && (
+                    <div className="w-2 h-2 rounded-full bg-white"></div>
                   )}
                 </div>
-                {isListsExpanded && (
-                  <div className="p-3 border-t border-white/40 text-[#444746] text-[15px]">
-                    You don't have any lists yet.
-                  </div>
-                )}
+                <span className="text-[15px] font-medium">Anyone</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 mt-2 bg-[#EAF2FF] rounded-xl text-black">
-                <div className="flex items-center gap-2">
-                  <Quote className="w-5 h-5" />
-                  <span className="text-[15px] font-semibold">
-                    Allow quote posts
-                  </span>
-                </div>
+              <div
+                onClick={() => handleSelectRadio("nobody")}
+                className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${replyType === "nobody" ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
+              >
                 <div
-                  onClick={() => setAllowQuote(!allowQuote)}
-                  className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors flex items-center ${allowQuote ? "bg-[#0066FF] justify-end" : "bg-gray-400 justify-start"}`}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] ${replyType === "nobody" ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
                 >
-                  <div className="w-4 h-4 rounded-full bg-white shadow-sm"></div>
+                  {replyType === "nobody" && (
+                    <div className="w-2 h-2 rounded-full bg-white"></div>
+                  )}
                 </div>
+                <span className="text-[15px] font-medium">Nobody</span>
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-4">
-              {replyType === "anyone" ? (
-                <p className="text-[14px] text-[#444746]">
-                  These are your default settings
-                </p>
-              ) : (
+            {[
+              { id: "followers", label: "Your followers" },
+              { id: "following", label: "People you follow" },
+              { id: "mentioned", label: "People you mention" },
+            ].map((item) => {
+              const isActive =
+                customSettings[item.id as keyof typeof customSettings];
+              return (
                 <div
-                  onClick={() => setSaveForNextTime(!saveForNextTime)}
-                  className="flex items-center gap-2 cursor-pointer text-black"
+                  key={item.id}
+                  onClick={() =>
+                    handleToggleCustom(item.id as keyof typeof customSettings)
+                  }
+                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? "bg-[#EAF2FF] text-black" : "bg-[#F2F4F8] text-[#444746]"}`}
                 >
                   <div
-                    className={`w-4 h-4 rounded-[3px] flex items-center justify-center border-[1.5px] ${saveForNextTime ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
+                    className={`w-5 h-5 rounded-lg flex items-center justify-center border-[1.5px] ${isActive ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
                   >
-                    {saveForNextTime && (
-                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                    {isActive && (
+                      <Check
+                        className="w-3.5 h-3.5 text-white"
+                        strokeWidth={3}
+                      />
                     )}
                   </div>
-                  <span className="text-[14px]">
-                    Save these options for next time
-                  </span>
+                  <span className="text-[15px] font-medium">{item.label}</span>
+                </div>
+              );
+            })}
+
+            <div className="bg-[#F2F4F8] rounded-xl overflow-hidden mt-1">
+              <div
+                onClick={() => setIsListsExpanded(!isListsExpanded)}
+                className="flex items-center justify-between p-3 cursor-pointer text-[#444746]"
+              >
+                <span className="text-[15px] font-medium">
+                  Select from your lists
+                </span>
+                {isListsExpanded ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </div>
+              {isListsExpanded && (
+                <div className="p-3 border-t border-white/40 text-[#444746] text-[15px]">
+                  You don't have any lists yet.
                 </div>
               )}
-
-              <Button
-                onClick={() => setIsPrivacyModalOpen(false)}
-                className="w-full h-11 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-[16px] shadow-none"
-              >
-                Save
-              </Button>
             </div>
+
+            <div className="flex items-center justify-between p-3 mt-2 bg-[#EAF2FF] rounded-xl text-black">
+              <div className="flex items-center gap-2">
+                <Quote className="w-5 h-5" />
+                <span className="text-[15px] font-semibold">
+                  Allow quote posts
+                </span>
+              </div>
+              <div
+                onClick={() => setAllowQuote(!allowQuote)}
+                className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors flex items-center ${allowQuote ? "bg-[#0066FF] justify-end" : "bg-gray-400 justify-start"}`}
+              >
+                <div className="w-4 h-4 rounded-full bg-white shadow-sm"></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-4">
+            {replyType === "anyone" ? (
+              <p className="text-[14px] text-[#444746]">
+                These are your default settings
+              </p>
+            ) : (
+              <div
+                onClick={() => setSaveForNextTime(!saveForNextTime)}
+                className="flex items-center gap-2 cursor-pointer text-black"
+              >
+                <div
+                  className={`w-4 h-4 rounded-[3px] flex items-center justify-center border-[1.5px] ${saveForNextTime ? "border-[#0066FF] bg-[#0066FF]" : "border-gray-300 bg-white"}`}
+                >
+                  {saveForNextTime && (
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  )}
+                </div>
+                <span className="text-[14px]">
+                  Save these options for next time
+                </span>
+              </div>
+            )}
+
+            <Button
+              onClick={() => setIsPrivacyModalOpen(false)}
+              className="w-full h-11 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-[16px] shadow-none"
+            >
+              Save
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       {showExitConfirm && (

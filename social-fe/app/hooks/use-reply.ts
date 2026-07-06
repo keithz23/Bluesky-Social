@@ -8,6 +8,42 @@ import { ReplyService } from "../services/reply.service";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { infiniteQueryOptions } from "./infinite-query-options";
+import { Feed } from "../interfaces/feed.interface";
+import { updatePostEverywhere } from "../utils/post-cache.util";
+
+type InfiniteRepliesData = {
+  pages: Array<{
+    replies?: Feed[];
+    [key: string]: unknown;
+  }>;
+  pageParams?: unknown[];
+};
+
+const appendReplyToThread = (old: unknown, reply: Feed) => {
+  const data = old as InfiniteRepliesData | undefined;
+  if (!data?.pages?.length) return old;
+  if (
+    data.pages.some((page) =>
+      page.replies?.some((item) => item.id === reply.id),
+    )
+  ) {
+    return old;
+  }
+
+  const pageIndex = data.pages.length - 1;
+
+  return {
+    ...data,
+    pages: data.pages.map((page, index) =>
+      index === pageIndex
+        ? {
+            ...page,
+            replies: [...(page.replies ?? []), reply],
+          }
+        : page,
+    ),
+  };
+};
 
 export const useCreateReply = (postId: string) => {
   const router = useRouter();
@@ -25,8 +61,17 @@ export const useCreateReply = (postId: string) => {
     },
 
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["replies", postId] });
+      qc.setQueryData(["replies", postId], (old: unknown) =>
+        appendReplyToThread(old, data),
+      );
+      updatePostEverywhere(qc, postId, (post) => ({
+        ...post,
+        replyCount: post.replyCount + 1,
+      }));
+
       qc.invalidateQueries({ queryKey: ["post-detail", postId] });
+      qc.invalidateQueries({ queryKey: ["replies", postId] });
+      qc.invalidateQueries({ queryKey: ["userPosts"] });
 
       toast.success("Your reply was sent", {
         action: {

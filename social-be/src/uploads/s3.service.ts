@@ -6,7 +6,7 @@ import {
   DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
-import sharp from 'sharp';
+import sharp = require('sharp');
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 
 @Injectable()
