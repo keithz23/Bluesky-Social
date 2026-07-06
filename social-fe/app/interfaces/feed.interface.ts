@@ -12,14 +12,15 @@ export interface Feed {
   isBookmarked: boolean;
   isReposted: boolean;
   replyPolicy?: string;
-  replyFollowers?: string;
-  replyFollowing?: string;
-  replyMentioned?: string;
+  replyFollowers?: boolean;
+  replyFollowing?: boolean;
+  replyMentioned?: boolean;
   userId: string;
   user: User;
   media: PostMedia[];
   createdAt?: Date;
   parentPostId?: string;
+  rootPostId?: string | null;
   rootPost?: Feed;
   parentChain?: Feed[];
   post?: any;
