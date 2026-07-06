@@ -2,10 +2,7 @@
 import PostDetailCard from "@/app/components/card/post-detail-card";
 import ReplyCard from "@/app/components/card/reply-card";
 import ReplyPostModal from "@/app/components/dialog/reply-post-dialog";
-import {
-  InfiniteScrollFooter,
-  PostSkeleton,
-} from "@/app/components/skeletons";
+import { InfiniteScrollFooter, PostSkeleton } from "@/app/components/skeletons";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetPostById } from "@/app/hooks/use-post";
@@ -34,11 +31,11 @@ export default function PostDetailPage() {
     enabled: replies.length > 0,
   });
 
-  const disableReply = post ? !checkCanReply(post, user) : false;
+  const disableReply = post && user ? !checkCanReply(post, user) : false;
 
   return (
     <>
-      <div className="sticky top-28 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-2 lg:top-14">
+      <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center p-2 lg:top-14">
         <button
           onClick={() => router.back()}
           className="p-2 mr-4 hover:bg-gray-100 rounded-full transition cursor-pointer"
@@ -74,7 +71,7 @@ export default function PostDetailPage() {
 
       <div className="flex flex-col">
         {replies.map((reply) => (
-          <ReplyCard key={reply.id} reply={reply} disabled={disableReply} />
+          <ReplyCard key={reply.id} reply={reply} />
         ))}
       </div>
 
