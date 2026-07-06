@@ -345,13 +345,11 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authService.requestPasswordReset(
+    return this.authService.requestPasswordReset(
       body.email,
       userAgent,
       ipAddress,
     );
-
-    return { message: 'If the email exists, a reset link has been sent.' };
   }
 
   @Public()
