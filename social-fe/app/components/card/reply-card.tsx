@@ -8,14 +8,7 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import {
-  Repeat,
-  Heart,
-  Bookmark,
-  Share,
-  ChevronRight,
-  ChevronLeft,
-} from "lucide-react";
+import { Share, ChevronRight, ChevronLeft } from "lucide-react";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
@@ -25,6 +18,12 @@ import ReplyPostModal from "../dialog/reply-post-dialog";
 import PostDropDown from "../dropdown/post-dropdown";
 import { dropdownItems } from "@/app/constants/dropdown.constant";
 import { PostContent } from "../post-content";
+import RepostButton from "../button/repost-button";
+import LikeButton from "../button/like-button";
+import BookMarkButton from "../button/bookmark-button";
+import { useAuth } from "@/app/hooks/use-auth";
+import { checkCanReply } from "@/app/utils/check.util";
+import { toast } from "sonner";
 
 interface ReplyCardProps {
   reply: Feed;
@@ -38,10 +37,13 @@ export default function ReplyCard({
   disabled = false,
 }: ReplyCardProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
     currentIndex: number;
   } | null>(null);
+
+  const replyDisabled = disabled || (!!user && !checkCanReply(reply, user));
 
   const handleProfileClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -71,6 +73,22 @@ export default function ReplyCard({
       }
     },
     [zoomData],
+  );
+
+  const handleShare = useCallback(
+    async (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      const url = `${window.location.origin}/profile/${reply.user.username}/post/${reply.id}`;
+
+      if (navigator.share) {
+        await navigator.share({ text: reply.content, url });
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+      toast.success("Post link copied");
+    },
+    [reply.content, reply.id, reply.user.username],
   );
 
   useEffect(() => {
@@ -192,7 +210,7 @@ export default function ReplyCard({
                   <ReplyPostModal
                     post={reply}
                     type="icon"
-                    disabled={disabled}
+                    disabled={replyDisabled}
                   />
                   {reply.replyCount > 0 && (
                     <span className="text-[13px] group-hover:text-blue-500">
@@ -202,64 +220,34 @@ export default function ReplyCard({
                 </div>
 
                 {/* Repost */}
-                <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <div
-                    className={`p-1.5 rounded-full group-hover:bg-green-50 transition-colors ${
-                      reply.isReposted ? "text-green-600" : ""
-                    }`}
-                  >
-                    <Repeat size={18} className="group-hover:text-green-500" />
-                  </div>
-                  {reply.repostCount > 0 && (
-                    <span
-                      className={`text-[13px] group-hover:text-green-500 ${
-                        reply.isReposted ? "text-green-600" : ""
-                      }`}
-                    >
-                      {reply.repostCount}
-                    </span>
-                  )}
-                </div>
+                <RepostButton
+                  postId={reply.id}
+                  isReposted={reply.isReposted}
+                  repostCount={reply.repostCount}
+                />
 
                 {/* Like */}
-                <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <div
-                    className={`p-1.5 rounded-full group-hover:bg-pink-50 transition-colors ${
-                      reply.isLiked ? "text-pink-600" : ""
-                    }`}
-                  >
-                    <Heart
-                      size={18}
-                      className={`group-hover:text-pink-500 ${
-                        reply.isLiked ? "fill-pink-600 text-pink-600" : ""
-                      }`}
-                    />
-                  </div>
-                  {reply.likeCount > 0 && (
-                    <span
-                      className={`text-[13px] group-hover:text-pink-500 ${
-                        reply.isLiked ? "text-pink-600" : ""
-                      }`}
-                    >
-                      {reply.likeCount}
-                    </span>
-                  )}
-                </div>
+                <LikeButton
+                  postId={reply.id}
+                  isLiked={reply.isLiked}
+                  likeCount={reply.likeCount}
+                />
               </div>
 
               {/* Right Action Icons (Bookmark, Share, More) */}
               <div className="flex items-center gap-1">
-                <div className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
-                  <Bookmark
-                    size={18}
-                    className={`group-hover:text-blue-500 ${
-                      reply.isBookmarked ? "fill-blue-500 text-blue-500" : ""
-                    }`}
-                  />
-                </div>
-                <div className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
+                <BookMarkButton
+                  postId={reply.id}
+                  isBookmarked={reply.isBookmarked}
+                  bookmarkCount={reply.bookmarkCount}
+                />
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer"
+                >
                   <Share size={18} className="group-hover:text-blue-500" />
-                </div>
+                </button>
                 <div className="p-1.5 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer">
                   <PostDropDown items={dropdownItems} post={reply} />
                 </div>

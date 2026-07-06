@@ -1,5 +1,8 @@
 import { Feed } from "../interfaces/feed.interface";
 
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const checkCanReply = (post: Feed, currentUser: any) => {
   if (!currentUser) {
     return false;
@@ -17,7 +20,10 @@ export const checkCanReply = (post: Feed, currentUser: any) => {
     }
 
     if (post.replyMentioned && currentUser.username) {
-      const mentionRegex = new RegExp(`@${currentUser.username}\\b`, "i");
+      const mentionRegex = new RegExp(
+        `@${escapeRegExp(currentUser.username)}\\b`,
+        "i",
+      );
       if (mentionRegex.test(post.content)) {
         return true;
       }

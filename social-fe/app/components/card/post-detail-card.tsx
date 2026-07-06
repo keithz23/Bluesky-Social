@@ -29,6 +29,8 @@ import RepostButton from "../button/repost-button";
 import LikeButton from "../button/like-button";
 import BookMarkButton from "../button/bookmark-button";
 import { toast } from "sonner";
+import { useAuth } from "@/app/hooks/use-auth";
+import { checkCanReply } from "@/app/utils/check.util";
 
 interface PostDetailCardProps {
   post: Feed;
@@ -42,10 +44,12 @@ export default function PostDetailCard({
   disabled,
 }: PostDetailCardProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
     currentIndex: number;
   } | null>(null);
+  const replyDisabled = disabled || (!!user && !checkCanReply(post, user));
 
   const handlePostClick = () => {
     if (role === "parent") {
@@ -307,7 +311,11 @@ export default function PostDetailCard({
               <div className="flex items-center gap-10">
                 {/* Reply */}
                 <div className="flex items-center gap-1.5 group cursor-pointer">
-                  <ReplyPostModal post={post} type="icon" disabled={disabled} />
+                  <ReplyPostModal
+                    post={post}
+                    type="icon"
+                    disabled={replyDisabled}
+                  />
                   <span className="text-[13px] group-hover:text-blue-500">
                     {post.replyCount}
                   </span>

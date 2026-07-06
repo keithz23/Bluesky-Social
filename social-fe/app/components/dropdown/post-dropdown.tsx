@@ -70,11 +70,13 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
       },
       onSuccess: () => {
         if (isOnPostDetail) {
-          if (post.parentPostId && post.rootPost?.user?.username) {
+          const parentPost = post.parentChain?.[post.parentChain.length - 1];
+          const parentUsername =
+            parentPost?.user?.username ?? post.rootPost?.user?.username;
+
+          if (post.parentPostId && parentUsername) {
             // Reply → go back to parent post
-            router.push(
-              `/profile/${post.rootPost.user.username}/post/${post.parentPostId}`,
-            );
+            router.push(`/profile/${parentUsername}/post/${post.parentPostId}`);
           } else {
             router.push("/");
           }
@@ -213,8 +215,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
         }}
       >
         <DialogContent
-          showCloseButton={false}
-          className="w-full max-w-80 rounded-[32px] border-none bg-white p-6 shadow-xl"
+          className="z-100 w-[calc(100vw-2rem)] max-w-90 gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
           onInteractOutside={(event) => {
             if (isDeletingPost) event.preventDefault();
           }}
@@ -222,35 +223,37 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
             if (isDeletingPost) event.preventDefault();
           }}
         >
-          <DialogTitle className="text-xl font-bold text-gray-900">
-            Delete this post?
-          </DialogTitle>
-          <DialogDescription asChild>
-            <p className="text-[15px] leading-snug text-gray-600">
-              If you remove this post, you won't be able to recover it.
+          <div className="flex flex-col gap-4">
+            <div>
+              <DialogTitle className="text-[17px] font-bold text-slate-950">
+                Delete this post?
+              </DialogTitle>
+              <p className="mt-1.5 text-sm leading-5 text-slate-500">
+                If you remove this post, you won't be able to recover it.
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 sm:grid sm:grid-cols-2">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                disabled={isDeletingPost}
+                className="flex h-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmDelete}
+                disabled={isDeletingPost}
+                className="flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#E42240] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#c91d37]"
+              >
+                Delete
+              </button>
+            </div>
+
+            <p className="text-center text-xs leading-4 text-slate-400">
+              This action cannot be undone.
             </p>
-          </DialogDescription>
-
-          <div className="flex flex-col gap-3 pt-2">
-            <button
-              onClick={confirmDelete}
-              disabled={isDeletingPost}
-              className="flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37] disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isDeletingPost ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </button>
-
-            <button
-              onClick={() => setIsModalOpen(false)}
-              disabled={isDeletingPost}
-              className="flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0] disabled:opacity-70"
-            >
-              Cancel
-            </button>
           </div>
         </DialogContent>
       </Dialog>

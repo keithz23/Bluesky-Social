@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogTrigger,
@@ -21,6 +21,7 @@ import AvatarHoverCard from "../card/avatar-hover-card";
 import { useCreateReply } from "@/app/hooks/use-reply";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
+import ComposerFloatingPicker from "./composer-floating-picker";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_REPLY_LENGTH = 300;
@@ -61,37 +62,12 @@ export default function ReplyPostModal({
   const hasChanges = postText.trim().length > 0 || hasImages || hasGif;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
-  const gifPickerRef = useRef<HTMLDivElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
 
   const { createReply } = useCreateReply(post.id);
 
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(event.target as Node) &&
-        emojiButtonRef.current &&
-        !emojiButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowEmojiPicker(false);
-      }
-      if (
-        gifPickerRef.current &&
-        !gifPickerRef.current.contains(event.target as Node) &&
-        gifButtonRef.current &&
-        !gifButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowGifPicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const revokeImagePreviews = (images: ImagePreview[]) => {
     images.forEach((img) => URL.revokeObjectURL(img.preview));
@@ -102,9 +78,7 @@ export default function ReplyPostModal({
   };
 
   const appendText = (value: string) => {
-    setPostText((current) =>
-      `${current}${value}`.slice(0, MAX_REPLY_LENGTH),
-    );
+    setPostText((current) => `${current}${value}`.slice(0, MAX_REPLY_LENGTH));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +165,21 @@ export default function ReplyPostModal({
     closeAndReset();
   };
 
+  const isFloatingPickerInteraction = (event: Event) => {
+    const target = event.target;
+    return (
+      event
+        .composedPath()
+        .some(
+          (node) =>
+            node instanceof Element &&
+            node.hasAttribute("data-composer-floating-picker"),
+        ) ||
+      (target instanceof Element &&
+        Boolean(target.closest("[data-composer-floating-picker='true']")))
+    );
+  };
+
   const handleCreatePost = () => {
     if (isSubmitDisabled) return;
 
@@ -269,8 +258,14 @@ export default function ReplyPostModal({
         </DialogTrigger>
 
         <DialogContent
-          className="max-w-150 max-h-[90vh] overflow-y-auto p-0 border-none rounded-xl shadow-lg bg-white gap-0"
+          showCloseButton={false}
+          className="max-w-150 max-h-[90vh] overflow-y-auto p-0 border-none rounded-xl shadow-lg bg-white gap-0 [&>button]:hidden"
           onInteractOutside={(e) => {
+            if (isFloatingPickerInteraction(e.detail.originalEvent)) {
+              e.preventDefault();
+              return;
+            }
+
             if (createReply.isPending || hasChanges) {
               e.preventDefault();
               if (!createReply.isPending) setShowExitConfirm(true);
@@ -283,33 +278,33 @@ export default function ReplyPostModal({
             }
           }}
         >
-          <DialogTitle asChild>
-            <div className="flex justify-between items-center p-4">
-              <button
-                onClick={handleCancel}
-                className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer"
+          <DialogTitle className="sr-only">Reply to post</DialogTitle>
+
+          <div className="flex justify-between items-center p-4">
+            <button
+              onClick={handleCancel}
+              className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer"
+            >
+              Cancel
+            </button>
+            <div className="flex items-center gap-6">
+              <Button
+                onClick={handleCreatePost}
+                disabled={isSubmitDisabled}
+                className={`rounded-full font-bold px-5 h-9 shadow-none transition-colors ${
+                  !isSubmitDisabled
+                    ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
+                    : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
+                }`}
               >
-                Cancel
-              </button>
-              <div className="flex items-center gap-6">
-                <Button
-                  onClick={handleCreatePost}
-                  disabled={isSubmitDisabled}
-                  className={`rounded-full font-bold px-5 h-9 shadow-none transition-colors ${
-                    !isSubmitDisabled
-                      ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
-                      : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
-                  }`}
-                >
-                  {createReply.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Reply"
-                  )}
-                </Button>
-              </div>
+                {createReply.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Reply"
+                )}
+              </Button>
             </div>
-          </DialogTitle>
+          </div>
 
           {/* Original Post Preview */}
           <div className="px-4 flex justify-between items-start mt-2">
@@ -341,26 +336,28 @@ export default function ReplyPostModal({
 
             {post.media.length > 0 && (
               <div className="w-15 h-15 border border-gray-100 overflow-hidden shrink-0 bg-white flex flex-col justify-center">
-              <div
-                className={`w-full h-full grid gap-px ${
-                  post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                } ${post.media.length > 2 ? "grid-rows-2" : "grid-rows-1"}`}
-              >
-                {post.media.slice(0, 4).map((m, index) => (
-                  <div
-                    key={m.id || index}
-                    className={`w-full h-full overflow-hidden ${
-                      post.media.length === 3 && index === 0 ? "row-span-2" : ""
-                    }`}
-                  >
-                    <img
-                      src={m.mediaUrl}
-                      alt={m.altText ?? "Reply post image"}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
+                <div
+                  className={`w-full h-full grid gap-px ${
+                    post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                  } ${post.media.length > 2 ? "grid-rows-2" : "grid-rows-1"}`}
+                >
+                  {post.media.slice(0, 4).map((m, index) => (
+                    <div
+                      key={m.id || index}
+                      className={`w-full h-full overflow-hidden ${
+                        post.media.length === 3 && index === 0
+                          ? "row-span-2"
+                          : ""
+                      }`}
+                    >
+                      <img
+                        src={m.mediaUrl}
+                        alt={m.altText ?? "Reply post image"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -438,27 +435,34 @@ export default function ReplyPostModal({
           <hr className="border-gray-100" />
 
           {/* Bottom Toolbar */}
-          <div className="relative flex justify-between items-center px-4 py-3">
-            {showEmojiPicker && (
-              <div
-                ref={emojiPickerRef}
-                className="absolute bottom-full left-4 mb-2 z-50 shadow-xl rounded-lg"
-              >
-                <EmojiPicker
-                  onEmojiClick={(e) => appendText(e.emoji)}
-                  searchDisabled
-                  skinTonesDisabled
-                />
-              </div>
-            )}
+          <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
+            <ComposerFloatingPicker
+              open={showEmojiPicker}
+              anchorRef={emojiButtonRef}
+              width={320}
+              maxHeight={380}
+              onClose={() => setShowEmojiPicker(false)}
+            >
+              <EmojiPicker
+                onEmojiClick={(e) => appendText(e.emoji)}
+                searchDisabled
+                skinTonesDisabled
+                width={320}
+                height={380}
+                previewConfig={{ showPreview: false }}
+              />
+            </ComposerFloatingPicker>
 
-            {showGifPicker && (
-              <div
-                ref={gifPickerRef}
-                className="absolute bottom-full left-4 mb-2 z-50 bg-white shadow-xl rounded-lg border border-gray-100 p-2 w-75 h-87.5 overflow-y-auto"
-              >
+            <ComposerFloatingPicker
+              open={showGifPicker}
+              anchorRef={gifButtonRef}
+              width={320}
+              maxHeight={352}
+              onClose={() => setShowGifPicker(false)}
+            >
+              <div className="p-2">
                 <Grid
-                  width={280}
+                  width={304}
                   columns={2}
                   fetchGifs={fetchGifs}
                   onGifClick={(gif, e) => {
@@ -470,7 +474,7 @@ export default function ReplyPostModal({
                   }}
                 />
               </div>
-            )}
+            </ComposerFloatingPicker>
 
             <input
               type="file"
@@ -503,7 +507,11 @@ export default function ReplyPostModal({
 
               <button
                 ref={gifButtonRef}
-                onClick={() => !gifDisabled && setShowGifPicker(!showGifPicker)}
+                onClick={() => {
+                  if (gifDisabled) return;
+                  setShowEmojiPicker(false);
+                  setShowGifPicker((current) => !current);
+                }}
                 disabled={gifDisabled}
                 title={
                   gifDisabled
@@ -529,7 +537,10 @@ export default function ReplyPostModal({
 
               <button
                 ref={emojiButtonRef}
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                onClick={() => {
+                  setShowGifPicker(false);
+                  setShowEmojiPicker((current) => !current);
+                }}
                 className="hover:bg-blue-50 p-1.5 rounded-full transition-colors cursor-pointer"
               >
                 <Smile className="w-5 h-5 text-[#0066FF]" />
