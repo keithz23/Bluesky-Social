@@ -28,6 +28,8 @@ import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
 import { ZoomData } from "../dialog/image-zoom-dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/app/hooks/use-auth";
+import { checkCanReply } from "@/app/utils/check.util";
 
 interface PostCardProps {
   post: Feed;
@@ -37,6 +39,8 @@ interface PostCardProps {
 
 function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const replyDisabled = !!user && !checkCanReply(post, user);
 
   const handleProfileClick = useCallback(() => {
     router.push(`/profile/${post.user.username}`);
@@ -177,7 +181,7 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
           >
             <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:justify-start sm:gap-8">
               <div className="flex items-center gap-1 group cursor-pointer">
-                <ReplyPostModal post={post} />
+                <ReplyPostModal post={post} disabled={replyDisabled} />
                 <span className="group-hover:text-blue-500 transition-colors">
                   {post.replyCount}
                 </span>
