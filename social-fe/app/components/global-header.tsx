@@ -364,28 +364,29 @@ export default function GlobalHeader({
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 h-14 border-b border-gray-200 bg-white">
-      <div className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 md:grid-cols-[minmax(0,1fr)_minmax(16rem,36rem)_minmax(0,1fr)]">
-        <Link
-          href="/"
-          aria-label="Konekt home"
-          className="hidden h-10 w-10 shrink-0 items-center justify-center justify-self-start rounded-full hover:bg-slate-100 lg:block"
-        >
-          <LogoMark />
-        </Link>
-
-        <div className="lg:hidden sm:block">
+    <header className="fixed left-0 right-0 top-0 z-50 h-14 border-b border-slate-200 bg-white">
+      <div className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 md:grid-cols-[minmax(12rem,1fr)_minmax(16rem,36rem)_minmax(0,1fr)]">
+        <div className="flex items-center gap-2 justify-self-start">
           {canOpenMenu && (
             <button
               type="button"
               onClick={onMenuToggle}
               aria-label={isMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={isMenuOpen}
-              className="cursor-pointer rounded-full p-2 text-blue-500 transition hover:bg-gray-100"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-blue-600 transition hover:bg-slate-100"
             >
-              <Menu className="h-7 w-7" />
+              <Menu className="h-5 w-5" />
             </button>
           )}
+
+          <Link
+            href="/"
+            aria-label="Konekt home"
+            className="flex h-9 items-center gap-2 rounded-lg px-2 text-sm font-bold text-blue-700 transition hover:bg-slate-100"
+          >
+            <LogoMark size={18} className="text-blue-600" />
+            <span className="hidden sm:inline">Konekt</span>
+          </Link>
         </div>
 
         <HeaderSearch />
