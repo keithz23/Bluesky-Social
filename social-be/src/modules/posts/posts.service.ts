@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -19,7 +20,10 @@ import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
-import { extractHashtags, extractMentions } from 'src/common/utils/extract.util';
+import {
+  extractHashtags,
+  extractMentions,
+} from 'src/common/utils/extract.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { SearchPostsDto } from './dto/search-posts.dto';
@@ -741,11 +745,11 @@ export class PostsService {
       liked,
       bookmarked,
       reposted,
-      authorFollowsMe,
       parentLikes,
       parentBookmarks,
       parentReposts,
       parentFollows,
+      authorsFollowingMe,
     ] = await Promise.all([
       this.prisma.follow.findUnique({
         where: {
@@ -763,12 +767,6 @@ export class PostsService {
       }),
       this.prisma.repost.findUnique({
         where: { userId_postId: { userId, postId } },
-      }),
-      this.prisma.follow.findMany({
-        where: {
-          followerId: post.user?.id,
-          followingId: userId,
-        },
       }),
       parentIds.length > 0
         ? this.prisma.like.findMany({
@@ -795,6 +793,13 @@ export class PostsService {
         },
         select: { followingId: true },
       }),
+      this.prisma.follow.findMany({
+        where: {
+          followerId: { in: allUserIds },
+          followingId: userId,
+        },
+        select: { followerId: true },
+      }),
     ]);
 
     const parentLikeSet = new Set(
@@ -808,6 +813,9 @@ export class PostsService {
     );
     const followSet = new Set(
       (parentFollows as { followingId: string }[]).map((f) => f.followingId),
+    );
+    const authorFollowsMeSet = new Set(
+      (authorsFollowingMe as { followerId: string }[]).map((f) => f.followerId),
     );
 
     const enrichedParentChain = parentChain.map((parent) => ({
@@ -823,6 +831,7 @@ export class PostsService {
             : followSet.has(parent.user.id)
               ? 'following'
               : 'none',
+        isFollowedByAuthor: authorFollowsMeSet.has(parent.user.id),
       },
     }));
 
@@ -834,13 +843,13 @@ export class PostsService {
       parentChain: enrichedParentChain,
       user: {
         ...post.user,
-        isFollowedByAuthor: !!(authorFollowsMe as any[]).length,
         followStatus:
           post.user.id === userId
             ? null
             : followSet.has(post.user.id)
               ? 'following'
               : 'none',
+        isFollowedByAuthor: authorFollowsMeSet.has(post.user.id),
       },
     };
   }
@@ -907,13 +916,31 @@ export class PostsService {
   ) {
     const { content, gifUrl } = createReplyDto;
     const hashtagNames = extractHashtags(content ?? '');
+    const trimmedContent = content?.trim() ?? '';
 
     const parentPost = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
-      select: { id: true, rootPostId: true, userId: true },
+      select: {
+        id: true,
+        content: true,
+        rootPostId: true,
+        userId: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
+      },
     });
 
     if (!parentPost) throw new NotFoundException('Post not found');
+    if (!trimmedContent && !gifUrl && !images?.length) {
+      throw new BadRequestException('Reply cannot be empty');
+    }
+
+    const canReply = await this.canReplyToPost(userId, parentPost);
+    if (!canReply) {
+      throw new ForbiddenException('You cannot reply to this post');
+    }
 
     const rootPostId = parentPost.rootPostId ?? postId;
 
@@ -959,7 +986,7 @@ export class PostsService {
       const reply = await this.prisma.$transaction(async (tx) => {
         const created = await tx.post.create({
           data: {
-            content: content ?? '',
+            content: trimmedContent,
             parentPostId: postId,
             rootPostId,
             userId,
@@ -1004,8 +1031,31 @@ export class PostsService {
 
         return tx.post.findUnique({
           where: { id: created.id },
-          include: {
-            media: { orderBy: { orderIndex: 'asc' } },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            likeCount: true,
+            replyCount: true,
+            repostCount: true,
+            bookmarkCount: true,
+            parentPostId: true,
+            rootPostId: true,
+            replyPolicy: true,
+            replyFollowers: true,
+            replyFollowing: true,
+            replyMentioned: true,
+            media: {
+              orderBy: { orderIndex: 'asc' },
+              select: {
+                id: true,
+                mediaUrl: true,
+                mediaType: true,
+                width: true,
+                height: true,
+                altText: true,
+              },
+            },
             user: {
               select: {
                 id: true,
@@ -1013,6 +1063,8 @@ export class PostsService {
                 displayName: true,
                 avatarUrl: true,
                 verified: true,
+                followersCount: true,
+                followingCount: true,
               },
             },
           },
@@ -1030,7 +1082,19 @@ export class PostsService {
         });
       }
 
-      return reply;
+      if (!reply) throw new Error('Failed to create reply');
+
+      return {
+        ...reply,
+        isLiked: false,
+        isBookmarked: false,
+        isReposted: false,
+        user: {
+          ...reply.user,
+          followStatus: null,
+          isFollowedByAuthor: false,
+        },
+      };
     } catch (error) {
       if (uploadedKeys.length > 0) {
         await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
@@ -1045,6 +1109,7 @@ export class PostsService {
     cursor?: string,
     limit: number = 20,
   ) {
+    const pageSize = Number(limit) || 20;
     const cursorDate = cursor ? new Date(cursor) : null;
 
     const replies = await this.prisma.post.findMany({
@@ -1056,7 +1121,7 @@ export class PostsService {
             createdAt: { gt: cursorDate },
           }),
       },
-      take: limit + 1,
+      take: pageSize + 1,
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -1067,6 +1132,11 @@ export class PostsService {
         repostCount: true,
         bookmarkCount: true,
         parentPostId: true,
+        rootPostId: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
         user: {
           select: {
             id: true,
@@ -1074,6 +1144,8 @@ export class PostsService {
             displayName: true,
             avatarUrl: true,
             verified: true,
+            followersCount: true,
+            followingCount: true,
           },
         },
         media: {
@@ -1082,13 +1154,15 @@ export class PostsService {
             id: true,
             mediaUrl: true,
             mediaType: true,
+            width: true,
+            height: true,
             altText: true,
           },
         },
       },
     });
 
-    const hasMore = replies.length > limit;
+    const hasMore = replies.length > pageSize;
     if (hasMore) replies.pop();
 
     const nextCursor = hasMore
@@ -1096,8 +1170,15 @@ export class PostsService {
       : null;
 
     const replyIds = replies.map((r) => r.id);
+    const authorIds = [...new Set(replies.map((r) => r.user.id))];
 
-    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
+    const [
+      likedPosts,
+      bookmarkedPosts,
+      repostedPosts,
+      following,
+      authorsFollowingMe,
+    ] = await Promise.all([
       this.prisma.like.findMany({
         where: { userId, postId: { in: replyIds } },
         select: { postId: true },
@@ -1110,11 +1191,23 @@ export class PostsService {
         where: { userId, postId: { in: replyIds } },
         select: { postId: true },
       }),
+      this.prisma.follow.findMany({
+        where: { followerId: userId, followingId: { in: authorIds } },
+        select: { followingId: true },
+      }),
+      this.prisma.follow.findMany({
+        where: { followerId: { in: authorIds }, followingId: userId },
+        select: { followerId: true },
+      }),
     ]);
 
     const likedSet = new Set(likedPosts.map((l) => l.postId));
     const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
     const repostedSet = new Set(repostedPosts.map((r) => r.postId));
+    const followingSet = new Set(following.map((f) => f.followingId));
+    const authorFollowsMeSet = new Set(
+      authorsFollowingMe.map((f) => f.followerId),
+    );
 
     return {
       replies: replies.map((r) => ({
@@ -1122,10 +1215,90 @@ export class PostsService {
         isLiked: likedSet.has(r.id),
         isBookmarked: bookmarkedSet.has(r.id),
         isReposted: repostedSet.has(r.id),
+        user: {
+          ...r.user,
+          followStatus:
+            r.user.id === userId
+              ? null
+              : followingSet.has(r.user.id)
+                ? 'following'
+                : 'none',
+          isFollowedByAuthor: authorFollowsMeSet.has(r.user.id),
+        },
       })),
       nextCursor,
       hasMore,
     };
+  }
+
+  private async canReplyToPost(
+    userId: string,
+    post: {
+      userId: string;
+      content: string;
+      replyPolicy: ReplyPolicy;
+      replyFollowers: boolean;
+      replyFollowing: boolean;
+      replyMentioned: boolean;
+    },
+  ) {
+    if (post.userId === userId) return true;
+    if (post.replyPolicy === ReplyPolicy.ANYONE) return true;
+    if (post.replyPolicy === ReplyPolicy.NOBODY) return false;
+
+    const checks: Promise<unknown>[] = [];
+
+    if (post.replyFollowers) {
+      checks.push(
+        this.prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: userId,
+              followingId: post.userId,
+            },
+          },
+        }),
+      );
+    }
+
+    if (post.replyFollowing) {
+      checks.push(
+        this.prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: post.userId,
+              followingId: userId,
+            },
+          },
+        }),
+      );
+    }
+
+    if (post.replyMentioned) {
+      checks.push(
+        this.prisma.user
+          .findUnique({
+            where: { id: userId },
+            select: { username: true },
+          })
+          .then((user) => {
+            if (!user?.username) return null;
+            const mentionRegex = new RegExp(
+              `@${this.escapeRegExp(user.username)}\\b`,
+              'i',
+            );
+            return mentionRegex.test(post.content) ? user : null;
+          }),
+      );
+    }
+
+    if (checks.length === 0) return false;
+    const results = await Promise.all(checks);
+    return results.some(Boolean);
+  }
+
+  private escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private async scheduleCleanup(
