@@ -34,6 +34,7 @@ import { useSearchUsers } from "../hooks/use-user";
 import { useSearchPosts } from "../hooks/use-post";
 import type { Feed } from "../interfaces/feed.interface";
 import type { User } from "../interfaces/user.interface";
+import NewPostModal from "./dialog/new-post-dialog";
 
 
 type GlobalHeaderProps = {
@@ -353,6 +354,7 @@ export default function GlobalHeader({
   const router = useRouter();
   const { user, isAuthenticated, logoutMutation } = useAuth();
   const { unreadCount } = useNotifications(isAuthenticated);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   const profileHref = user?.username ? `/profile/${user.username}` : "/profile";
   const accountInitial = getInitial(user?.displayName, user?.username);
@@ -395,12 +397,13 @@ export default function GlobalHeader({
           <Button
             asChild
             variant="ghost"
-            className="hidden rounded-full px-3 font-semibold text-slate-900 hover:bg-slate-100 md:inline-flex"
+            className="hidden rounded-full px-3 font-semibold text-slate-900 hover:bg-slate-100 md:inline-flex cursor-pointer"
+            onClick={() => setIsPostModalOpen(true)}
           >
-            <Link href="/">
+            <div>
               <PlusSquare className="h-4 w-4" />
               Create
-            </Link>
+            </div>
           </Button>
 
           <HeaderIconButton href="/notifications" label="Notifications">
@@ -462,6 +465,7 @@ export default function GlobalHeader({
           )}
         </div>
       </div>
+      <NewPostModal open={isPostModalOpen} onOpenChange={setIsPostModalOpen} />
     </header>
   );
 }

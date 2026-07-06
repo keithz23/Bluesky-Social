@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  SquarePen,
   Globe,
   ChevronDown,
   ChevronUp,
@@ -36,14 +34,14 @@ interface ImagePreview {
   preview: string;
 }
 
-interface NewPostModalProps {
-  buttonName: string;
-  compactTrigger?: boolean;
-}
+type NewPostModalProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
 export default function NewPostModal({
-  buttonName,
-  compactTrigger = false,
+  open,
+  onOpenChange,
 }: NewPostModalProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
@@ -95,7 +93,6 @@ export default function NewPostModal({
     }
   };
 
-  const [isOpen, setIsOpen] = useState(false);
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -130,7 +127,6 @@ export default function NewPostModal({
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const gifPickerRef = useRef<HTMLDivElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLButtonElement>(null);
 
   const { createPost } = usePost();
 
@@ -159,32 +155,6 @@ export default function NewPostModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const preventOutsideScroll = (event: WheelEvent | TouchEvent) => {
-      const target = event.target as Node;
-
-      if (dropdownRef.current?.contains(target)) {
-        return;
-      }
-
-      event.preventDefault();
-    };
-
-    document.addEventListener("wheel", preventOutsideScroll, {
-      passive: false,
-    });
-    document.addEventListener("touchmove", preventOutsideScroll, {
-      passive: false,
-    });
-
-    return () => {
-      document.removeEventListener("wheel", preventOutsideScroll);
-      document.removeEventListener("touchmove", preventOutsideScroll);
-    };
-  }, [isOpen]);
 
   const handleSelectRadio = (type: ReplyType) => {
     setReplyType(type);
@@ -274,12 +244,12 @@ export default function NewPostModal({
 
   const closeAndReset = () => {
     resetForm();
-    setIsOpen(false);
+    onOpenChange(false);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setIsOpen(true);
+      onOpenChange(true);
       return;
     }
 
@@ -354,49 +324,32 @@ export default function NewPostModal({
 
   return (
     <>
-      <div
-        className={`relative px-2 ${compactTrigger ? "mt-3 w-full" : "mt-4 w-[90%]"
-          }`}
-      >
-        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild ref={dropdownRef}>
-            <Button
-              className={`flex w-full cursor-pointer items-center gap-2 rounded-full bg-[#0066FF] font-bold text-white shadow-sm hover:bg-blue-700 ${compactTrigger ? "h-10 text-sm" : "h-14 text-[17px]"
-                }`}
-            >
-              <SquarePen
-                className={compactTrigger ? "h-4 w-4" : "h-5 w-5"}
-                strokeWidth={2}
-              />
-              {buttonName}
-            </Button>
-          </DialogTrigger>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          className="max-h-[88vh] max-w-155 overflow-y-auto overflow-x-hidden gap-0 rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl [&>button]:hidden"
+          onInteractOutside={(e) => {
+            if (isPrivacyDialogInteraction(e.detail.originalEvent)) {
+              e.preventDefault();
+              return;
+            }
 
-          <DialogContent
-            className="max-h-[88vh] max-w-[620px] overflow-y-auto overflow-x-hidden gap-0 rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl [&>button]:hidden"
-            onInteractOutside={(e) => {
-              if (isPrivacyDialogInteraction(e.detail.originalEvent)) {
-                e.preventDefault();
-                return;
-              }
+            if (createPost.isPending || hasChanges) {
+              e.preventDefault();
+              if (!createPost.isPending) setShowExitConfirm(true);
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (isPrivacyModalOpen) {
+              e.preventDefault();
+              return;
+            }
 
-              if (createPost.isPending || hasChanges) {
-                e.preventDefault();
-                if (!createPost.isPending) setShowExitConfirm(true);
-              }
-            }}
-            onEscapeKeyDown={(e) => {
-              if (isPrivacyModalOpen) {
-                e.preventDefault();
-                return;
-              }
-
-              if (createPost.isPending || hasChanges) {
-                e.preventDefault();
-                if (!createPost.isPending) setShowExitConfirm(true);
-              }
-            }}
-          >
+            if (createPost.isPending || hasChanges) {
+              e.preventDefault();
+              if (!createPost.isPending) setShowExitConfirm(true);
+            }
+          }}
+        >
             <DialogTitle asChild>
               <div className="sticky top-0 z-20 grid h-14 grid-cols-[2.25rem_1fr_auto] items-center gap-3 border-b border-slate-100 bg-white/95 px-4 backdrop-blur">
                 <button
@@ -706,15 +659,16 @@ export default function NewPostModal({
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+        </DialogContent>
+      </Dialog>
 
-        {/* -------------------- PRIVACY SETTINGS MODAL -------------------- */}
-        <Dialog open={isPrivacyModalOpen} onOpenChange={setIsPrivacyModalOpen}>
-          <DialogContent
-            data-privacy-dialog="true"
-            className="max-w-100 p-6 border-none rounded-xl shadow-xl bg-white gap-0"
-          >
+      {/* -------------------- PRIVACY SETTINGS MODAL -------------------- */}
+      <Dialog open={isPrivacyModalOpen} onOpenChange={setIsPrivacyModalOpen}>
+        <DialogContent
+          data-privacy-dialog="true"
+          showCloseButton={false}
+          className="max-w-100 p-6 border-none rounded-xl shadow-xl bg-white gap-0"
+        >
             <DialogTitle className="flex justify-between items-center mb-4 text-xl font-bold text-black">
               Post interaction settings
               <button
@@ -857,13 +811,12 @@ export default function NewPostModal({
                 Save
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+        </DialogContent>
+      </Dialog>
       {showExitConfirm && (
         <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
           <DialogContent
-            className="z-100 w-[calc(100vw-2rem)] max-w-[360px] gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
+            className="z-100 w-[calc(100vw-2rem)] max-w-90 gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
