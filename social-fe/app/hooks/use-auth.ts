@@ -55,11 +55,12 @@ export function useAuth() {
   // 3. Mutation register
   const signup = useMutation({
     mutationFn: async ({ registerDto }: { registerDto: RegisterData }) => {
-      return AuthService.register(registerDto);
+      const res = await AuthService.register(registerDto);
+      return res.data
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: ["me"] });
-      toast.success("Your account is ready to go.");
+      toast.success(data?.message || "Your account is ready to go.");
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
@@ -83,10 +84,20 @@ export function useAuth() {
   // 5. Mutation forgot password
   const forgotPassword = useMutation({
     mutationFn: async ({ email }: { email: string }) => {
-      return AuthService.forgot(email);
+      const res = await AuthService.forgot(email);
+      return res.data;
     },
-    onSuccess: () => {
-      toast.success("Password reset email sent.");
+    onSuccess: (data) => {
+      const message =
+        data?.message ||
+        "If an account with this email exists, a password reset link has been sent.";
+
+      if (data?.canResetPassword === false) {
+        toast.warning(message);
+        return;
+      }
+
+      toast.success(message);
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
@@ -100,10 +111,11 @@ export function useAuth() {
     }: {
       resetPasswordData: ResetPasswordData;
     }) => {
-      return AuthService.reset(resetPasswordData);
+      const res = await AuthService.reset(resetPasswordData);
+      return res.data
     },
-    onSuccess: () => {
-      toast.success("Password reset successful.");
+    onSuccess: (data) => {
+      toast.success(data?.message || "Password reset successful.")
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
@@ -116,13 +128,14 @@ export function useAuth() {
     }: {
       updateProfileData: UpdateProfileData;
     }) => {
-      return AuthService.updateProfile(updateProfileData);
+      const res = await AuthService.updateProfile(updateProfileData);
+      return res.data
     },
 
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: ["me"] });
       await qc.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Profile updated successfully");
+      toast.success(data?.message || "Profile updated successfully");
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
