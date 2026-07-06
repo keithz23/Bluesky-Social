@@ -25,6 +25,7 @@ import { usePost } from "@/app/hooks/use-post";
 import { ReplyType } from "@/app/interfaces/post.interface";
 import { useMention } from "@/app/hooks/use-metion";
 import { User } from "@/app/interfaces/user.interface";
+import { useAuth } from "@/app/hooks/use-auth";
 import Avatar from "../avatar";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
@@ -37,10 +38,15 @@ interface ImagePreview {
 
 interface NewPostModalProps {
   buttonName: string;
+  compactTrigger?: boolean;
 }
 
-export default function NewPostModal({ buttonName }: NewPostModalProps) {
+export default function NewPostModal({
+  buttonName,
+  compactTrigger = false,
+}: NewPostModalProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { user } = useAuth();
 
   const {
     query,
@@ -124,6 +130,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const gifPickerRef = useRef<HTMLDivElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLButtonElement>(null);
 
   const { createPost } = usePost();
 
@@ -151,6 +158,33 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const preventOutsideScroll = (event: WheelEvent | TouchEvent) => {
+      const target = event.target as Node;
+
+      if (dropdownRef.current?.contains(target)) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+
+    document.addEventListener("wheel", preventOutsideScroll, {
+      passive: false,
+    });
+    document.addEventListener("touchmove", preventOutsideScroll, {
+      passive: false,
+    });
+
+    return () => {
+      document.removeEventListener("wheel", preventOutsideScroll);
+      document.removeEventListener("touchmove", preventOutsideScroll);
+    };
+  }, [isOpen]);
 
   const handleSelectRadio = (type: ReplyType) => {
     setReplyType(type);
@@ -320,17 +354,26 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
   return (
     <>
-      <div className="mt-4 px-2 w-[90%] relative">
+      <div
+        className={`relative px-2 ${compactTrigger ? "mt-3 w-full" : "mt-4 w-[90%]"
+          }`}
+      >
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild>
-            <Button className="w-full h-14 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[17px] font-bold flex gap-2 items-center cursor-pointer shadow-sm">
-              <SquarePen className="w-5 h-5" strokeWidth={2} />
+          <DialogTrigger asChild ref={dropdownRef}>
+            <Button
+              className={`flex w-full cursor-pointer items-center gap-2 rounded-full bg-[#0066FF] font-bold text-white shadow-sm hover:bg-blue-700 ${compactTrigger ? "h-10 text-sm" : "h-14 text-[17px]"
+                }`}
+            >
+              <SquarePen
+                className={compactTrigger ? "h-4 w-4" : "h-5 w-5"}
+                strokeWidth={2}
+              />
               {buttonName}
             </Button>
           </DialogTrigger>
 
           <DialogContent
-            className="max-w-150 max-h-[90vh] overflow-y-auto p-0 border-none rounded-xl shadow-lg bg-white gap-0"
+            className="max-h-[88vh] max-w-[620px] overflow-y-auto overflow-x-hidden gap-0 rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl [&>button]:hidden"
             onInteractOutside={(e) => {
               if (isPrivacyDialogInteraction(e.detail.originalEvent)) {
                 e.preventDefault();
@@ -355,43 +398,46 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
             }}
           >
             <DialogTitle asChild>
-              <div className="flex justify-between items-center p-4">
+              <div className="sticky top-0 z-20 grid h-14 grid-cols-[2.25rem_1fr_auto] items-center gap-3 border-b border-slate-100 bg-white/95 px-4 backdrop-blur">
                 <button
                   onClick={handleCancel}
-                  className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer"
+                  aria-label="Close post dialog"
+                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
                 >
-                  Cancel
+                  <X className="h-5 w-5" />
                 </button>
-                <div className="flex items-center gap-6">
-                  <button className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer">
-                    Drafts
-                  </button>
-                  <Button
-                    onClick={handleCreatePost}
-                    disabled={isSubmitDisabled}
-                    className={`rounded-full font-medium px-5 h-9 shadow-none transition-colors ${!isSubmitDisabled
-                        ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
-                        : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
-                      }`}
-                  >
-                    {createPost.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Post"
-                    )}
-                  </Button>
-                </div>
+                <h2 className="justify-self-center text-base font-bold text-slate-950">
+                  Create post
+                </h2>
+                <Button
+                  onClick={handleCreatePost}
+                  disabled={isSubmitDisabled}
+                  className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${!isSubmitDisabled
+                    ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
+                    : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
+                    }`}
+                >
+                  {createPost.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Post"
+                  )}
+                </Button>
               </div>
             </DialogTitle>
 
-            <div className="px-4 flex gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#F05555] shrink-0 flex items-center justify-center text-white font-medium text-2xl">
-                @
-              </div>
-              <div className="flex-1 pt-2 relative">
-                <div className="relative flex-1 pt-2 min-h-20">
+            <div className="flex min-w-0 gap-3 px-4 py-4">
+              {user ? (
+                <Avatar data={user} className="h-11 w-11 sm:h-11 sm:w-11" />
+              ) : (
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FF4F5A] text-lg font-bold text-white">
+                  @
+                </div>
+              )}
+              <div className="relative min-w-0 flex-1 pt-1">
+                <div className="relative min-h-32 min-w-0 flex-1">
                   <div
-                    className="absolute inset-0 pt-2 px-0 text-[17px] whitespace-pre-wrap wrap-break-words pointer-events-none select-none border-none"
+                    className="pointer-events-none absolute inset-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none px-0 text-[17px] leading-6 select-none"
                     aria-hidden="true"
                   >
                     {postText.split(/(\s+)/).map((part, i) => {
@@ -419,19 +465,19 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                       );
                     }}
                     onKeyDown={handleKeyDown}
-                    className="relative w-full bg-transparent resize-none border-none outline-none focus:ring-0 text-[17px] placeholder:text-gray-500 min-h-20 z-10 text-transparent caret-black"
-                    placeholder="What's up?"
+                    className="relative z-10 min-h-32 w-full resize-none overflow-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none bg-transparent text-[17px] leading-6 text-transparent caret-slate-950 outline-none placeholder:text-slate-400 focus:ring-0"
+                    placeholder="What's happening?"
                     spellCheck={false}
                   />
                 </div>
 
                 {/* Mention Dropdown */}
                 {isMentionOpen && (isLoading || mentionResults.length > 0) && (
-                  <div className="absolute top-full left-0 w-72 bg-popover text-popover-foreground border border-border rounded-md shadow-md z-60 mt-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                    <div className="max-h-72 overflow-y-auto p-1">
+                  <div className="absolute top-full left-0 z-60 mt-2 w-76 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                    <div className="max-h-72 overflow-y-auto p-1.5">
                       {isLoading ? (
-                        <div className="flex items-center justify-center p-4 text-sm text-muted-foreground gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <div className="flex items-center justify-center gap-2 p-4 text-sm text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                           <span>Searching...</span>
                         </div>
                       ) : (
@@ -440,22 +486,22 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                             key={user.id}
                             onClick={() => insertMention(user.username)}
                             onMouseEnter={() => setActiveIndex(i)}
-                            className={`relative flex cursor-pointer select-none items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none transition-colors ${i === activeIndex
-                                ? "bg-accent text-accent-foreground"
-                                : "hover:bg-accent hover:text-accent-foreground"
+                            className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${i === activeIndex
+                              ? "bg-blue-50 text-blue-700"
+                              : "hover:bg-slate-50"
                               }`}
                           >
-                            <Avatar data={user} className="w-8 h-8" />
-                            <div className="flex flex-col min-w-0">
-                              <p className="text-[14px] font-medium truncate">
+                            <Avatar data={user} className="h-8 w-8 sm:h-8 sm:w-8" />
+                            <div className="flex min-w-0 flex-col">
+                              <p className="truncate text-[14px] font-semibold">
                                 {user.username}
                               </p>
-                              <p className="text-[12px] text-muted-foreground truncate">
+                              <p className="truncate text-[12px] text-slate-500">
                                 @{user.username}
                               </p>
                             </div>
                             {i === activeIndex && (
-                              <Check className="w-4 h-4 ml-auto shrink-0 text-primary" />
+                              <Check className="ml-auto h-4 w-4 shrink-0 text-blue-600" />
                             )}
                           </div>
                         ))
@@ -468,33 +514,33 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
             {/* PREVIEW: Multiple Images */}
             {hasImages && (
-              <div className="px-4 pb-2 ml-14">
-                <div className={`grid ${getGridClass(imageCount)} gap-1.5`}>
+              <div className="ml-18 min-w-0 px-4 pb-3">
+                <div className={`grid ${getGridClass(imageCount)} gap-2`}>
                   {selectedImages.map((img, i) => {
                     const isThreeFirst = imageCount === 3 && i === 0;
                     return (
                       <div
                         key={i}
-                        className={`relative ${isThreeFirst ? "col-span-2" : ""}`}
+                        className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 ${isThreeFirst ? "col-span-2" : ""}`}
                       >
                         <img
                           src={img.preview}
                           alt={`Selected media ${i + 1}`}
-                          className={`rounded-xl w-full object-cover border border-gray-200 ${isThreeFirst ? "max-h-48" : "max-h-40"}`}
+                          className={`w-full object-cover ${isThreeFirst ? "max-h-56" : "max-h-48"}`}
                         />
                         <button
                           onClick={() => removeImage(i)}
-                          className="absolute top-1.5 right-1.5 bg-gray-900/60 hover:bg-gray-900 flex items-center justify-center w-6 h-6 rounded-full text-white transition-colors cursor-pointer"
+                          className="absolute top-2 right-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-slate-950/65 text-white transition hover:bg-slate-950"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     );
                   })}
                 </div>
                 {imageCount < 4 && (
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    {imageCount}/4 images · You can add {4 - imageCount} more
+                  <p className="mt-2 text-xs text-slate-400">
+                    {imageCount}/4 images - {4 - imageCount} remaining
                   </p>
                 )}
               </div>
@@ -502,47 +548,45 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
 
             {/* PREVIEW: GIF */}
             {hasGif && (
-              <div className="relative px-4 pb-2 ml-14">
+              <div className="relative ml-18 inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
                 <img
                   src={selectedGif!}
                   alt="Selected GIF"
-                  className="rounded-xl max-h-62.5 w-auto object-cover border border-gray-200"
+                  className="max-h-72 max-w-full rounded-2xl border border-slate-200 object-cover"
                 />
                 <button
                   onClick={removeGif}
-                  className="absolute top-2 right-6 bg-gray-900/60 hover:bg-gray-900 flex items-center justify-center w-7 h-7 rounded-full text-white transition-colors cursor-pointer"
+                  className="absolute top-2 right-6 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-slate-950/65 text-white transition hover:bg-slate-950"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             )}
 
-            <div className="px-4 pb-3 mt-2">
+            <div className="mt-1 px-4 pb-4 pl-18">
               <button
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={openPrivacySettings}
-                className="flex items-center gap-1.5 bg-[#F2F4F8] hover:bg-gray-200 text-[#444746] text-[13px] font-medium px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
+                className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
               >
-                <Globe className="w-4 h-4 text-[#444746]" strokeWidth={2} />
+                <Globe className="h-4 w-4" strokeWidth={2} />
                 {replyType === "anyone"
                   ? "Anyone can interact"
                   : replyType === "nobody"
                     ? "Nobody can reply"
                     : "Custom interactions"}
                 <ChevronDown
-                  className="w-4 h-4 text-[#444746]"
+                  className="h-4 w-4"
                   strokeWidth={2}
                 />
               </button>
             </div>
 
-            <hr className="border-gray-200" />
-
-            <div className="relative flex justify-between items-center px-4 py-3">
+            <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
               {showEmojiPicker && (
                 <div
                   ref={emojiPickerRef}
-                  className="absolute bottom-full left-4 mb-2 z-50 shadow-xl rounded-lg"
+                  className="absolute bottom-full left-4 z-50 mb-2 rounded-xl shadow-xl"
                 >
                   <EmojiPicker
                     onEmojiClick={(e) => appendText(e.emoji)}
@@ -555,7 +599,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
               {showGifPicker && (
                 <div
                   ref={gifPickerRef}
-                  className="absolute bottom-full left-4 mb-2 z-50 bg-white shadow-xl rounded-lg border border-gray-100 p-2 w-75 h-87.5 overflow-y-auto"
+                  className="absolute bottom-full left-4 z-50 mb-2 h-87.5 w-75 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
                 >
                   <Grid
                     width={280}
@@ -581,7 +625,7 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                 onChange={handleFileChange}
               />
 
-              <div className="flex items-center gap-4 text-[#0066FF]">
+              <div className="flex min-w-0 items-center gap-1 rounded-full bg-blue-50/70 p-1 text-[#0066FF]">
                 <button
                   onClick={() =>
                     !imageDisabled && fileInputRef.current?.click()
@@ -594,12 +638,12 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                         ? "Maximum of 4 images reached"
                         : "Add images"
                   }
-                  className={`p-1.5 rounded-full transition-colors ${imageDisabled
-                      ? "opacity-40 cursor-not-allowed text-gray-400"
-                      : "hover:bg-blue-50 text-[#0066FF] cursor-pointer"
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${imageDisabled
+                    ? "cursor-not-allowed text-slate-300 opacity-50"
+                    : "cursor-pointer text-[#0066FF] hover:bg-white"
                     }`}
                 >
-                  <ImageIcon className="w-5.5 h-5.5" />
+                  <ImageIcon className="h-5 w-5" />
                 </button>
 
                 <button
@@ -613,15 +657,15 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                       ? "Remove images before adding a GIF"
                       : "Add a GIF"
                   }
-                  className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${gifDisabled
-                      ? "opacity-40 cursor-not-allowed"
-                      : "hover:bg-blue-50 cursor-pointer"
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${gifDisabled
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer hover:bg-white"
                     }`}
                 >
                   <div
-                    className={`border-2 rounded-lg text-[10px] font-bold w-5.5 h-5.5 flex items-center justify-center ${gifDisabled
-                        ? "border-gray-400 text-gray-400"
-                        : "border-[#0066FF] text-[#0066FF]"
+                    className={`flex h-5 w-5 items-center justify-center rounded-md border-2 text-[9px] font-bold ${gifDisabled
+                      ? "border-slate-300 text-slate-300"
+                      : "border-[#0066FF] text-[#0066FF]"
                       }`}
                   >
                     GIF
@@ -631,20 +675,35 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
                 <button
                   ref={emojiButtonRef}
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="hover:bg-blue-50 p-1.5 rounded-full transition-colors cursor-pointer"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white"
                 >
-                  <Smile className="w-5.5 h-5.5" />
+                  <Smile className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="flex items-center gap-4 pr-2">
-                <button className="text-[#0066FF] font-medium text-[15px] hover:underline">
-                  English
-                </button>
-                <span className="text-gray-900 text-[15px]">
+              <div className="flex shrink-0 items-center gap-3">
+                <span
+                  className={`text-sm font-medium ${MAX_POST_LENGTH - postText.length < 30
+                    ? "text-amber-600"
+                    : "text-slate-500"
+                    }`}
+                >
                   {MAX_POST_LENGTH - postText.length}
                 </span>
-                <div className="w-7 h-7 rounded-full border border-gray-200"></div>
+                <Button
+                  onClick={handleCreatePost}
+                  disabled={isSubmitDisabled}
+                  className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${!isSubmitDisabled
+                    ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
+                    : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
+                    }`}
+                >
+                  {createPost.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Post"
+                  )}
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -803,35 +862,40 @@ export default function NewPostModal({ buttonName }: NewPostModalProps) {
       </div>
       {showExitConfirm && (
         <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-          <DialogTitle className="sr-only"></DialogTitle>
           <DialogContent
-            className="w-full max-w-62.5 rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-100 [&>button]:hidden"
+            className="z-100 w-[calc(100vw-2rem)] max-w-[360px] gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
-            <div className="flex flex-col">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
-                Discard thread?
-              </h2>
-              <p className="text-[15px] leading-snug text-gray-600 mb-6">
-                This can't be undone and you'll lose your draft.
-              </p>
+            <div className="flex flex-col gap-4">
+              <div>
+                <DialogTitle className="text-[17px] font-bold text-slate-950">
+                  Discard draft?
+                </DialogTitle>
+                <p className="mt-1.5 text-sm leading-5 text-slate-500">
+                  Your post has unsaved changes.
+                </p>
+              </div>
 
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleConfirmDiscard}
-                  className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37]"
-                >
-                  Discard
-                </button>
-
+              <div className="flex flex-col-reverse gap-2 sm:grid sm:grid-cols-2">
                 <button
                   onClick={() => setShowExitConfirm(false)}
-                  className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0]"
+                  className="flex h-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
                 >
                   Cancel
                 </button>
+
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#E42240] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#c91d37]"
+                >
+                  Discard
+                </button>
               </div>
+
+              <p className="text-center text-xs leading-4 text-slate-400">
+                This action cannot be undone.
+              </p>
             </div>
           </DialogContent>
         </Dialog>

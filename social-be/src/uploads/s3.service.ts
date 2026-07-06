@@ -6,7 +6,7 @@ import {
   DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 
 @Injectable()
@@ -28,17 +28,17 @@ export class S3Service {
       region: this.region,
       ...(accessKeyId && secretAccessKey
         ? {
-            credentials: {
-              accessKeyId,
-              secretAccessKey,
-            },
-          }
+          credentials: {
+            accessKeyId,
+            secretAccessKey,
+          },
+        }
         : {}),
       ...(process.env.AWS_ENDPOINT
         ? {
-            endpoint: process.env.AWS_ENDPOINT,
-            forcePathStyle: true,
-          }
+          endpoint: process.env.AWS_ENDPOINT,
+          forcePathStyle: true,
+        }
         : {}),
     });
   }
@@ -97,8 +97,10 @@ export class S3Service {
         size: buffer.length,
         mimetype,
       };
-    } catch (error) {
-      this.logger.error(`Upload failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(`Upload failed: ${error.message}`);
+      }
       throw error;
     }
   }
@@ -167,8 +169,9 @@ export class S3Service {
         size: buffer.length,
         mimetype: contentType,
       };
-    } catch (error) {
-      this.logger.error(`Buffer upload failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error)
+        this.logger.error(`Buffer upload failed: ${error.message}`);
       throw error;
     }
   }
@@ -211,8 +214,9 @@ export class S3Service {
       });
       await this.s3Client.send(command);
       this.logger.log(`Deleted file: ${key}`);
-    } catch (error) {
-      this.logger.error(`Delete failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error)
+        this.logger.error(`Delete failed: ${error.message}`);
       throw error;
     }
   }
@@ -230,8 +234,9 @@ export class S3Service {
       });
       await this.s3Client.send(command);
       this.logger.log(`Deleted ${keys.length} files`);
-    } catch (error) {
-      this.logger.error(`Batch delete failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error)
+        this.logger.error(`Batch delete failed: ${error.message}`);
       throw error;
     }
   }
@@ -249,7 +254,12 @@ export class S3Service {
     const cloudfrontDomain = this.configService.get<string>(
       'config.cloudfront.domain',
     );
-    return `${cloudfrontDomain}/${key}`;
+
+    if (cloudfrontDomain) {
+      return `${cloudfrontDomain.replace(/\/$/, '')}/${key}`;
+    }
+
+    return key;
   }
 
   // Extract key from URL
