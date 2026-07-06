@@ -20,7 +20,6 @@ import { useNotifications } from "../hooks/use-notifications";
 import { useUnreadMessages } from "../hooks/use-unread-messages";
 import BackToTop from "../components/back-to-top";
 import Loading from "../components/loading";
-import NewPostModal from "../components/dialog/new-post-dialog";
 import GlobalHeader from "../components/global-header";
 
 type NavItem = {
@@ -44,17 +43,15 @@ const MAIN_BASE_CLASSES =
   "mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[860px] pb-20 transition-[margin] duration-300 md:pb-0";
 
 const getSidebarClasses = (isExpanded: boolean) =>
-  `${SIDEBAR_BASE_CLASSES} ${
-    isExpanded
-      ? "w-60 translate-x-0 lg:w-56 xl:w-60"
-      : "-translate-x-full lg:w-16 lg:translate-x-0"
+  `${SIDEBAR_BASE_CLASSES} ${isExpanded
+    ? "w-60 translate-x-0 lg:w-56 xl:w-60"
+    : "-translate-x-full lg:w-16 lg:translate-x-0"
   }`;
 
 const getMainContentClasses = (isSidebarExpanded: boolean) =>
-  `${MAIN_BASE_CLASSES} ${
-    isSidebarExpanded
-      ? "lg:ml-[max(14rem,calc(14rem+(100vw-14rem-860px)/2))] xl:ml-[max(15rem,calc(15rem+(100vw-15rem-860px)/2))]"
-      : "lg:ml-[max(4rem,calc(4rem+(100vw-4rem-860px)/2))]"
+  `${MAIN_BASE_CLASSES} ${isSidebarExpanded
+    ? "lg:ml-[max(14rem,calc(14rem+(100vw-14rem-860px)/2))] xl:ml-[max(15rem,calc(15rem+(100vw-15rem-860px)/2))]"
+    : "lg:ml-[max(4rem,calc(4rem+(100vw-4rem-860px)/2))]"
   }`;
 
 const isActivePath = (pathname: string, href: string) =>
@@ -106,9 +103,8 @@ function SidebarNavLink({
       href={item.href}
       onClick={onNavigate}
       title={item.label}
-      className={`group flex h-9 items-center gap-2.5 rounded-xl px-2.5 text-[13px] font-medium transition hover:bg-slate-200/80 ${
-        isActive ? "bg-slate-200 text-blue-700" : "text-slate-950"
-      } ${isExpanded ? "justify-start" : "justify-center lg:px-0"}`}
+      className={`group flex h-9 items-center gap-2.5 rounded-xl px-2.5 text-[13px] font-medium transition hover:bg-slate-200/80 ${isActive ? "bg-slate-200 text-blue-700" : "text-slate-950"
+        } ${isExpanded ? "justify-start" : "justify-center lg:px-0"}`}
     >
       <span className="relative">
         <item.icon
@@ -118,9 +114,8 @@ function SidebarNavLink({
         <Badge count={badgeCount} />
       </span>
       <span
-        className={`min-w-0 truncate transition-opacity ${
-          isExpanded ? "opacity-100" : "hidden opacity-0"
-        } ${isActive ? "font-semibold" : ""}`}
+        className={`min-w-0 truncate transition-opacity ${isExpanded ? "opacity-100" : "hidden opacity-0"
+          } ${isActive ? "font-semibold" : ""}`}
       >
         {item.label}
       </span>
@@ -155,12 +150,6 @@ function AuthenticatedSidebar({
           />
         ))}
       </nav>
-
-      {isOpen && (
-        <div className="mt-2 border-t border-slate-200 pt-1">
-          <NewPostModal buttonName="New Post" compactTrigger />
-        </div>
-      )}
     </aside>
   );
 }
