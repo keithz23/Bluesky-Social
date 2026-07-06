@@ -20,7 +20,6 @@ import { useNotifications } from "../hooks/use-notifications";
 import { useUnreadMessages } from "../hooks/use-unread-messages";
 import BackToTop from "../components/back-to-top";
 import Loading from "../components/loading";
-import NewPostModal from "../components/dialog/new-post-dialog";
 import GlobalHeader from "../components/global-header";
 
 type NavItem = {
@@ -35,14 +34,25 @@ type BadgeCounts = {
 };
 
 const PAGE_CLASSES = "relative min-h-screen bg-white font-sans text-slate-900";
-const CONTENT_CLASSES =
-  "min-h-[calc(100dvh-3.5rem)] pt-14";
-const SIDEBAR_CLASSES =
-  "fixed left-0 top-14 z-40 flex h-[calc(100dvh-3.5rem)] w-75 flex-col overflow-hidden border-r border-gray-100 bg-white p-4 transition-transform duration-300 ease-in-out xl:w-87.5 lg:translate-x-0";
+const CONTENT_CLASSES = "min-h-[calc(100dvh-3.5rem)] pt-14";
+const SIDEBAR_BASE_CLASSES =
+  "fixed left-0 top-14 z-40 flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden border-r border-slate-200 bg-[#f6fafc] px-2 py-3 transition-[transform,width] duration-300 ease-in-out";
 const MOBILE_BACKDROP_CLASSES =
   "fixed inset-x-0 bottom-0 top-14 z-30 bg-black/50 transition-opacity lg:hidden";
-const MAIN_CONTENT_CLASSES =
-  "min-h-[calc(100dvh-3.5rem)] w-full pb-20 md:pb-0 lg:mx-auto lg:max-w-[min(960px,calc(100vw-46rem))]";
+const MAIN_BASE_CLASSES =
+  "mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[860px] pb-20 transition-[margin] duration-300 md:pb-0";
+
+const getSidebarClasses = (isExpanded: boolean) =>
+  `${SIDEBAR_BASE_CLASSES} ${isExpanded
+    ? "w-60 translate-x-0 lg:w-56 xl:w-60"
+    : "-translate-x-full lg:w-16 lg:translate-x-0"
+  }`;
+
+const getMainContentClasses = (isSidebarExpanded: boolean) =>
+  `${MAIN_BASE_CLASSES} ${isSidebarExpanded
+    ? "lg:ml-[max(14rem,calc(14rem+(100vw-14rem-860px)/2))] xl:ml-[max(15rem,calc(15rem+(100vw-15rem-860px)/2))]"
+    : "lg:ml-[max(4rem,calc(4rem+(100vw-4rem-860px)/2))]"
+  }`;
 
 const isActivePath = (pathname: string, href: string) =>
   pathname === href || (href !== "/" && pathname.startsWith(href));
@@ -76,11 +86,13 @@ function SidebarNavLink({
   item,
   pathname,
   counts,
+  isExpanded,
   onNavigate,
 }: {
   item: NavItem;
   pathname: string;
   counts: BadgeCounts;
+  isExpanded: boolean;
   onNavigate: () => void;
 }) {
   const isActive = isActivePath(pathname, item.href);
@@ -90,16 +102,21 @@ function SidebarNavLink({
     <Link
       href={item.href}
       onClick={onNavigate}
-      className="flex max-w-xl items-center gap-5 rounded-full p-3 pr-8 transition hover:bg-gray-100"
+      title={item.label}
+      className={`group flex h-9 items-center gap-2.5 rounded-xl px-2.5 text-[13px] font-medium transition hover:bg-slate-200/80 ${isActive ? "bg-slate-200 text-blue-700" : "text-slate-950"
+        } ${isExpanded ? "justify-start" : "justify-center lg:px-0"}`}
     >
       <span className="relative">
         <item.icon
-          className="h-7 w-7 text-black"
-          strokeWidth={isActive ? 2.5 : 1.5}
+          className={`h-4 w-4 ${isActive ? "text-blue-700" : "text-slate-950"}`}
+          strokeWidth={isActive ? 2.5 : 2}
         />
         <Badge count={badgeCount} />
       </span>
-      <span className={`text-xl text-black ${isActive ? "font-bold" : ""}`}>
+      <span
+        className={`min-w-0 truncate transition-opacity ${isExpanded ? "opacity-100" : "hidden opacity-0"
+          } ${isActive ? "font-semibold" : ""}`}
+      >
         {item.label}
       </span>
     </Link>
@@ -120,20 +137,19 @@ function AuthenticatedSidebar({
   onNavigate: () => void;
 }) {
   return (
-    <aside
-      className={`${SIDEBAR_CLASSES} ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
-    >
-      {navItems.map((item) => (
-        <SidebarNavLink
-          key={item.label}
-          item={item}
-          pathname={pathname}
-          counts={counts}
-          onNavigate={onNavigate}
-        />
-      ))}
-
-      <NewPostModal buttonName="New Post" />
+    <aside className={getSidebarClasses(isOpen)}>
+      <nav className="flex flex-col gap-1">
+        {navItems.map((item) => (
+          <SidebarNavLink
+            key={item.label}
+            item={item}
+            pathname={pathname}
+            counts={counts}
+            isExpanded={isOpen}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </nav>
     </aside>
   );
 }
@@ -144,10 +160,15 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
   const { isAuthenticated, user, isLoadingProfile } = useAuth();
   const { unreadCount } = useNotifications(isAuthenticated);
   const { unreadMessagesCount } = useUnreadMessages(isAuthenticated);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const toggleMobileMenu = () => setIsMobileMenuOpen((isOpen) => !isOpen);
+  const closeSidebar = () => setIsSidebarExpanded(false);
+  const closeSidebarOnNavigate = () => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarExpanded(false);
+    }
+  };
+  const toggleSidebar = () => setIsSidebarExpanded((isOpen) => !isOpen);
 
   const navItems: NavItem[] = [
     { icon: Home, label: "Home", href: "/" },
@@ -180,6 +201,20 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
     }
   }, [router, shouldRedirectToLogin]);
 
+  useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const syncSidebarForViewport = () => {
+      setIsSidebarExpanded(desktopQuery.matches);
+    };
+
+    syncSidebarForViewport();
+    desktopQuery.addEventListener("change", syncSidebarForViewport);
+
+    return () => {
+      desktopQuery.removeEventListener("change", syncSidebarForViewport);
+    };
+  }, []);
+
   if (isLoadingProfile || shouldRedirectToLogin) {
     return <Loading />;
   }
@@ -188,32 +223,32 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
     <div className={PAGE_CLASSES}>
       <GlobalHeader
         canOpenMenu={isAuthenticated}
-        isMenuOpen={isMobileMenuOpen}
-        onMenuToggle={toggleMobileMenu}
+        isMenuOpen={isSidebarExpanded}
+        onMenuToggle={toggleSidebar}
       />
       <div className={CONTENT_CLASSES}>
-        {isAuthenticated && isMobileMenuOpen && (
+        {isAuthenticated && isSidebarExpanded && (
           <div
             className={MOBILE_BACKDROP_CLASSES}
-            onClick={closeMobileMenu}
+            onClick={closeSidebar}
           />
         )}
 
         {isAuthenticated && (
           <AuthenticatedSidebar
-            isOpen={isMobileMenuOpen}
+            isOpen={isSidebarExpanded}
             navItems={navItems}
             pathname={pathname}
             counts={counts}
-            onNavigate={closeMobileMenu}
+            onNavigate={closeSidebarOnNavigate}
           />
         )}
 
-        <main className={MAIN_CONTENT_CLASSES}>
+        <main className={getMainContentClasses(isSidebarExpanded)}>
           {children}
         </main>
 
-        {!isMobileMenuOpen && <BackToTop />}
+        {!isSidebarExpanded && <BackToTop />}
       </div>
     </div>
   );

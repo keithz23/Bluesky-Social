@@ -52,7 +52,8 @@ export default function ForgotPasswordFlow() {
     forgotPasswordMutation.mutate(
       { email: data.email },
       {
-        onSuccess: () => {
+        onSuccess: (response) => {
+          if (response?.canResetPassword === false) return;
           setStep(2);
         },
         onError: (error) => {
