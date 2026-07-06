@@ -1,11 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Camera, Image as ImageIcon, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -29,11 +28,16 @@ interface EditableProfile {
 
 interface EditProfileModalProps {
   profile?: EditableProfile | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function EditProfileModal({ profile }: EditProfileModalProps) {
+export default function EditProfileModal({
+  profile,
+  open,
+  onOpenChange,
+}: EditProfileModalProps) {
   const { updateProfileMutation, isUpdating } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const [coverPhoto, setCoverPhoto] = useState<string | undefined>(undefined);
@@ -68,6 +72,17 @@ export default function EditProfileModal({ profile }: EditProfileModalProps) {
     setCoverFile(undefined);
   };
 
+  useEffect(() => {
+    if (!open) return;
+
+    setDisplayName(initialDisplayName);
+    setDescription(initialBio);
+    setAvatar(initialAvatar);
+    setCoverPhoto(initialCover);
+    setAvatarFile(undefined);
+    setCoverFile(undefined);
+  }, [open, initialDisplayName, initialBio, initialAvatar, initialCover]);
+
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -91,18 +106,20 @@ export default function EditProfileModal({ profile }: EditProfileModalProps) {
   };
 
   const handleCloseAttempt = () => {
+    if (isUpdating) return;
+
     if (hasChanges) {
       setShowExitConfirm(true);
     } else {
-      setIsOpen(false);
       resetForm();
+      onOpenChange(false);
     }
   };
 
   const handleConfirmDiscard = () => {
     resetForm();
     setShowExitConfirm(false);
-    setIsOpen(false);
+    onOpenChange(false);
   };
 
   const handleSave = () => {
@@ -115,12 +132,15 @@ export default function EditProfileModal({ profile }: EditProfileModalProps) {
     updateProfileMutation.mutate(
       { updateProfileData: data },
       {
+        onSuccess: () => {
+          resetForm();
+          onOpenChange(false);
+        },
         onError: (error) => {
           console.error("Update profile error:", error);
         },
       },
     );
-    setIsOpen(false);
   };
 
   const isSaveDisabled =
@@ -129,24 +149,19 @@ export default function EditProfileModal({ profile }: EditProfileModalProps) {
   return (
     <>
       <Dialog
-        open={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (open) {
             hydrateForm();
-            setIsOpen(true);
+            onOpenChange(true);
             return;
           }
 
           handleCloseAttempt();
         }}
       >
-        <DialogTrigger asChild>
-          <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-sm px-4 py-1.5 rounded-full transition cursor-pointer">
-            Edit Profile
-          </button>
-        </DialogTrigger>
-
         <DialogContent
+          showCloseButton={false}
           className="sm:max-w-125 p-0 gap-0 overflow-hidden rounded-xl"
           onInteractOutside={(e) => {
             e.preventDefault();
@@ -174,11 +189,10 @@ export default function EditProfileModal({ profile }: EditProfileModalProps) {
               variant="ghost"
               onClick={handleSave}
               disabled={isSaveDisabled}
-              className={`text-base font-normal px-2 hover:bg-transparent ${
-                isSaveDisabled
-                  ? "text-muted-foreground"
-                  : "text-blue-600 hover:text-blue-700 cursor-pointer"
-              }`}
+              className={`text-base font-normal px-2 hover:bg-transparent ${isSaveDisabled
+                ? "text-muted-foreground"
+                : "text-blue-600 hover:text-blue-700 cursor-pointer"
+                }`}
             >
               {isUpdating ? (
                 <div className="flex items-center gap-x-1">
@@ -328,35 +342,40 @@ export default function EditProfileModal({ profile }: EditProfileModalProps) {
 
       {showExitConfirm && (
         <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-          <DialogTitle className="sr-only"></DialogTitle>
           <DialogContent
-            className="w-full max-w-62.5 rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-100 [&>button]:hidden"
+            className="z-100 w-[calc(100vw-2rem)] max-w-[360px] gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
-            <div className="flex flex-col">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
-                Discard changes?
-              </h2>
-              <p className="text-[15px] leading-snug text-gray-600 mb-6">
-                Are you sure you want to discard your changes?
-              </p>
+            <div className="flex flex-col gap-4">
+              <div>
+                <DialogTitle className="text-[17px] font-bold text-slate-950">
+                  Discard changes?
+                </DialogTitle>
+                <p className="mt-1.5 text-sm leading-5 text-slate-500">
+                  Your profile has unsaved changes.
+                </p>
+              </div>
 
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleConfirmDiscard}
-                  className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37]"
-                >
-                  Discard
-                </button>
-
+              <div className="flex flex-col-reverse gap-2 sm:grid sm:grid-cols-2">
                 <button
                   onClick={() => setShowExitConfirm(false)}
-                  className="cursor-pointer flex w-full items-center justify-center rounded-full bg-[#F1F5F9] py-3.5 text-[15px] font-semibold text-[#334155] transition-colors hover:bg-[#e2e8f0]"
+                  className="flex h-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
                 >
                   Cancel
                 </button>
+
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#E42240] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#c91d37]"
+                >
+                  Discard
+                </button>
               </div>
+
+              <p className="text-center text-xs leading-4 text-slate-400">
+                This action cannot be undone.
+              </p>
             </div>
           </DialogContent>
         </Dialog>
