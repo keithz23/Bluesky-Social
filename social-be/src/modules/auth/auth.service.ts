@@ -519,11 +519,26 @@ export class AuthService {
     email: string,
     userAgent?: string,
     ipAddress?: string,
-  ): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+  ): Promise<{ message: string; canResetPassword: boolean }> {
+    const resetMessage =
+      'If an account with this email exists, a password reset link has been sent.';
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
 
     if (!user) {
-      return;
+      return {
+        message: resetMessage,
+        canResetPassword: true,
+      };
+    }
+
+    if (user.googleId) {
+      return {
+        message: "This email is registered with Google. Please sign in with Google.",
+        canResetPassword: false,
+      };
     }
 
     await this.createAndSendAccountEmailCode({
@@ -532,6 +547,11 @@ export class AuthService {
       userAgent,
       ipAddress,
     });
+
+    return {
+      message: resetMessage,
+      canResetPassword: true,
+    };
   }
 
   async resetPassword(
