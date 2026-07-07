@@ -1,16 +1,12 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { useFeed } from "@/app/hooks/use-feed";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { Feed } from "../interfaces/feed.interface";
 import { dropdownItems as staticDropdownItems } from "../constants/dropdown.constant";
 import { useGlobal } from "../hooks/use-global";
 import { ArrowUp } from "lucide-react";
-import { useState } from "react";
-import ImageZoomDialog, {
-  ZoomData,
-} from "../components/dialog/image-zoom-dialog";
 import VirtualPostList from "../components/virtual-post-list";
 import {
   InfiniteScrollFooter,
@@ -33,14 +29,6 @@ export default function HomePage() {
     fetchNextPage,
     enabled: posts.length > 0,
   });
-
-  const [zoomData, setZoomData] = useState<ZoomData | null>(null);
-  const handleCloseZoom = useCallback(() => setZoomData(null), []);
-  const handleChangeZoomIndex = useCallback(
-    (index: number) =>
-      setZoomData((prev) => (prev ? { ...prev, currentIndex: index } : null)),
-    [],
-  );
 
   const dropdownItems = useMemo(() => staticDropdownItems, []);
 
@@ -65,7 +53,6 @@ export default function HomePage() {
         <VirtualPostList
           posts={posts as Feed[]}
           dropdownItems={dropdownItems}
-          onZoom={setZoomData}
         />
 
         {/* Trigger infinite scroll */}
@@ -76,12 +63,6 @@ export default function HomePage() {
           hasItems={posts.length > 0}
         />
       </div>
-
-      <ImageZoomDialog
-        zoomData={zoomData}
-        onClose={handleCloseZoom}
-        onChangeIndex={handleChangeZoomIndex}
-      />
     </>
   );
 }
