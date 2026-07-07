@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Share } from "lucide-react";
 import {
@@ -30,8 +30,6 @@ import BookMarkButton from "../button/bookmark-button";
 import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
-// @ts-expect-error CSS side-effect import.
-import 'react-photo-view/dist/react-photo-view.css';
 import { PhotoProvider, PhotoView } from "react-photo-view";
 
 interface PostDetailCardProps {
