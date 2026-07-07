@@ -6,8 +6,6 @@ import {
   Heart,
   Bookmark,
   Share,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { useBookmark } from "@/app/hooks/use-bookmark";
 import { useLike } from "@/app/hooks/use-like";
@@ -22,8 +20,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { PostMedia } from "../../interfaces/post.interface";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useMemo } from "react";
 import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
 import UserHoverCard from "./user-hover-card";
@@ -33,9 +30,7 @@ import {
   BookA,
   Clipboard,
   EyeOff,
-  Frown,
   Funnel,
-  Smile,
   TriangleAlert,
   UserX,
   VolumeOff,
@@ -45,43 +40,18 @@ import { PostContent } from "../post-content";
 import { enUS } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
+// @ts-expect-error CSS side-effect import.
+import 'react-photo-view/dist/react-photo-view.css';
+import { PhotoProvider, PhotoView } from "react-photo-view";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
   const post = bookmark.post;
-  const [zoomData, setZoomData] = useState<{
-    media: PostMedia[];
-    currentIndex: number;
-  } | null>(null);
-
   const { mutate: toggleLike } = useLike(post.id, post.isLiked);
   const { mutate: toggleBookmark } = useBookmark(post.id, true);
   const { mutate: toggleRepost } = useRepost(post.id, post.isReposted);
   const requireAuth = useRequireAuthAction();
 
-  const handleNextImage = useCallback(
-    (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
-        setZoomData((prev) =>
-          prev ? { ...prev, currentIndex: prev.currentIndex + 1 } : null,
-        );
-      }
-    },
-    [zoomData],
-  );
-
-  const handlePrevImage = useCallback(
-    (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (zoomData && zoomData.currentIndex > 0) {
-        setZoomData((prev) =>
-          prev ? { ...prev, currentIndex: prev.currentIndex - 1 } : null,
-        );
-      }
-    },
-    [zoomData],
-  );
   const handleProfileClick = () => {
     router.push(`/profile/${post.user.username}`);
   };
@@ -96,16 +66,6 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
     { id: 7, title: "Block account", icon: <UserX size={18} /> },
     { id: 8, title: "Report post", icon: <TriangleAlert size={18} /> },
   ];
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!zoomData) return;
-      if (e.key === "ArrowRight") handleNextImage();
-      if (e.key === "ArrowLeft") handlePrevImage();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [zoomData, handleNextImage, handlePrevImage]);
 
   const formattedDate = useMemo(() => {
     const distance = formatDistanceToNow(
@@ -177,30 +137,35 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
           <PostContent content={post.content} />
 
           {post.media?.length > 0 && (
-            <Carousel opts={{ align: "start" }} className="w-full mb-3">
-              <CarouselContent>
-                {post.media.map((m: PostMedia, i: number) => (
-                  <CarouselItem
-                    key={m.id}
-                    className={
-                      post.media.length === 1 ? "basis-full" : "basis-[85%]"
-                    }
-                  >
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setZoomData({ media: post.media, currentIndex: i });
-                      }}
-                      className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${post.media.length === 1 ? "aspect-video" : "h-64"}`}
-                    >
-                      <img
-                        src={m.mediaUrl}
-                        alt={m.altText ?? ""}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </CarouselItem>
-                ))}
+            <Carousel opts={{ align: "start" }} className="mb-2 w-full sm:mb-3">
+              <CarouselContent onClick={(e) => e.stopPropagation()}>
+                <PhotoProvider>
+                  {post.media.map((m: PostMedia) => (
+                    <PhotoView src={m.mediaUrl} key={m.id}>
+                      <CarouselItem
+                        className={
+                          post.media.length === 1
+                            ? "basis-full"
+                            : "basis-[88%] sm:basis-[85%]"
+                        }
+                      >
+                        <div
+                          className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${post.media.length === 1
+                            ? "aspect-video"
+                            : "h-56 sm:h-64"
+                            }`}
+                        >
+                          <img
+                            src={m.mediaUrl}
+                            alt={m.altText ?? ""}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </CarouselItem>
+                    </PhotoView>
+                  ))}
+                </PhotoProvider>
               </CarouselContent>
             </Carousel>
           )}
@@ -277,63 +242,6 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
           </div>
         </div>
       </div>
-
-      <Dialog
-        open={!!zoomData}
-        onOpenChange={(open) => {
-          if (!open) {
-            setZoomData(null);
-          }
-        }}
-      >
-        <DialogContent
-          className="max-w-7xl w-[95vw] h-[90vh] p-0 border-none bg-black/95 flex items-center justify-center overflow-hidden"
-          onInteractOutside={(e) => {
-            // e.preventDefault();
-          }}
-        >
-          <DialogTitle className="sr-only">Zoom Image</DialogTitle>
-
-          {zoomData && (
-            <div className="relative w-full h-full flex items-center justify-center group">
-              {/* Previous */}
-              {zoomData.currentIndex > 0 && (
-                <button
-                  onClick={handlePrevImage}
-                  className="absolute left-4 z-50 p-3 rounded-full bg-black/50 hover:bg-white/20 text-white transition-all backdrop-blur-sm cursor-pointer"
-                >
-                  <ChevronLeft size={28} />
-                </button>
-              )}
-
-              <img
-                src={zoomData.media[zoomData.currentIndex].mediaUrl}
-                alt={
-                  zoomData.media[zoomData.currentIndex].altText ??
-                  "Zoomed image"
-                }
-                className="max-w-full max-h-full object-contain"
-              />
-
-              {/* Next */}
-              {zoomData.currentIndex < zoomData.media.length - 1 && (
-                <button
-                  onClick={handleNextImage}
-                  className="absolute right-4 z-50 p-3 rounded-full bg-black/50 hover:bg-white/20 text-white transition-all backdrop-blur-sm cursor-pointer"
-                >
-                  <ChevronRight size={28} />
-                </button>
-              )}
-
-              {zoomData.media.length > 1 && (
-                <div className="absolute top-4 left-4 z-50 px-3 py-1 rounded-full bg-black/50 text-white text-sm backdrop-blur-sm">
-                  {zoomData.currentIndex + 1} / {zoomData.media.length}
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
