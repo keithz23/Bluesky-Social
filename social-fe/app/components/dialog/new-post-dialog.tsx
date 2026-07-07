@@ -415,7 +415,7 @@ export default function NewPostModal({
                     );
                   }}
                   onKeyDown={handleKeyDown}
-                  className="max-h-56 min-h-32 w-full resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap wrap-break-words border-none bg-transparent text-[17px] leading-6 text-slate-950 caret-slate-950 outline-none [overflow-wrap:anywhere] placeholder:text-slate-400 focus:ring-0"
+                  className="max-h-56 min-h-32 w-full resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap wrap-break-words border-none bg-transparent text-[17px] leading-6 text-slate-950 caret-slate-950 outline-none wrap-anywhere placeholder:text-slate-400 focus:ring-0"
                   placeholder="What's happening?"
                   spellCheck={false}
                 />
