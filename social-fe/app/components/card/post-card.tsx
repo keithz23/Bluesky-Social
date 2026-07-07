@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Share } from "lucide-react";
+import { PhotoProvider, PhotoView } from "react-photo-view";
 import {
   Carousel,
   CarouselContent,
@@ -52,14 +53,6 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
       router.push(`/profile/${post.user.username}/post/${post.id}`);
     },
     [router, post.user.username, post.id],
-  );
-
-  const handleImageClick = useCallback(
-    (e: React.MouseEvent, index: number) => {
-      e.stopPropagation();
-      onZoom?.({ media: post.media, currentIndex: index });
-    },
-    [onZoom, post.media],
   );
 
   const handleShare = useCallback(
@@ -144,33 +137,34 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
 
           {post.media?.length > 0 && (
             <Carousel opts={{ align: "start" }} className="mb-2 w-full sm:mb-3">
-              <CarouselContent>
-                {post.media.map((m: PostMedia, i: number) => (
-                  <CarouselItem
-                    key={m.id}
-                    className={
-                      post.media.length === 1
-                        ? "basis-full"
-                        : "basis-[88%] sm:basis-[85%]"
-                    }
-                  >
-                    <div
-                      onClick={(e) => handleImageClick(e, i)}
-                      className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${
-                        post.media.length === 1
-                          ? "aspect-video"
-                          : "h-56 sm:h-64"
-                      }`}
-                    >
-                      <img
-                        src={m.mediaUrl}
-                        alt={m.altText ?? ""}
-                        loading="lazy"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </CarouselItem>
-                ))}
+              <CarouselContent onClick={(e) => e.stopPropagation()}>
+                <PhotoProvider>
+                  {post.media.map((m: PostMedia) => (
+                    <PhotoView src={m.mediaUrl} key={m.id}>
+                      <CarouselItem
+                        className={
+                          post.media.length === 1
+                            ? "basis-full"
+                            : "basis-[88%] sm:basis-[85%]"
+                        }
+                      >
+                        <div
+                          className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${post.media.length === 1
+                            ? "aspect-video"
+                            : "h-56 sm:h-64"
+                            }`}
+                        >
+                          <img
+                            src={m.mediaUrl}
+                            alt={m.altText ?? ""}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </CarouselItem>
+                    </PhotoView>
+                  ))}
+                </PhotoProvider>
               </CarouselContent>
             </Carousel>
           )}

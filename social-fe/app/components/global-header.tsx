@@ -397,12 +397,14 @@ export default function GlobalHeader({
           <Button
             asChild
             variant="ghost"
-            className="hidden rounded-full px-3 font-semibold text-slate-900 hover:bg-slate-100 md:inline-flex cursor-pointer"
+            className="rounded-full px-3 font-semibold text-slate-900 hover:bg-slate-100 md:inline-flex cursor-pointer"
             onClick={() => setIsPostModalOpen(true)}
           >
             <div>
               <PlusSquare className="h-4 w-4" />
-              Create
+              <span className="hidden md:inline-flex">
+                Create
+              </span>
             </div>
           </Button>
 

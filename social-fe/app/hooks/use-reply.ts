@@ -56,6 +56,7 @@ export const useCreateReply = (postId: string) => {
       if (payload.images?.length) {
         payload.images.forEach((img) => formData.append("images", img));
       }
+      if (payload.gifUrl) formData.append("gifUrl", payload.gifUrl);
 
       return await ReplyService.createReply(postId, formData as CreateReplyDto);
     },

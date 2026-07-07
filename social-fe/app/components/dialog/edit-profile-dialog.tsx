@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
+import * as z from "zod";
 
 interface EditableProfile {
   displayName?: string | null;
@@ -31,6 +32,24 @@ interface EditProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const DISPLAY_NAME_MAX_LENGTH = 50;
+const BIO_MAX_LENGTH = 100;
+
+const editProfileSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(1, "Display name is required.")
+    .max(
+      DISPLAY_NAME_MAX_LENGTH,
+      `Display name must be ${DISPLAY_NAME_MAX_LENGTH} characters or less.`,
+    ),
+  bio: z
+    .string()
+    .trim()
+    .max(BIO_MAX_LENGTH, `Bio must be ${BIO_MAX_LENGTH} characters or less.`),
+});
 
 export default function EditProfileModal({
   profile,
@@ -62,6 +81,16 @@ export default function EditProfileModal({
     coverPhoto !== initialCover ||
     !!avatarFile ||
     !!coverFile;
+
+  const validationResult = editProfileSchema.safeParse({
+    displayName,
+    bio: description,
+  });
+  const validationErrors = validationResult.success
+    ? undefined
+    : validationResult.error.flatten().fieldErrors;
+  const displayNameError = validationErrors?.displayName?.[0];
+  const bioError = validationErrors?.bio?.[0];
 
   const hydrateForm = () => {
     setDisplayName(initialDisplayName);
@@ -123,9 +152,16 @@ export default function EditProfileModal({
   };
 
   const handleSave = () => {
-    const data = {
+    const validatedProfile = editProfileSchema.safeParse({
       displayName,
       bio: description,
+    });
+
+    if (!validatedProfile.success) return;
+
+    const data = {
+      displayName: validatedProfile.data.displayName,
+      bio: validatedProfile.data.bio,
       ...(avatarFile && { avatarFile }),
       ...(coverFile && { coverFile }),
     };
@@ -144,7 +180,7 @@ export default function EditProfileModal({
   };
 
   const isSaveDisabled =
-    !hasChanges || displayName.trim() === "" || isUpdating;
+    !hasChanges || !validationResult.success || isUpdating;
 
   return (
     <>
@@ -162,7 +198,7 @@ export default function EditProfileModal({
       >
         <DialogContent
           showCloseButton={false}
-          className="sm:max-w-125 p-0 gap-0 overflow-hidden rounded-xl"
+          className="w-[calc(100vw-2rem)] max-w-125 max-h-[calc(100dvh-2rem)] p-0 gap-0 overflow-hidden rounded-xl"
           onInteractOutside={(e) => {
             e.preventDefault();
             handleCloseAttempt();
@@ -172,16 +208,16 @@ export default function EditProfileModal({
             handleCloseAttempt();
           }}
         >
-          <DialogHeader className="flex flex-row items-center justify-between p-3 border-b border-border/50 space-y-0">
+          <DialogHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 border-b border-border/50 space-y-0">
             <Button
               variant="ghost"
               onClick={handleCloseAttempt}
-              className="text-blue-600 hover:text-blue-700 hover:bg-transparent text-base font-normal px-2 cursor-pointer"
+              className="justify-self-start text-blue-600 hover:text-blue-700 hover:bg-transparent text-base font-normal px-2 cursor-pointer"
             >
               Cancel
             </Button>
 
-            <DialogTitle className="text-base font-semibold">
+            <DialogTitle className="min-w-0 truncate text-center text-base font-semibold">
               Edit profile
             </DialogTitle>
 
@@ -189,7 +225,7 @@ export default function EditProfileModal({
               variant="ghost"
               onClick={handleSave}
               disabled={isSaveDisabled}
-              className={`text-base font-normal px-2 hover:bg-transparent ${isSaveDisabled
+              className={`justify-self-end text-base font-normal px-2 hover:bg-transparent ${isSaveDisabled
                 ? "text-muted-foreground"
                 : "text-blue-600 hover:text-blue-700 cursor-pointer"
                 }`}
@@ -303,8 +339,8 @@ export default function EditProfileModal({
             </div>
 
             {/* Form Fields */}
-            <div className="pt-14 px-5 pb-6 space-y-5">
-              <div className="space-y-2">
+            <div className="min-w-0 pt-14 px-5 pb-6 space-y-5 overflow-x-hidden">
+              <div className="min-w-0 space-y-2">
                 <Label
                   htmlFor="displayName"
                   className="text-slate-600 font-medium"
@@ -314,13 +350,27 @@ export default function EditProfileModal({
                 <Input
                   id="displayName"
                   value={displayName}
+                  aria-invalid={Boolean(displayNameError)}
+                  maxLength={DISPLAY_NAME_MAX_LENGTH}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="e.g. Alice Lastname"
-                  className="bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base py-6 shadow-none"
+                  className={`max-w-full bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base py-6 shadow-none ${displayNameError ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
                 />
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  {displayNameError ? (
+                    <p className="min-w-0 text-xs font-medium text-red-600 wrap-anywhere]">
+                      {displayNameError}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label
                   htmlFor="description"
                   className="text-slate-600 font-medium"
@@ -330,10 +380,24 @@ export default function EditProfileModal({
                 <Textarea
                   id="description"
                   value={description}
+                  aria-invalid={Boolean(bioError)}
                   onChange={(e) => setDescription(e.target.value)}
+                  maxLength={BIO_MAX_LENGTH}
                   placeholder="Tell us a bit about yourself"
-                  className="bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base min-h-30 resize-none shadow-none"
+                  className={`max-w-full overflow-x-hidden whitespace-pre-wrap wrap-anywhere bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base min-h-30 resize-none shadow-none ${bioError ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
                 />
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  {bioError ? (
+                    <p className="min-w-0 text-xs font-medium text-red-600 wrap-anywhere">
+                      {bioError}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {description.length}/{BIO_MAX_LENGTH}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -343,7 +407,7 @@ export default function EditProfileModal({
       {showExitConfirm && (
         <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
           <DialogContent
-            className="z-100 w-[calc(100vw-2rem)] max-w-[360px] gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
+            className="z-100 w-[calc(100vw-2rem)] max-w-90 gap-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl [&>button]:hidden"
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -284,15 +284,15 @@ export default function NewPostModal({
 
     const payload = hasImages
       ? {
-          content: postText,
-          replyPrivacy: privacyData,
-          images: selectedImages.map((img) => img.file), // File[]
-        }
+        content: postText,
+        replyPrivacy: privacyData,
+        images: selectedImages.map((img) => img.file), // File[]
+      }
       : {
-          content: postText,
-          replyPrivacy: privacyData,
-          gifUrl: selectedGif ?? undefined, // string | undefined
-        };
+        content: postText,
+        replyPrivacy: privacyData,
+        gifUrl: selectedGif ?? undefined, // string | undefined
+      };
 
     createPost.mutate(payload, {
       onSuccess: () => {
@@ -306,11 +306,40 @@ export default function NewPostModal({
     (!postText.trim() && !hasImages && !hasGif) ||
     postText.length > MAX_POST_LENGTH;
 
+  useEffect(() => {
+    if (!open) return;
+
+    const scrollY = window.scrollY;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyLeft = document.body.style.left;
+    const previousBodyRight = document.body.style.right;
+    const previousBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.left = previousBodyLeft;
+      document.body.style.right = previousBodyRight;
+      document.body.style.width = previousBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="max-h-[88vh] max-w-155 overflow-y-auto overflow-x-hidden gap-0 rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl [&>button]:hidden"
+          className="max-h-[88vh] w-[calc(100vw-2rem)] max-w-155 overflow-y-auto overflow-x-hidden gap-0 rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl [&>button]:hidden"
           onInteractOutside={(e) => {
             if (
               isPrivacyDialogInteraction(e.detail.originalEvent) ||
@@ -352,11 +381,10 @@ export default function NewPostModal({
               <Button
                 onClick={handleCreatePost}
                 disabled={isSubmitDisabled}
-                className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${
-                  !isSubmitDisabled
-                    ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
-                    : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
-                }`}
+                className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${!isSubmitDisabled
+                  ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
+                  : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
+                  }`}
               >
                 {createPost.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -376,26 +404,7 @@ export default function NewPostModal({
               </div>
             )}
             <div className="relative min-w-0 flex-1 pt-1">
-              <div className="relative min-h-32 min-w-0 flex-1">
-                <div
-                  className="pointer-events-none absolute inset-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none px-0 text-[17px] leading-6 select-none"
-                  aria-hidden="true"
-                >
-                  {postText.split(/(\s+)/).map((part, i) => {
-                    if (part.match(/^@\S+/)) {
-                      return (
-                        <span
-                          key={i}
-                          className="bg-[#0066FF]/15 text-[#0066FF] rounded-[3px] py-px"
-                        >
-                          {part}
-                        </span>
-                      );
-                    }
-                    return <span key={i}>{part}</span>;
-                  })}
-                </div>
-
+              <div className="relative min-h-32 min-w-0">
                 <textarea
                   ref={textareaRef}
                   value={postText}
@@ -406,7 +415,7 @@ export default function NewPostModal({
                     );
                   }}
                   onKeyDown={handleKeyDown}
-                  className="relative z-10 min-h-32 w-full resize-none overflow-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-none bg-transparent text-[17px] leading-6 text-transparent caret-slate-950 outline-none placeholder:text-slate-400 focus:ring-0"
+                  className="max-h-56 min-h-32 w-full resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap wrap-break-words border-none bg-transparent text-[17px] leading-6 text-slate-950 caret-slate-950 outline-none [overflow-wrap:anywhere] placeholder:text-slate-400 focus:ring-0"
                   placeholder="What's happening?"
                   spellCheck={false}
                 />
@@ -427,11 +436,10 @@ export default function NewPostModal({
                           key={user.id}
                           onClick={() => insertMention(user.username)}
                           onMouseEnter={() => setActiveIndex(i)}
-                          className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
-                            i === activeIndex
-                              ? "bg-blue-50 text-blue-700"
-                              : "hover:bg-slate-50"
-                          }`}
+                          className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${i === activeIndex
+                            ? "bg-blue-50 text-blue-700"
+                            : "hover:bg-slate-50"
+                            }`}
                         >
                           <Avatar
                             data={user}
@@ -457,7 +465,6 @@ export default function NewPostModal({
             </div>
           </div>
 
-          {/* PREVIEW: Multiple Images */}
           {hasImages && (
             <div className="ml-18 min-w-0 px-4 pb-3">
               <div className={`grid ${getGridClass(imageCount)} gap-2`}>
@@ -491,7 +498,6 @@ export default function NewPostModal({
             </div>
           )}
 
-          {/* PREVIEW: GIF */}
           {hasGif && (
             <div className="relative ml-18 inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
               <img
@@ -585,13 +591,12 @@ export default function NewPostModal({
                       ? "Maximum of 4 images reached"
                       : "Add images"
                 }
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                  imageDisabled
-                    ? "cursor-not-allowed text-slate-300 opacity-50"
-                    : "cursor-pointer text-[#0066FF] hover:bg-white"
-                }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${imageDisabled
+                  ? "cursor-not-allowed text-slate-300 opacity-50"
+                  : "cursor-pointer text-[#0066FF] hover:bg-white"
+                  }`}
               >
-                <ImageIcon className="h-5 w-5" />
+                <ImageIcon className="h-6 w-6" />
               </button>
 
               <button
@@ -607,18 +612,16 @@ export default function NewPostModal({
                     ? "Remove images before adding a GIF"
                     : "Add a GIF"
                 }
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                  gifDisabled
-                    ? "cursor-not-allowed opacity-50"
-                    : "cursor-pointer hover:bg-white"
-                }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${gifDisabled
+                  ? "cursor-not-allowed opacity-50"
+                  : "cursor-pointer hover:bg-white"
+                  }`}
               >
                 <div
-                  className={`flex h-5 w-5 items-center justify-center rounded-md border-2 text-[9px] font-bold ${
-                    gifDisabled
-                      ? "border-slate-300 text-slate-300"
-                      : "border-[#0066FF] text-[#0066FF]"
-                  }`}
+                  className={`flex h-5.5 w-5.5 items-center justify-center rounded-lg border-2 text-[10px] font-bold ${gifDisabled
+                    ? "border-slate-300 text-slate-300"
+                    : "border-[#0066FF] text-[#0066FF]"
+                    }`}
                 >
                   GIF
                 </div>
@@ -632,28 +635,26 @@ export default function NewPostModal({
                 }}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white"
               >
-                <Smile className="h-5 w-5" />
+                <Smile className="h-6 w-6" />
               </button>
             </div>
 
             <div className="flex shrink-0 items-center gap-3">
               <span
-                className={`text-sm font-medium ${
-                  MAX_POST_LENGTH - postText.length < 30
-                    ? "text-amber-600"
-                    : "text-slate-500"
-                }`}
+                className={`text-sm font-medium ${MAX_POST_LENGTH - postText.length < 30
+                  ? "text-amber-600"
+                  : "text-slate-500"
+                  }`}
               >
                 {MAX_POST_LENGTH - postText.length}
               </span>
               <Button
                 onClick={handleCreatePost}
                 disabled={isSubmitDisabled}
-                className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${
-                  !isSubmitDisabled
-                    ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
-                    : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
-                }`}
+                className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${!isSubmitDisabled
+                  ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
+                  : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
+                  }`}
               >
                 {createPost.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

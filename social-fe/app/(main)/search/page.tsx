@@ -20,9 +20,6 @@ import {
   UserListSkeleton,
 } from "@/app/components/skeletons";
 import VirtualPostList from "@/app/components/virtual-post-list";
-import ImageZoomDialog, {
-  ZoomData,
-} from "@/app/components/dialog/image-zoom-dialog";
 import { Feed } from "@/app/interfaces/feed.interface";
 
 type SearchTab = "people" | "posts";
@@ -39,7 +36,6 @@ function SearchPageContent() {
   const initialTab = searchParams.get("tab") === "posts" ? "posts" : "people";
   const [query, setQuery] = useState(initialQuery);
   const [activeTab, setActiveTab] = useState<SearchTab>(initialTab);
-  const [zoomData, setZoomData] = useState<ZoomData | null>(null);
 
   const trimmedQuery = query.trim();
   const debouncedQuery = useDebounce(trimmedQuery, 350);
@@ -92,7 +88,7 @@ function SearchPageContent() {
 
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
-      <div className="sticky top-28 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-md lg:top-14">
+      <div className="sticky top-14 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-md lg:top-14">
         <div className="flex items-center gap-3 p-4">
           <button
             type="button"
@@ -202,7 +198,6 @@ function SearchPageContent() {
           <VirtualPostList
             posts={posts as Feed[]}
             dropdownItems={[]}
-            onZoom={setZoomData}
           />
           <InfiniteScrollFooter
             refCallback={ref}
@@ -212,16 +207,6 @@ function SearchPageContent() {
           />
         </>
       )}
-
-      <ImageZoomDialog
-        zoomData={zoomData}
-        onClose={() => setZoomData(null)}
-        onChangeIndex={(index) =>
-          setZoomData((current) =>
-            current ? { ...current, currentIndex: index } : null,
-          )
-        }
-      />
     </div>
   );
 }
