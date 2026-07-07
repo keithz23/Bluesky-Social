@@ -134,14 +134,20 @@ export class AuthController {
   ) {
     const refreshToken = request.cookies?.refreshToken;
     if (!refreshToken) {
+      this.clearAuthCookies(response);
       throw new UnauthorizedException('Refresh token not found');
     }
 
-    const result = await this.authService.refreshTokens(refreshToken);
+    try {
+      const result = await this.authService.refreshTokens(refreshToken);
 
-    this.setAuthCookies(response, result);
+      this.setAuthCookies(response, result);
 
-    return result;
+      return result;
+    } catch (error) {
+      this.clearAuthCookies(response);
+      throw error;
+    }
   }
 
   @Public()
@@ -188,15 +194,16 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
+  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from current session' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
   async signout(
-    @CurrentUser('id') userId: string,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
     const refreshToken = request.cookies['refreshToken'];
+    const userId = request.user?.['id'];
 
     if (refreshToken) {
       await this.authService.logout(userId, refreshToken);

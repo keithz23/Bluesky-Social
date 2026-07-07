@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,9 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAccountSettings } from "@/app/hooks/use-account-settings";
+import * as z from "zod";
+import { type SubmitHandler, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type UpdateEmailDialogProps = {
   open: boolean;
@@ -23,18 +26,41 @@ type UpdateEmailDialogProps = {
   currentEmail?: string;
 };
 
+const updateEmailSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Invalid email address"),
+  otp: z.string().trim(),
+});
+
+type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
+
 export default function UpdateEmailDialog({
   open,
   onOpenChange,
   currentEmail,
 }: UpdateEmailDialogProps) {
-  const [newEmail, setNewEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    reset,
+    setError,
+    formState: { errors, isValid },
+  } = useForm<UpdateEmailValues>({
+    resolver: zodResolver(updateEmailSchema),
+    mode: "onChange",
+    defaultValues: {
+      email: "",
+      otp: "",
+    },
+  });
 
   const resetForm = () => {
-    setNewEmail("");
-    setOtp("");
+    reset();
     setCodeSent(false);
   };
 
@@ -53,14 +79,20 @@ export default function UpdateEmailDialog({
     },
   });
 
-  const handleRequestCode = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    requestUpdateEmailMutation.mutate({ newEmail });
+  const handleRequestCode: SubmitHandler<UpdateEmailValues> = (data) => {
+    requestUpdateEmailMutation.mutate({ newEmail: data.email });
   };
 
-  const handleUpdateEmail = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    updateEmailMutation.mutate({ otp });
+  const handleUpdateEmail: SubmitHandler<UpdateEmailValues> = (data) => {
+    if (!data.otp) {
+      setError("otp", {
+        type: "manual",
+        message: "Verification code is required",
+      });
+      return;
+    }
+
+    updateEmailMutation.mutate({ otp: data.otp });
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -84,7 +116,9 @@ export default function UpdateEmailDialog({
 
         <form
           className="space-y-5 px-5 py-5"
-          onSubmit={codeSent ? handleUpdateEmail : handleRequestCode}
+          onSubmit={handleSubmit(
+            codeSent ? handleUpdateEmail : handleRequestCode,
+          )}
         >
           {currentEmail && (
             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
@@ -105,16 +139,22 @@ export default function UpdateEmailDialog({
               <Label htmlFor="new-email">New email</Label>
               <Input
                 id="new-email"
-                name="newEmail"
                 type="email"
                 autoComplete="email"
                 placeholder="name@example.com"
-                value={newEmail}
-                onChange={(event) => setNewEmail(event.target.value)}
+                aria-invalid={Boolean(errors.email)}
+                {...register("email")}
                 disabled={codeSent || isRequestingEmailCode || isUpdatingEmail}
-                className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
-                required
+                className={`rounded-xl border bg-[#F1F5F9] py-6 text-[15px] transition-all focus-visible:bg-white focus-visible:ring-0 ${errors.email
+                    ? "border-red-500 focus-visible:border-red-500"
+                    : "border-transparent focus-visible:border-[#1185fe]"
+                  }`}
               />
+              {errors.email && (
+                <p className="ml-1 text-xs font-medium text-red-500">
+                  {errors.email.message}
+                </p>
+              )}
             </Field>
 
             {codeSent && (
@@ -122,16 +162,22 @@ export default function UpdateEmailDialog({
                 <Label htmlFor="email-otp">Verification code</Label>
                 <Input
                   id="email-otp"
-                  name="otp"
                   inputMode="text"
                   autoComplete="one-time-code"
                   placeholder="Enter code"
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value)}
+                  aria-invalid={Boolean(errors.otp)}
+                  {...register("otp")}
                   disabled={isUpdatingEmail}
-                  className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
-                  required
+                  className={`rounded-xl border bg-[#F1F5F9] py-6 text-[15px] transition-all focus-visible:bg-white focus-visible:ring-0 ${errors.otp
+                      ? "border-red-500 focus-visible:border-red-500"
+                      : "border-transparent focus-visible:border-[#1185fe]"
+                    }`}
                 />
+                {errors.otp && (
+                  <p className="ml-1 text-xs font-medium text-red-500">
+                    {errors.otp.message}
+                  </p>
+                )}
               </Field>
             )}
           </FieldGroup>
@@ -143,7 +189,11 @@ export default function UpdateEmailDialog({
                 type="button"
                 className="font-medium text-blue-600 not-italic hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isRequestingEmailCode || isUpdatingEmail}
-                onClick={() => requestUpdateEmailMutation.mutate({ newEmail })}
+                onClick={() =>
+                  requestUpdateEmailMutation.mutate({
+                    newEmail: getValues("email").trim(),
+                  })
+                }
               >
                 {isRequestingEmailCode
                   ? "Resending..."
@@ -155,21 +205,24 @@ export default function UpdateEmailDialog({
           <DialogFooter className="gap-2 sm:justify-between">
             <DialogClose asChild>
               <Button
+                tabIndex={1}
                 type="button"
                 variant="outline"
+                className="cursor-pointer"
                 disabled={isRequestingEmailCode || isUpdatingEmail}
               >
                 Cancel
               </Button>
             </DialogClose>
             {codeSent ? (
-              <Button type="submit" disabled={isUpdatingEmail || !otp.trim()}>
+              <Button type="submit" disabled={isUpdatingEmail} className="cursor-pointer">
                 {isUpdatingEmail ? "Updating..." : "Verify and update"}
               </Button>
             ) : (
               <Button
                 type="submit"
-                disabled={isRequestingEmailCode || !newEmail.trim()}
+                className="cursor-pointer"
+                disabled={isRequestingEmailCode || !isValid}
               >
                 {isRequestingEmailCode ? "Sending..." : "Send code"}
               </Button>

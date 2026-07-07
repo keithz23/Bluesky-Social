@@ -107,6 +107,7 @@ axiosInstance.interceptors.response.use(
     const requestUrl = originalRequest?.url ?? "";
     const shouldSkipRefresh =
       requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/logout") ||
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/register") ||
       requestUrl.includes("/auth/forgot-password") ||
