@@ -151,16 +151,6 @@ export default function EditProfileModal({
     onOpenChange(false);
   };
 
-  const handleDisplayNameChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setDisplayName(event.target.value.slice(0, DISPLAY_NAME_MAX_LENGTH));
-  };
-
-  const handleBioChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setDescription(event.target.value.slice(0, BIO_MAX_LENGTH));
-  };
-
   const handleSave = () => {
     const validatedProfile = editProfileSchema.safeParse({
       displayName,
@@ -208,7 +198,7 @@ export default function EditProfileModal({
       >
         <DialogContent
           showCloseButton={false}
-          className="sm:max-w-125 p-0 gap-0 overflow-hidden rounded-xl"
+          className="w-[calc(100vw-2rem)] max-w-125 max-h-[calc(100dvh-2rem)] p-0 gap-0 overflow-hidden rounded-xl"
           onInteractOutside={(e) => {
             e.preventDefault();
             handleCloseAttempt();
@@ -218,16 +208,16 @@ export default function EditProfileModal({
             handleCloseAttempt();
           }}
         >
-          <DialogHeader className="flex flex-row items-center justify-between p-3 border-b border-border/50 space-y-0">
+          <DialogHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 border-b border-border/50 space-y-0">
             <Button
               variant="ghost"
               onClick={handleCloseAttempt}
-              className="text-blue-600 hover:text-blue-700 hover:bg-transparent text-base font-normal px-2 cursor-pointer"
+              className="justify-self-start text-blue-600 hover:text-blue-700 hover:bg-transparent text-base font-normal px-2 cursor-pointer"
             >
               Cancel
             </Button>
 
-            <DialogTitle className="text-base font-semibold">
+            <DialogTitle className="min-w-0 truncate text-center text-base font-semibold">
               Edit profile
             </DialogTitle>
 
@@ -235,7 +225,7 @@ export default function EditProfileModal({
               variant="ghost"
               onClick={handleSave}
               disabled={isSaveDisabled}
-              className={`text-base font-normal px-2 hover:bg-transparent ${isSaveDisabled
+              className={`justify-self-end text-base font-normal px-2 hover:bg-transparent ${isSaveDisabled
                 ? "text-muted-foreground"
                 : "text-blue-600 hover:text-blue-700 cursor-pointer"
                 }`}
@@ -349,8 +339,8 @@ export default function EditProfileModal({
             </div>
 
             {/* Form Fields */}
-            <div className="pt-14 px-5 pb-6 space-y-5">
-              <div className="space-y-2">
+            <div className="min-w-0 pt-14 px-5 pb-6 space-y-5 overflow-x-hidden">
+              <div className="min-w-0 space-y-2">
                 <Label
                   htmlFor="displayName"
                   className="text-slate-600 font-medium"
@@ -362,25 +352,25 @@ export default function EditProfileModal({
                   value={displayName}
                   aria-invalid={Boolean(displayNameError)}
                   maxLength={DISPLAY_NAME_MAX_LENGTH}
-                  onChange={handleDisplayNameChange}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="e.g. Alice Lastname"
-                  className={`bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base py-6 shadow-none ${displayNameError ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
+                  className={`max-w-full bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base py-6 shadow-none ${displayNameError ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
                 />
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center justify-between gap-3">
                   {displayNameError ? (
-                    <p className="text-xs font-medium text-red-600">
+                    <p className="min-w-0 text-xs font-medium text-red-600 wrap-anywhere]">
                       {displayNameError}
                     </p>
                   ) : (
                     <span />
                   )}
-                  <span className="text-xs text-slate-400">
+                  <span className="shrink-0 text-xs text-slate-400">
                     {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label
                   htmlFor="description"
                   className="text-slate-600 font-medium"
@@ -391,20 +381,20 @@ export default function EditProfileModal({
                   id="description"
                   value={description}
                   aria-invalid={Boolean(bioError)}
+                  onChange={(e) => setDescription(e.target.value)}
                   maxLength={BIO_MAX_LENGTH}
-                  onChange={handleBioChange}
                   placeholder="Tell us a bit about yourself"
-                  className={`bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base min-h-30 resize-none shadow-none ${bioError ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
+                  className={`max-w-full overflow-x-hidden whitespace-pre-wrap wrap-anywhere bg-[#f1f5f9] border-transparent focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:bg-white text-base min-h-30 resize-none shadow-none ${bioError ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
                 />
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center justify-between gap-3">
                   {bioError ? (
-                    <p className="text-xs font-medium text-red-600">
+                    <p className="min-w-0 text-xs font-medium text-red-600 wrap-anywhere">
                       {bioError}
                     </p>
                   ) : (
                     <span />
                   )}
-                  <span className="text-xs text-slate-400">
+                  <span className="shrink-0 text-xs text-slate-400">
                     {description.length}/{BIO_MAX_LENGTH}
                   </span>
                 </div>
