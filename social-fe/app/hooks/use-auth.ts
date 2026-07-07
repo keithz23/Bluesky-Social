@@ -72,12 +72,9 @@ export function useAuth() {
     mutationFn: async () => {
       return AuthService.logout();
     },
-    onSuccess: () => {
+    onSettled: () => {
       clearAuth();
       qc.setQueryData(["me"], null);
-    },
-    onError: (err) => {
-      toast.error(extractErrMsg(err));
     },
   });
 
