@@ -10,11 +10,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const res = await AuthService.refresh();
 
-      if (!res.accessToken || !res.user.username || !res.user.email) {
+      if (!res.accessToken || !res.user.username) {
         clearAuth();
         return;
       }
-      setAuth(res.accessToken, res.user.username, res.user.email);
+      setAuth(res.accessToken, res.user.username, res.user.email ?? "");
     } catch {
       clearAuth();
     }

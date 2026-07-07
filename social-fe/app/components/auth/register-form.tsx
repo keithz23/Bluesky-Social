@@ -159,7 +159,7 @@ function Step1Form({
               placeholder="Password *"
               aria-invalid={Boolean(errors.password)}
               {...register("password")}
-              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] pl-11 pr-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35 ${errors.password ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
+              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] pl-11 pr-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35 ${errors.password ? "bg-red-50 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
             />
           </div>
           {errors.password && (
