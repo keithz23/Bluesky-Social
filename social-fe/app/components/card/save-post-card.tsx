@@ -40,8 +40,6 @@ import { PostContent } from "../post-content";
 import { enUS } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
-// @ts-expect-error CSS side-effect import.
-import 'react-photo-view/dist/react-photo-view.css';
 import { PhotoProvider, PhotoView } from "react-photo-view";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
