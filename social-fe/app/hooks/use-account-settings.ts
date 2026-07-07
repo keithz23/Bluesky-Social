@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/use-auth.store";
+import { clearAuthSessionCache } from "../utils/auth-cache.util";
 
 type useAccountSettingsOptions = {
   onSuccess?: () => void;
@@ -20,9 +21,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
   const resetAuth = async () => {
-    clearAuth();
-    qc.setQueryData(["me"], null);
-    await qc.invalidateQueries({ queryKey: ["me"] });
+    await clearAuthSessionCache(qc, clearAuth);
   };
 
   const requestUpdateEmailMutation = useMutation({
