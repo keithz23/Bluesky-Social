@@ -361,7 +361,7 @@ export default function GlobalHeader({
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
-      onSuccess: () => router.push("/login"),
+      onSettled: () => router.replace("/login"),
     });
   };
 

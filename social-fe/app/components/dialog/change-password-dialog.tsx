@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,19 +16,60 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAccountSettings } from "@/app/hooks/use-account-settings";
+import * as z from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type ChangePasswordDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
+
+const changePasswordSchema = z.object({
+  otp: z
+    .string()
+    .trim()
+    .regex(
+      /^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/,
+      "Verification code should look like XXXXX-XXXXX.",
+    ),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password cannot exceed 128 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain uppercase, lowercase, number and special character",
+    ),
+  newPasswordConfirm: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.newPasswordConfirm, {
+  message: "Passwords do not match.",
+  path: ["newPasswordConfirm"],
+});
+
+type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
+
 export default function ChangePasswordDialog({
   open,
   onOpenChange,
 }: ChangePasswordDialogProps) {
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<ChangePasswordValues>({
+    resolver: zodResolver(changePasswordSchema),
+    mode: "onChange",
+    defaultValues: {
+      otp: "",
+      newPassword: "",
+      newPasswordConfirm: "",
+    },
+  });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const {
     requestUpdatePasswordMutation,
@@ -48,9 +89,9 @@ export default function ChangePasswordDialog({
   const isBusy = isRequestingPasswordCode || isChangingPassword;
 
   const resetForm = () => {
-    setOtp("");
-    setNewPassword("");
-    setNewPasswordConfirm("");
+    reset();
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setCodeSent(false);
   };
 
@@ -65,15 +106,11 @@ export default function ChangePasswordDialog({
     requestUpdatePasswordMutation.mutate();
   };
 
-  const handleChangePassword = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (newPassword !== newPasswordConfirm) {
-      toast.error("Passwords do not match.");
-      return;
-    }
-
-    changePasswordMutation.mutate({ otp, newPassword });
+  const handleChangePassword = (data: ChangePasswordValues) => {
+    changePasswordMutation.mutate({
+      otp: data.otp.trim(),
+      newPassword: data.newPassword,
+    });
   };
 
   return (
@@ -90,64 +127,113 @@ export default function ChangePasswordDialog({
         </DialogHeader>
 
         {codeSent ? (
-          <form className="space-y-5 px-5 py-5" onSubmit={handleChangePassword}>
+          <form
+            className="space-y-5 px-5 py-5"
+            onSubmit={handleSubmit(handleChangePassword)}
+          >
             <FieldGroup>
               <Field>
                 <Label htmlFor="password-otp">Verification code</Label>
                 <Input
                   id="password-otp"
-                  name="otp"
                   inputMode="text"
                   autoComplete="one-time-code"
                   placeholder="Enter code"
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value)}
+                  aria-invalid={Boolean(errors.otp)}
+                  {...register("otp")}
                   disabled={isChangingPassword}
-                  className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
-                  required
+                  className={`text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all ${errors.otp ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
                 />
+                {errors.otp && (
+                  <p className="ml-1 text-xs font-medium text-red-500">
+                    {errors.otp.message}
+                  </p>
+                )}
               </Field>
 
               <Field>
                 <Label htmlFor="new-password">New password</Label>
-                <Input
-                  id="new-password"
-                  name="newPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Enter new password"
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  disabled={isChangingPassword}
-                  className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Enter new password"
+                    aria-invalid={Boolean(errors.newPassword)}
+                    {...register("newPassword")}
+                    disabled={isChangingPassword}
+                    className={`text-[15px] py-6 pr-12 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all ${errors.newPassword ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
+                  />
+                  <button
+                    tabIndex={1}
+                    type="button"
+                    aria-label={
+                      showNewPassword ? "Hide password" : "Show password"
+                    }
+                    onClick={() => setShowNewPassword((current) => !current)}
+                    disabled={isChangingPassword}
+                    className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.newPassword && (
+                  <p className="ml-1 text-xs font-medium text-red-500">
+                    {errors.newPassword.message}
+                  </p>
+                )}
               </Field>
 
               <Field>
                 <Label htmlFor="confirm-new-password">
                   Confirm new password
                 </Label>
-                <Input
-                  id="confirm-new-password"
-                  name="newPasswordConfirm"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Confirm new password"
-                  value={newPasswordConfirm}
-                  onChange={(event) =>
-                    setNewPasswordConfirm(event.target.value)
-                  }
-                  disabled={isChangingPassword}
-                  className="text-[15px] py-6 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm-new-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Confirm new password"
+                    aria-invalid={Boolean(errors.newPasswordConfirm)}
+                    {...register("newPasswordConfirm")}
+                    disabled={isChangingPassword}
+                    className={`text-[15px] py-6 pr-12 bg-[#F1F5F9] border-transparent rounded-xl focus-visible:ring-0 focus-visible:bg-white focus-visible:border-[#1185fe] transition-all ${errors.newPasswordConfirm ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}`}
+                  />
+                  <button
+                    tabIndex={1}
+                    type="button"
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
+                    onClick={() =>
+                      setShowConfirmPassword((current) => !current)
+                    }
+                    disabled={isChangingPassword}
+                    className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.newPasswordConfirm && (
+                  <p className="ml-1 text-xs font-medium text-red-500">
+                    {errors.newPasswordConfirm.message}
+                  </p>
+                )}
               </Field>
             </FieldGroup>
 
             <p className="text-sm italic text-slate-500">
               Don&apos;t see an email?{" "}
               <button
+                tabIndex={1}
                 type="button"
                 className="font-medium text-blue-600 not-italic hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isBusy}
@@ -161,18 +247,14 @@ export default function ChangePasswordDialog({
 
             <DialogFooter className="gap-2 sm:justify-between">
               <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={isBusy}>
+                <Button type="button" variant="outline" disabled={isBusy} tabIndex={1}>
                   Cancel
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
-                disabled={
-                  isChangingPassword ||
-                  !otp.trim() ||
-                  !newPassword ||
-                  !newPasswordConfirm
-                }
+                className="cursor-pointer"
+                disabled={isChangingPassword || !isValid}
               >
                 {isChangingPassword ? "Changing..." : "Verify and change"}
               </Button>
