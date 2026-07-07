@@ -11,6 +11,7 @@ export interface User {
   bio: string;
   followStatus: string;
   isFollowedByAuthor?: boolean;
+  hasPassword?: boolean;
   accessToken?: string;
   refreshToken?: string;
 }
@@ -31,6 +32,7 @@ export interface AuthResponse {
     bio: string;
     followStatus: string;
     isFollowedByAuthor?: boolean;
+    hasPassword?: boolean;
 
   }
 }

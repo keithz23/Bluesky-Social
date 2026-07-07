@@ -14,7 +14,6 @@ import {
   User,
   UserPlus,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import Link from "next/link";
@@ -63,16 +62,13 @@ const settingSections = [
 ];
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { logoutMutation, user } = useAuth();
 
   const displayName = user?.displayName || user?.username || "Your account";
   const handle = user?.username ? `@${user.username}` : user?.email || "";
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSettled: () => router.replace("/login"),
-    });
+    logoutMutation.mutate();
   };
 
   return (

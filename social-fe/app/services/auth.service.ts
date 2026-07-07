@@ -13,6 +13,7 @@ import {
   DeactivateAccountData,
 } from "../interfaces/auth.interface";
 import { AuthResponse } from "../interfaces/user.interface";
+import type { User } from "../interfaces/user.interface";
 
 export const AuthService = {
   register: (registerData: RegisterData) => {
@@ -35,8 +36,9 @@ export const AuthService = {
     return refreshAuthSession();
   },
 
-  me: () => {
-    return axiosInstance.get(API_ENDPOINT.AUTH.ME);
+  me: async (): Promise<User> => {
+    const response = await axiosInstance.get(API_ENDPOINT.AUTH.ME);
+    return response.data ?? response;
   },
 
   updateProfile: async (updateProfileData: UpdateProfileData) => {
