@@ -2,8 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Share, ChevronLeft, ChevronRight } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Share } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -31,6 +30,9 @@ import BookMarkButton from "../button/bookmark-button";
 import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
+// @ts-expect-error CSS side-effect import.
+import 'react-photo-view/dist/react-photo-view.css';
+import { PhotoProvider, PhotoView } from "react-photo-view";
 
 interface PostDetailCardProps {
   post: Feed;
@@ -45,10 +47,6 @@ export default function PostDetailCard({
 }: PostDetailCardProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [zoomData, setZoomData] = useState<{
-    media: PostMedia[];
-    currentIndex: number;
-  } | null>(null);
   const replyDisabled = disabled || (!!user && !checkCanReply(post, user));
 
   const handlePostClick = () => {
@@ -61,30 +59,6 @@ export default function PostDetailCard({
     e?.stopPropagation();
     router.push(`/profile/${post.user.username}`);
   };
-
-  const handleNextImage = useCallback(
-    (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
-        setZoomData((prev) =>
-          prev ? { ...prev, currentIndex: prev.currentIndex + 1 } : null,
-        );
-      }
-    },
-    [zoomData],
-  );
-
-  const handlePrevImage = useCallback(
-    (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (zoomData && zoomData.currentIndex > 0) {
-        setZoomData((prev) =>
-          prev ? { ...prev, currentIndex: prev.currentIndex - 1 } : null,
-        );
-      }
-    },
-    [zoomData],
-  );
 
   const handleShare = useCallback(
     async (e?: React.MouseEvent) => {
@@ -101,16 +75,6 @@ export default function PostDetailCard({
     },
     [post.content, post.id, post.user.username],
   );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!zoomData) return;
-      if (e.key === "ArrowRight") handleNextImage();
-      if (e.key === "ArrowLeft") handlePrevImage();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [zoomData, handleNextImage, handlePrevImage]);
 
   const formattedDate = useMemo(() => {
     if (!post.createdAt) return "";
@@ -149,11 +113,10 @@ export default function PostDetailCard({
   return (
     <>
       <div
-        className={`relative px-4 py-3 cursor-pointer transition ${
-          role === "parent"
-            ? "hover:bg-gray-50/30 z-0"
-            : "border-b border-gray-100 hover:bg-gray-50/30 z-10"
-        }`}
+        className={`relative px-4 py-3 cursor-pointer transition ${role === "parent"
+          ? "hover:bg-gray-50/30 z-0"
+          : "border-b border-gray-100 hover:bg-gray-50/30 z-10"
+          }`}
         onClick={handlePostClick}
       >
         <div className="flex gap-3">
@@ -215,37 +178,40 @@ export default function PostDetailCard({
 
             <PostContent
               content={post.content}
-              className={`leading-snug text-gray-900 wrap-break-words mb-3 ${
-                role === "main" ? "text-[17px]" : "text-[15px]"
-              }`}
+              className={`leading-snug text-gray-900 wrap-break-words mb-3 ${role === "main" ? "text-[17px]" : "text-[15px]"
+                }`}
             />
 
-            {/* Media Carousel */}
             {post.media?.length > 0 && (
-              <Carousel opts={{ align: "start" }} className="w-full mb-3">
-                <CarouselContent>
-                  {post.media.map((m: PostMedia, i: number) => (
-                    <CarouselItem
-                      key={m.id}
-                      className={
-                        post.media.length === 1 ? "basis-full" : "basis-[85%]"
-                      }
-                    >
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setZoomData({ media: post.media, currentIndex: i });
-                        }}
-                        className={`w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-100 ${post.media.length === 1 ? "aspect-video" : "h-64"}`}
-                      >
-                        <img
-                          src={m.mediaUrl}
-                          alt={m.altText ?? ""}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </CarouselItem>
-                  ))}
+              <Carousel opts={{ align: "start" }} className="mb-2 w-full sm:mb-3">
+                <CarouselContent onClick={(e) => e.stopPropagation()}>
+                  <PhotoProvider>
+                    {post.media.map((m: PostMedia) => (
+                      <PhotoView src={m.mediaUrl} key={m.id}>
+                        <CarouselItem
+                          className={
+                            post.media.length === 1
+                              ? "basis-full"
+                              : "basis-[88%] sm:basis-[85%]"
+                          }
+                        >
+                          <div
+                            className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${post.media.length === 1
+                              ? "aspect-video"
+                              : "h-56 sm:h-64"
+                              }`}
+                          >
+                            <img
+                              src={m.mediaUrl}
+                              alt={m.altText ?? ""}
+                              loading="lazy"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        </CarouselItem>
+                      </PhotoView>
+                    ))}
+                  </PhotoProvider>
                 </CarouselContent>
               </Carousel>
             )}
@@ -352,40 +318,6 @@ export default function PostDetailCard({
           </div>
         </div>
       </div>
-
-      <Dialog
-        open={!!zoomData}
-        onOpenChange={(open) => !open && setZoomData(null)}
-      >
-        <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 border-none bg-black/95 flex items-center justify-center overflow-hidden">
-          <DialogTitle className="sr-only">Zoom Image</DialogTitle>
-          {zoomData && (
-            <div className="relative w-full h-full flex items-center justify-center">
-              {zoomData.currentIndex > 0 && (
-                <button
-                  onClick={handlePrevImage}
-                  className="absolute left-4 z-50 p-3 rounded-full bg-black/50 hover:bg-white/20 text-white transition-all"
-                >
-                  <ChevronLeft size={28} />
-                </button>
-              )}
-              <img
-                src={zoomData.media[zoomData.currentIndex].mediaUrl}
-                alt=""
-                className="max-w-full max-h-full object-contain"
-              />
-              {zoomData.currentIndex < zoomData.media.length - 1 && (
-                <button
-                  onClick={handleNextImage}
-                  className="absolute right-4 z-50 p-3 rounded-full bg-black/50 hover:bg-white/20 text-white transition-all"
-                >
-                  <ChevronRight size={28} />
-                </button>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

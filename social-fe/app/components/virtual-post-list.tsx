@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import PostCard from "@/app/components/card/post-card";
-import { ZoomData } from "@/app/components/dialog/image-zoom-dialog";
 
 const ESTIMATED_POST_HEIGHT = 260;
 const OVERSCAN_PX = 900;
@@ -12,13 +11,11 @@ const OVERSCAN_PX = 900;
 interface VirtualPostListProps {
   posts: Feed[];
   dropdownItems: DropdownItem[];
-  onZoom?: (data: ZoomData) => void;
 }
 
 export default function VirtualPostList({
   posts,
   dropdownItems,
-  onZoom,
 }: VirtualPostListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [sizes, setSizes] = useState<Record<string, number>>({});
@@ -156,7 +153,7 @@ export default function VirtualPostList({
             containIntrinsicSize: `${ESTIMATED_POST_HEIGHT}px`,
           }}
         >
-          <PostCard post={post} dropdownItems={dropdownItems} onZoom={onZoom} />
+          <PostCard post={post} dropdownItems={dropdownItems} />
         </div>
       ))}
 
