@@ -31,7 +31,15 @@ const step2Schema = z.object({
       /^[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$/,
       "You have entered an invalid code. It should look like XXXXX-XXXXX.",
     ),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password cannot exceed 128 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain uppercase, lowercase, number and special character",
+    ),
+
 });
 
 type Step1Values = z.infer<typeof step1Schema>;
