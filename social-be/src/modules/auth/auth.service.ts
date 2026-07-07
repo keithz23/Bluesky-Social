@@ -234,13 +234,13 @@ export class AuthService {
   }
 
   async logout(
-    userId: string,
+    userId: string | undefined,
     refreshToken: string,
   ): Promise<{ message: string }> {
     // Delete specific refresh token
     await this.prisma.refreshToken.deleteMany({
       where: {
-        userId,
+        ...(userId ? { userId } : {}),
         token: refreshToken,
       },
     });

@@ -10,28 +10,53 @@ import {
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { AtSign } from "lucide-react";
-import { FormEvent, useState } from "react";
-import { toast } from "sonner";
+import { type SubmitHandler, useForm } from "react-hook-form";
+import * as z from "zod";
 
 type ChangeUsernameDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
+const changeUsernameSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(1, "Username is required")
+    .max(50, "Username must be 50 characters or less."),
+});
+
+type ChangeUsernameValues = z.infer<typeof changeUsernameSchema>;
+
 export default function ChangeUsernameDialog({
   open,
   onOpenChange,
 }: ChangeUsernameDialogProps) {
-  const [username, setUsername] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<ChangeUsernameValues>({
+    resolver: zodResolver(changeUsernameSchema),
+    mode: "onChange",
+    defaultValues: {
+      username: "",
+    },
+  });
+
+  const resetForm = () => {
+    reset();
+  };
+
   const { changeUsernameMutation, isChangingUsername } = useAccountSettings({
     onSuccess: () => {
+      resetForm();
       onOpenChange(false);
     },
   });
-  const resetForm = () => {
-    setUsername("");
-  };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -40,17 +65,8 @@ export default function ChangeUsernameDialog({
     onOpenChange(nextOpen);
   };
 
-  const handleChangeUsername = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmedUsername = username.trim();
-
-    if (!trimmedUsername) {
-      toast.error("Username is required");
-      return;
-    }
-
-    changeUsernameMutation.mutate({ username: trimmedUsername });
+  const handleChangeUsername: SubmitHandler<ChangeUsernameValues> = (data) => {
+    changeUsernameMutation.mutate({ username: data.username });
   };
 
   return (
@@ -71,7 +87,10 @@ export default function ChangeUsernameDialog({
           </DialogTitle>
         </div>
 
-        <form className="space-y-5 px-5 py-5" onSubmit={handleChangeUsername}>
+        <form
+          className="space-y-5 px-5 py-5"
+          onSubmit={handleSubmit(handleChangeUsername)}
+        >
           <FieldGroup>
             <Field className="gap-2">
               <Label
@@ -80,30 +99,39 @@ export default function ChangeUsernameDialog({
               >
                 New handle
               </Label>
-              <div className="flex h-11 items-center rounded-xl border border-blue-600 bg-[#F1F5F9] px-3 transition-within focus-within:bg-white">
+              <div
+                className={`flex h-11 items-center rounded-xl border bg-[#F1F5F9] px-3 transition-within focus-within:bg-white ${
+                  errors.username
+                    ? "border-red-500 ring-red-500"
+                    : "border-blue-600"
+                }`}
+              >
                 <AtSign
                   className="mr-2 h-5 w-5 shrink-0 text-blue-600"
                   strokeWidth={2.2}
                 />
                 <Input
                   id="username"
-                  name="username"
                   inputMode="text"
                   autoComplete="username"
                   placeholder="e.g. alice"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
+                  aria-invalid={Boolean(errors.username)}
+                  {...register("username")}
                   disabled={isChangingUsername}
                   className="h-full border-0 bg-transparent px-0 py-0 text-[15px] text-slate-950 shadow-none placeholder:text-slate-400 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-70"
-                  required
                 />
               </div>
+              {errors.username && (
+                <p className="ml-1 text-xs font-medium text-red-500">
+                  {errors.username.message}
+                </p>
+              )}
             </Field>
           </FieldGroup>
 
           <Button
             type="submit"
-            disabled={isChangingUsername || !username.trim()}
+            disabled={isChangingUsername || !isValid}
             className="h-11 w-full rounded-full text-[15px] font-semibold disabled:bg-slate-100 disabled:text-slate-400 cursor-pointer"
           >
             {isChangingUsername ? "Saving..." : "Save"}
