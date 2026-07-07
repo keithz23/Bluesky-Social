@@ -916,6 +916,7 @@ export class PostsService {
   ) {
     const { content, gifUrl } = createReplyDto;
     const hashtagNames = extractHashtags(content ?? '');
+    const mentionedUsernames = extractMentions(content ?? '');
     const trimmedContent = content?.trim() ?? '';
 
     const parentPost = await this.prisma.post.findUnique({
@@ -983,7 +984,7 @@ export class PostsService {
     }
 
     try {
-      const reply = await this.prisma.$transaction(async (tx) => {
+      const fullReply = await this.prisma.$transaction(async (tx) => {
         const created = await tx.post.create({
           data: {
             content: trimmedContent,
@@ -1029,7 +1030,27 @@ export class PostsService {
 
         await this.attachHashtags(tx, created.id, hashtagNames);
 
-        return tx.post.findUnique({
+        let mentionedUsers: { id: string; username: string }[] = [];
+        if (mentionedUsernames.length > 0) {
+          mentionedUsers = await tx.user.findMany({
+            where: {
+              username: { in: mentionedUsernames },
+              id: { not: userId },
+            },
+            select: { id: true, username: true },
+          });
+
+          await tx.mention.createMany({
+            data: mentionedUsers.map((user) => ({
+              postId: created.id,
+              userId: user.id,
+              username: user.username,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        const reply = await tx.post.findUnique({
           where: { id: created.id },
           select: {
             id: true,
@@ -1069,20 +1090,34 @@ export class PostsService {
             },
           },
         });
+
+        return { reply, mentionedUsers };
       });
+
+      const reply = fullReply.reply;
+      if (!reply) throw new Error('Failed to create reply');
 
       this.socketGateway.emitToPost(postId, 'new-reply', reply);
 
       if (parentPost.userId !== userId) {
         this.notificationService.sendNotification({
           type: NotificationType.REPLY,
-          postId,
+          postId: reply.id,
           actorId: userId,
           userId: parentPost.userId,
         });
       }
 
-      if (!reply) throw new Error('Failed to create reply');
+      if (fullReply.mentionedUsers.length > 0) {
+        fullReply.mentionedUsers.forEach((user) => {
+          this.notificationService.sendNotification({
+            type: NotificationType.MENTION,
+            postId: reply.id,
+            actorId: userId,
+            userId: user.id,
+          });
+        });
+      }
 
       return {
         ...reply,
@@ -1110,19 +1145,18 @@ export class PostsService {
     limit: number = 20,
   ) {
     const pageSize = Number(limit) || 20;
-    const cursorDate = cursor ? new Date(cursor) : null;
 
     const replies = await this.prisma.post.findMany({
       where: {
         parentPostId: postId,
         isDeleted: false,
-        ...(cursorDate &&
-          !isNaN(cursorDate.getTime()) && {
-            createdAt: { gt: cursorDate },
-          }),
       },
       take: pageSize + 1,
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1,
+      }),
       select: {
         id: true,
         content: true,
@@ -1166,7 +1200,7 @@ export class PostsService {
     if (hasMore) replies.pop();
 
     const nextCursor = hasMore
-      ? replies[replies.length - 1].createdAt.toISOString()
+      ? replies[replies.length - 1].id
       : null;
 
     const replyIds = replies.map((r) => r.id);
