@@ -3,9 +3,7 @@
 import React, { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Share } from "lucide-react";
-import { PhotoProvider, PhotoView } from 'react-photo-view';
-// @ts-expect-error CSS side-effect import.
-import 'react-photo-view/dist/react-photo-view.css';
+import { PhotoProvider, PhotoView } from "react-photo-view";
 import {
   Carousel,
   CarouselContent,
