@@ -185,13 +185,13 @@ export default function ReplyPostModal({
 
     const payload = hasImages
       ? {
-          content: postText,
-          images: selectedImages.map((img) => img.file),
-        }
+        content: postText,
+        images: selectedImages.map((img) => img.file),
+      }
       : {
-          content: postText,
-          gifUrl: selectedGif ?? undefined,
-        };
+        content: postText,
+        gifUrl: selectedGif ?? undefined,
+      };
 
     createReply.mutate(payload, {
       onSuccess: () => {
@@ -213,11 +213,10 @@ export default function ReplyPostModal({
           {type === "avatar-with-input" ? (
             <button
               disabled={disabled}
-              className={`flex items-center gap-x-3 p-2 w-full text-left rounded-full transition-colors ${
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer hover:bg-gray-200"
-              }`}
+              className={`flex items-center gap-x-3 p-2 w-full text-left rounded-full transition-colors ${disabled
+                ? "opacity-50 cursor-not-allowed"
+                : "cursor-pointer hover:bg-gray-200"
+                }`}
             >
               <div className="w-8 h-8 rounded-full bg-[#FF4F5A] flex items-center justify-center text-sm text-white font-bold shrink-0 overflow-hidden">
                 {user?.avatarUrl ? (
@@ -238,20 +237,18 @@ export default function ReplyPostModal({
           ) : (
             <button
               disabled={disabled}
-              className={`p-2 rounded-full transition-colors ${
-                disabled
-                  ? "opacity-50 cursor-not-allowed"
-                  : "group-hover:bg-blue-50 cursor-pointer"
-              }`}
+              className={`p-2 rounded-full transition-colors ${disabled
+                ? "opacity-50 cursor-not-allowed"
+                : "group-hover:bg-blue-50 cursor-pointer"
+                }`}
             >
               <MessageSquare
                 size={18}
                 strokeWidth={2.2}
-                className={`transition-colors ${
-                  disabled
-                    ? "text-gray-400"
-                    : "group-hover:text-blue-500 text-gray-500"
-                }`}
+                className={`transition-colors ${disabled
+                  ? "text-gray-400"
+                  : "group-hover:text-blue-500 text-gray-500"
+                  }`}
               />
             </button>
           )}
@@ -291,11 +288,10 @@ export default function ReplyPostModal({
               <Button
                 onClick={handleCreatePost}
                 disabled={isSubmitDisabled}
-                className={`rounded-full font-bold px-5 h-9 shadow-none transition-colors ${
-                  !isSubmitDisabled
-                    ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
-                    : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
-                }`}
+                className={`rounded-full font-bold px-5 h-9 shadow-none transition-colors ${!isSubmitDisabled
+                  ? "bg-[#0066FF] text-white hover:bg-blue-700 cursor-pointer"
+                  : "bg-[#A2C7FF] text-white cursor-not-allowed hover:bg-[#A2C7FF]"
+                  }`}
               >
                 {createReply.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -337,18 +333,16 @@ export default function ReplyPostModal({
             {post.media.length > 0 && (
               <div className="w-15 h-15 border border-gray-100 overflow-hidden shrink-0 bg-white flex flex-col justify-center">
                 <div
-                  className={`w-full h-full grid gap-px ${
-                    post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                  } ${post.media.length > 2 ? "grid-rows-2" : "grid-rows-1"}`}
+                  className={`w-full h-full grid gap-px ${post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                    } ${post.media.length > 2 ? "grid-rows-2" : "grid-rows-1"}`}
                 >
                   {post.media.slice(0, 4).map((m, index) => (
                     <div
                       key={m.id || index}
-                      className={`w-full h-full overflow-hidden ${
-                        post.media.length === 3 && index === 0
-                          ? "row-span-2"
-                          : ""
-                      }`}
+                      className={`w-full h-full overflow-hidden ${post.media.length === 3 && index === 0
+                        ? "row-span-2"
+                        : ""
+                        }`}
                     >
                       <img
                         src={m.mediaUrl}
@@ -379,7 +373,6 @@ export default function ReplyPostModal({
             </div>
           </div>
 
-          {/* PREVIEW: Multiple Images */}
           {hasImages && (
             <div className="px-4 pb-2 ml-14">
               <div className={`grid ${getGridClass(imageCount)} gap-1.5`}>
@@ -393,9 +386,8 @@ export default function ReplyPostModal({
                       <img
                         src={img.preview}
                         alt={`Selected media ${i + 1}`}
-                        className={`rounded-xl w-full object-cover border border-gray-200 ${
-                          isThreeFirst ? "max-h-48" : "max-h-40"
-                        }`}
+                        className={`rounded-xl w-full object-cover border border-gray-200 ${isThreeFirst ? "max-h-48" : "max-h-40"
+                          }`}
                       />
                       <button
                         onClick={() => removeImage(i)}
@@ -415,7 +407,6 @@ export default function ReplyPostModal({
             </div>
           )}
 
-          {/* PREVIEW: GIF */}
           {hasGif && (
             <div className="relative px-4 pb-2 ml-14">
               <img
@@ -485,7 +476,7 @@ export default function ReplyPostModal({
               onChange={handleFileChange}
             />
 
-            <div className="flex items-center gap-3 text-[#0066FF]">
+            <div className="flex min-w-0 items-center gap-1 rounded-full bg-blue-50/70 p-1 text-[#0066FF]">
               <button
                 onClick={() => !imageDisabled && fileInputRef.current?.click()}
                 disabled={imageDisabled}
@@ -496,13 +487,12 @@ export default function ReplyPostModal({
                       ? "Maximum of 4 images reached"
                       : "Add images"
                 }
-                className={`p-1.5 rounded-full transition-colors ${
-                  imageDisabled
-                    ? "opacity-40 cursor-not-allowed text-gray-400"
-                    : "hover:bg-blue-50 text-[#0066FF] cursor-pointer"
-                }`}
+                className={`p-1.5 rounded-full transition-colors ${imageDisabled
+                  ? "opacity-40 cursor-not-allowed text-gray-400"
+                  : "hover:bg-blue-50 text-[#0066FF] cursor-pointer"
+                  }`}
               >
-                <ImageIcon className="w-5 h-5" />
+                <ImageIcon className="w-6 h-6" />
               </button>
 
               <button
@@ -518,18 +508,16 @@ export default function ReplyPostModal({
                     ? "Remove images before adding a GIF"
                     : "Add a GIF"
                 }
-                className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${
-                  gifDisabled
-                    ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-blue-50 cursor-pointer"
-                }`}
+                className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${gifDisabled
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-blue-50 cursor-pointer"
+                  }`}
               >
                 <div
-                  className={`border-2 rounded-lg text-[10px] font-bold w-5.5 h-5.5 flex items-center justify-center ${
-                    gifDisabled
-                      ? "border-gray-400 text-gray-400"
-                      : "border-[#0066FF] text-[#0066FF]"
-                  }`}
+                  className={`border-2 rounded-lg text-[10px] font-bold w-5.5 h-5.5 flex items-center justify-center ${gifDisabled
+                    ? "border-gray-400 text-gray-400"
+                    : "border-[#0066FF] text-[#0066FF]"
+                    }`}
                 >
                   GIF
                 </div>
@@ -543,18 +531,14 @@ export default function ReplyPostModal({
                 }}
                 className="hover:bg-blue-50 p-1.5 rounded-full transition-colors cursor-pointer"
               >
-                <Smile className="w-5 h-5 text-[#0066FF]" />
+                <Smile className="w-6 h-6 text-[#0066FF]" />
               </button>
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="text-[#0066FF] font-medium text-[15px] hover:underline cursor-pointer">
-                English
-              </button>
               <span className="text-gray-900 text-[15px]">
                 {300 - postText.length}
               </span>
-              <div className="w-6.5 h-6.5 rounded-full border border-gray-200"></div>
             </div>
           </div>
         </DialogContent>

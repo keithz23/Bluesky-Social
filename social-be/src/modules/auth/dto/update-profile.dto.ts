@@ -19,11 +19,11 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional({
     example: 'Software Developer | Coffee Lover ☕',
-    maxLength: 500,
+    maxLength: 50,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(500)
+  @MaxLength(100)
   bio?: string;
 
   @IsOptional()
