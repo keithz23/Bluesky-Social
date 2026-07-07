@@ -8,15 +8,8 @@ export function middleware(request: NextRequest) {
   const authRoutes = ["/login", "/signup", "/forgot"];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
-  const publicRoutes = ["/"];
-  const isPublicRoute = publicRoutes.some((route) => pathname === route);
-
   if (token && isAuthRoute) {
     return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  if (!token && !isAuthRoute && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();
