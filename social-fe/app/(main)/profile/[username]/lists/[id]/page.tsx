@@ -133,7 +133,7 @@ export default function ListDetailPage() {
         </div>
 
         {/* --- TABS NAV --- */}
-        <div className="sticky top-[10.5rem] z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2 lg:top-28">
+        <div className="sticky top-42 z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2 lg:top-28">
           <button
             onClick={() => setActiveTab("posts")}
             className="flex-1 flex items-center justify-center h-12 relative hover:bg-gray-50 transition-colors cursor-pointer"

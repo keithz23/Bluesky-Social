@@ -21,6 +21,7 @@ import { UserListSkeleton } from "../skeletons";
 
 export default function NewChatDialog() {
   const { user } = useAuth();
+  const username = user?.username ?? "";
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,7 +35,7 @@ export default function NewChatDialog() {
   );
 
   const { data, fetchNextPage, isFetchingNextPage, isLoading, hasNextPage } =
-    useGetFollowingLists(user.username);
+    useGetFollowingLists(username);
 
   const following = data?.pages.flatMap((page) => page.following) ?? [];
 

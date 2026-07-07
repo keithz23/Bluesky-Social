@@ -18,6 +18,7 @@ import {
   UseInterceptors,
   ConflictException,
   UploadedFiles,
+  Logger,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
@@ -77,6 +78,8 @@ const refreshTokenCookieOptions = {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private jwtService: JwtService,
     private readonly authService: AuthService,
@@ -198,15 +201,21 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from current session' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async signout(
+  signout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ message: string }> {
-    const refreshToken = request.cookies['refreshToken'];
+  ): { message: string } {
+    const refreshToken = request.cookies?.refreshToken;
     const userId = request.user?.['id'];
 
     if (refreshToken) {
-      await this.authService.logout(userId, refreshToken);
+      void this.authService.logout(userId, refreshToken).catch((error) => {
+        this.logger.warn(
+          `Failed to revoke refresh token during logout: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
     }
 
     this.clearAuthCookies(response);
