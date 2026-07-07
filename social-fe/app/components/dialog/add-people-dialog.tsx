@@ -29,6 +29,7 @@ export default function AddPeopleDialog({
   currentMembers = [],
 }: AddPeopleDialogProps) {
   const { user } = useAuth();
+  const username = user?.username ?? "";
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -43,7 +44,7 @@ export default function AddPeopleDialog({
   );
 
   const { data, fetchNextPage, isFetchingNextPage, isLoading, hasNextPage } =
-    useGetFollowingLists(user.username, listId);
+    useGetFollowingLists(username, listId);
 
   const following = data?.pages.flatMap((page) => page.following) ?? [];
   const hasQuery = searchQuery.trim().length > 0;
