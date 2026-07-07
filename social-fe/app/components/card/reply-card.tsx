@@ -144,7 +144,7 @@ export default function ReplyCard({
                     handleProfileClick();
                   }}
                 >
-                  {reply.user.username}
+                  {reply.user.displayName || reply.user.username}
                 </div>
                 <span className="text-gray-500 text-[15px] truncate">
                   @{reply.user.username}
