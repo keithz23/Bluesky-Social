@@ -12,6 +12,7 @@ import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { clearAuthLogoutLock } from "@/app/utils/auth-cache.util";
 
 const loginSchema = z.object({
   account: z.string().min(1, "Username or email is required"),
@@ -65,6 +66,7 @@ export default function LoginForm() {
           variant="outline"
           className="h-10 w-full rounded-full border-slate-300 bg-white text-sm font-medium shadow-none hover:bg-slate-50"
           onClick={() => {
+            clearAuthLogoutLock();
             window.location.href = googleAuthUrl;
           }}
         >
