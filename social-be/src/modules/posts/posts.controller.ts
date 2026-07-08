@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Delete,
@@ -12,6 +13,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -67,6 +69,23 @@ export class PostsController {
     @Param('postId') postId: string,
   ) {
     return this.postsService.getPostDetail(userId, postId);
+  }
+
+  @Patch('/update-post/:postId')
+  @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
+  update(
+    @CurrentUser('id') userId: string,
+    @Param('postId') postId: string,
+    @Body() updatePostDto: UpdatePostDto,
+    @UploadedFiles(
+      new ImageValidationPipe(
+        IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
+        IMAGE_UPLOAD.MAX_POST_IMAGES,
+      ),
+    )
+    images?: Express.Multer.File[],
+  ) {
+    return this.postsService.update(userId, postId, updatePostDto, images);
   }
 
   @Delete('/delete-post/:postId')

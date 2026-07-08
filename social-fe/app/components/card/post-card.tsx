@@ -221,7 +221,9 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
 const PostCard = React.memo(PostCardComponent, (prev, next) => {
   return (
     prev.post.id === next.post.id &&
-    // prev.post.updatedAt === next.post.updatedAt &&
+    prev.post.content === next.post.content &&
+    prev.post.updatedAt === next.post.updatedAt &&
+    prev.post.media === next.post.media &&
     prev.post.isLiked === next.post.isLiked &&
     prev.post.likeCount === next.post.likeCount &&
     prev.post.isReposted === next.post.isReposted &&
