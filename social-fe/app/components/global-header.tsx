@@ -351,7 +351,6 @@ export default function GlobalHeader({
   isMenuOpen,
   onMenuToggle,
 }: GlobalHeaderProps) {
-  const router = useRouter();
   const { user, isAuthenticated, logoutMutation } = useAuth();
   const { unreadCount } = useNotifications(isAuthenticated);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -360,9 +359,7 @@ export default function GlobalHeader({
   const accountInitial = getInitial(user?.displayName, user?.username);
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSettled: () => router.replace("/login"),
-    });
+    logoutMutation.mutate();
   };
 
   return (
@@ -394,72 +391,74 @@ export default function GlobalHeader({
         <HeaderSearch />
 
         <div className="flex shrink-0 items-center gap-1.5 justify-self-end">
-          <Button
-            asChild
-            variant="ghost"
-            className="rounded-full px-3 font-semibold text-slate-900 hover:bg-slate-100 md:inline-flex cursor-pointer"
-            onClick={() => setIsPostModalOpen(true)}
-          >
-            <div>
-              <PlusSquare className="h-4 w-4" />
-              <span className="hidden md:inline-flex">
-                Create
-              </span>
-            </div>
-          </Button>
-
-          <HeaderIconButton href="/notifications" label="Notifications">
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#FF4500] ring-2 ring-white" />
-            )}
-          </HeaderIconButton>
-
           {isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Account menu"
-                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition hover:bg-slate-100"
-                >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={user?.avatarUrl || undefined}
-                      alt={user?.displayName || user?.username || "User"}
-                    />
-                    <AvatarFallback className="bg-[#FF4F5A] font-bold text-white">
-                      {accountInitial}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href={profileHref}>
-                      <UserRound className="h-4 w-4" />
-                      Profile
-                    </Link>
+            <>
+              <Button
+                asChild
+                variant="ghost"
+                className="rounded-full px-3 font-semibold text-slate-900 hover:bg-slate-100 md:inline-flex cursor-pointer"
+                onClick={() => setIsPostModalOpen(true)}
+              >
+                <div>
+                  <PlusSquare className="h-4 w-4" />
+                  <span className="hidden md:inline-flex">
+                    Create
+                  </span>
+                </div>
+              </Button>
+
+              <HeaderIconButton href="/notifications" label="Notifications">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#FF4500] ring-2 ring-white" />
+                )}
+              </HeaderIconButton>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Account menu"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition hover:bg-slate-100"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={user?.avatarUrl || undefined}
+                        alt={user?.displayName || user?.username || "User"}
+                      />
+                      <AvatarFallback className="bg-[#FF4F5A] font-bold text-white">
+                        {accountInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href={profileHref}>
+                        <UserRound className="h-4 w-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/settings">
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                    disabled={logoutMutation.isPending}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href="/settings">
-                      <Settings className="h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="cursor-pointer text-red-600 focus:text-red-600"
-                  disabled={logoutMutation.isPending}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <Button asChild className="rounded-full px-4">
               <Link href="/login">Log in</Link>
@@ -467,7 +466,12 @@ export default function GlobalHeader({
           )}
         </div>
       </div>
-      <NewPostModal open={isPostModalOpen} onOpenChange={setIsPostModalOpen} />
+      {isAuthenticated && (
+        <NewPostModal
+          open={isPostModalOpen}
+          onOpenChange={setIsPostModalOpen}
+        />
+      )}
     </header>
   );
 }

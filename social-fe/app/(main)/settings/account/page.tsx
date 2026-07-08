@@ -45,6 +45,7 @@ export default function AccountPage() {
   const [isDeactivateAccountOpen, setIsDeactivateAccountOpen] = useState(false);
   const email = user?.email || "No email";
   const handle = user?.username ? `@${user.username}` : "Not set";
+  const hasPassword = Boolean(user?.hasPassword);
 
   return (
     <div className="flex w-full flex-col bg-white">
@@ -65,12 +66,14 @@ export default function AccountPage() {
       </section>
 
       <section className="border-b border-gray-200 py-3">
-        <AccountRow
-          icon={Lock}
-          label="Password"
-          chevron
-          onClick={() => setIsChangePasswordOpen(true)}
-        />
+        {hasPassword && (
+          <AccountRow
+            icon={Lock}
+            label="Password"
+            chevron
+            onClick={() => setIsChangePasswordOpen(true)}
+          />
+        )}
         <AccountRow
           icon={AtSign}
           label="Handle"
@@ -111,10 +114,12 @@ export default function AccountPage() {
         currentEmail={user?.email}
       />
 
-      <ChangePasswordDialog
-        open={isChangePasswordOpen}
-        onOpenChange={setIsChangePasswordOpen}
-      />
+      {hasPassword && (
+        <ChangePasswordDialog
+          open={isChangePasswordOpen}
+          onOpenChange={setIsChangePasswordOpen}
+        />
+      )}
 
       <ChangeUsernameDialog
         open={isChangeUsernameOpen}
@@ -163,9 +168,8 @@ function AccountRow({
       <div className="flex min-w-0 shrink items-center gap-2">
         {value && (
           <span
-            className={`truncate text-[15px] font-normal ${
-              valueClassName || (danger ? "text-[#F4214B]" : "text-slate-500")
-            }`}
+            className={`truncate text-[15px] font-normal ${valueClassName || (danger ? "text-[#F4214B]" : "text-slate-500")
+              }`}
           >
             {value}
           </span>
@@ -178,9 +182,8 @@ function AccountRow({
         )}
         {chevron && (
           <ChevronRight
-            className={`h-5 w-5 shrink-0 ${
-              danger ? "text-[#F4214B]" : "text-slate-500"
-            }`}
+            className={`h-5 w-5 shrink-0 ${danger ? "text-[#F4214B]" : "text-slate-500"
+              }`}
             strokeWidth={1.8}
           />
         )}
