@@ -1,12 +1,20 @@
 import { axiosInstance } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
-import { CreateReplyDto } from "../interfaces/post.interface";
+import type { AxiosProgressEvent } from "axios";
 
 export const ReplyService = {
-  createReply: async (postId: string, payload: CreateReplyDto) => {
+  createReply: async (
+    postId: string,
+    payload: FormData,
+    onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
+  ) => {
     const { data } = await axiosInstance.post(
       API_ENDPOINT.POSTS.CREATE_REPLY(postId),
       payload,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress,
+      },
     );
 
     return data;
