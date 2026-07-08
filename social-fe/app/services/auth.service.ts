@@ -1,4 +1,5 @@
 import { axiosInstance, refreshAuthSession } from "@/lib/axios";
+import type { AxiosProgressEvent } from "axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
   ChangePasswordData,
@@ -41,7 +42,10 @@ export const AuthService = {
     return response.data ?? response;
   },
 
-  updateProfile: async (updateProfileData: UpdateProfileData) => {
+  updateProfile: async (
+    updateProfileData: UpdateProfileData,
+    onUploadProgress?: (event: AxiosProgressEvent) => void,
+  ) => {
     const formData = new FormData();
     if (updateProfileData.displayName) {
       formData.append("displayName", updateProfileData.displayName);
@@ -58,7 +62,7 @@ export const AuthService = {
     const { data } = await axiosInstance.patch(
       API_ENDPOINT.AUTH.UPDATE_PROFILE,
       formData,
-      { headers: { "Content-Type": "multipart/form-data" } },
+      { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress },
     );
     return data;
   },

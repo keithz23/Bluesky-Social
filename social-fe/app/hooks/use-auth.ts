@@ -9,6 +9,7 @@ import {
   UpdateProfileData,
 } from "../interfaces/auth.interface";
 import { AxiosError } from "axios";
+import { useState } from "react";
 import { useAuthStore } from "../store/use-auth.store";
 import { useRouter } from "next/navigation";
 import {
@@ -21,6 +22,9 @@ import {
 export function useAuth() {
   const qc = useQueryClient();
   const router = useRouter();
+  const [profileUploadProgress, setProfileUploadProgress] = useState<
+    number | null
+  >(null);
   const setAuth = useAuthStore((s) => s.setAuth);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
@@ -148,8 +152,18 @@ export function useAuth() {
     }: {
       updateProfileData: UpdateProfileData;
     }) => {
-      const res = await AuthService.updateProfile(updateProfileData);
-      return res.data
+      const hasUpload = Boolean(
+        updateProfileData.avatarFile || updateProfileData.coverFile,
+      );
+      setProfileUploadProgress(hasUpload ? 0 : null);
+      const res = await AuthService.updateProfile(updateProfileData, (event) => {
+        if (!event.total) return;
+        setProfileUploadProgress(
+          Math.min(99, Math.round((event.loaded / event.total) * 100)),
+        );
+      });
+      setProfileUploadProgress(hasUpload ? 100 : null);
+      return res.data;
     },
 
     onSuccess: async (data) => {
@@ -159,6 +173,9 @@ export function useAuth() {
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
+    },
+    onSettled: () => {
+      setProfileUploadProgress(null);
     },
   });
 
@@ -173,6 +190,7 @@ export function useAuth() {
     signupMutation: signup,
     logoutMutation: logout,
     updateProfileMutation: updateProfile,
+    profileUploadProgress,
     forgotPasswordMutation: forgotPassword,
     resetPasswordMutation: resetPassword,
 

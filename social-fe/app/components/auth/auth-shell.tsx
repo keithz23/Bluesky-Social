@@ -41,7 +41,7 @@ export default function AuthShell({
       <div className="relative z-10 flex min-h-[calc(100vh-4rem)] items-center justify-center">
         <section
           className={cn(
-            "w-full max-w-[530px] rounded-2xl border border-slate-200 bg-white px-6 py-10 shadow-[0_3px_14px_rgba(15,23,42,0.18)] sm:px-20",
+            "w-full max-w-132.5 rounded-2xl border border-slate-200 bg-white px-6 py-10 shadow-[0_3px_14px_rgba(15,23,42,0.18)] sm:px-20",
             className,
           )}
         >
@@ -50,7 +50,7 @@ export default function AuthShell({
               {title}
             </h1>
             {description && (
-              <div className="mx-auto mt-3 max-w-[355px] text-left text-sm leading-5 text-slate-700">
+              <div className="mx-auto mt-3 max-w-88.75 text-left text-sm leading-5 text-slate-700">
                 {description}
               </div>
             )}
