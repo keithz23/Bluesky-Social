@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useProfile } from "@/app/hooks/use-profile";
 import { ArrowLeft, MoreHorizontal, BadgeCheck } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +20,10 @@ export default function ProfileLayout({
   const pathname = usePathname();
   const router = useRouter();
   const profileRoot = `/profile/${username}`;
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname, username]);
 
   const tabs = [
     { name: "Posts", href: profileRoot },

@@ -3,4 +3,6 @@ export interface UploadResult {
   key: string;
   mimetype: string;
   size: number;
+  width?: number;
+  height?: number;
 }

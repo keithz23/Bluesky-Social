@@ -22,9 +22,15 @@ import { useCreateReply } from "@/app/hooks/use-reply";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import ComposerFloatingPicker from "./composer-floating-picker";
+import { toast } from "sonner";
+import {
+  IMAGE_UPLOAD_RULES,
+  validateImageFile,
+} from "@/app/utils/upload-rules.util";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_REPLY_LENGTH = 300;
+const MAX_IMAGE_COUNT = IMAGE_UPLOAD_RULES.maxPostImages;
 
 interface ImagePreview {
   file: File;
@@ -58,14 +64,14 @@ export default function ReplyPostModal({
   const hasGif = !!selectedGif;
   const imageCount = selectedImages.length;
   const gifDisabled = hasImages;
-  const imageDisabled = hasGif || imageCount >= 4;
+  const imageDisabled = hasGif || imageCount >= MAX_IMAGE_COUNT;
   const hasChanges = postText.trim().length > 0 || hasImages || hasGif;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { createReply } = useCreateReply(post.id);
+  const { createReply, createReplyUploadProgress } = useCreateReply(post.id);
 
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
 
@@ -87,9 +93,16 @@ export default function ReplyPostModal({
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const remaining = 4 - selectedImages.length;
+    const remaining = MAX_IMAGE_COUNT - selectedImages.length;
     const toAdd = files
-      .filter((file) => file.type.startsWith("image/"))
+      .filter((file) => {
+        const error = validateImageFile(file);
+        if (error) {
+          toast.error(error);
+          return false;
+        }
+        return true;
+      })
       .slice(0, remaining)
       .map((f) => ({
         file: f,
@@ -399,9 +412,10 @@ export default function ReplyPostModal({
                   );
                 })}
               </div>
-              {imageCount < 4 && (
+              {imageCount < MAX_IMAGE_COUNT && (
                 <p className="text-xs text-gray-400 mt-1.5">
-                  {imageCount}/4 images · You can add {4 - imageCount} more
+                  {imageCount}/{MAX_IMAGE_COUNT} images · You can add{" "}
+                  {MAX_IMAGE_COUNT - imageCount} more
                 </p>
               )}
             </div>
@@ -469,7 +483,7 @@ export default function ReplyPostModal({
 
             <input
               type="file"
-              accept="image/*"
+              accept={IMAGE_UPLOAD_RULES.accept}
               className="hidden"
               multiple
               ref={fileInputRef}
@@ -483,8 +497,8 @@ export default function ReplyPostModal({
                 title={
                   hasGif
                     ? "Remove the GIF before adding images"
-                    : imageCount >= 4
-                      ? "Maximum of 4 images reached"
+                    : imageCount >= MAX_IMAGE_COUNT
+                      ? `Maximum of ${MAX_IMAGE_COUNT} images reached`
                       : "Add images"
                 }
                 className={`p-1.5 rounded-full transition-colors ${imageDisabled
@@ -536,6 +550,19 @@ export default function ReplyPostModal({
             </div>
 
             <div className="flex items-center gap-4">
+              {createReply.isPending && createReplyUploadProgress !== null && (
+                <div className="flex w-28 flex-col gap-1 sm:w-36">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-[#0066FF] transition-[width]"
+                      style={{ width: `${createReplyUploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-right text-[11px] font-medium text-slate-500">
+                    Uploading {createReplyUploadProgress}%
+                  </span>
+                </div>
+              )}
               <span className="text-gray-900 text-[15px]">
                 {300 - postText.length}
               </span>
