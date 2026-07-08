@@ -8,6 +8,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { FollowButton } from "@/app/components/button/follow-button";
 import EditProfileModal from "@/app/components/dialog/edit-profile-dialog";
 import { ProfileHeaderSkeleton } from "@/app/components/skeletons";
+import { PhotoProvider, PhotoView } from "react-photo-view";
 
 export default function ProfileLayout({
   children,
@@ -60,13 +61,18 @@ export default function ProfileLayout({
     <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       {/* --- COVER & AVATAR --- */}
       <div className="relative h-32 bg-slate-100">
-        {profile?.coverUrl && (
-          <img
-            src={profile.coverUrl}
-            alt="cover"
-            className="h-full w-full object-cover"
-          />
-        )}
+        <PhotoProvider>
+          {profile?.coverUrl && (
+            <PhotoView src={profile?.coverUrl}>
+              <img
+                src={profile?.coverUrl}
+                alt="cover"
+                className="h-full w-full object-cover cursor-pointer"
+              />
+            </PhotoView>
+          )}
+        </PhotoProvider>
+
 
         <button
           type="button"
@@ -78,15 +84,19 @@ export default function ProfileLayout({
         </button>
 
         <div className="absolute -bottom-10 left-4 z-10 flex h-21 w-21 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#FF4F5A] text-[40px] font-bold text-white shadow-sm">
-          {profile?.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={profile.username}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            profile?.username?.charAt(0).toUpperCase()
-          )}
+          <PhotoProvider>
+            {profile?.avatarUrl ? (
+              <PhotoView src={profile?.avatarUrl}>
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.username}
+                  className="h-full w-full object-cover cursor-pointer"
+                />
+              </PhotoView>
+            ) : (
+              profile?.username?.charAt(0).toUpperCase()
+            )}
+          </PhotoProvider>
         </div>
       </div>
 
