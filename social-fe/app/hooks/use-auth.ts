@@ -86,17 +86,18 @@ export function useAuth() {
     mutationFn: async () => {
       return AuthService.logout();
     },
-    onMutate: () => {
+    onMutate: async () => {
       setAuthLogoutLock();
-      router.replace("/login");
-      clearAuthSessionCache(qc, clearAuth);
+      clearAuth();
+      await qc.cancelQueries();
     },
-    onSettled: (_data, error) => {
-      clearAuthSessionCache(qc, clearAuth);
-      router.refresh();
-      if (!error) {
-        clearAuthLogoutLock();
-      }
+    onSettled: async () => {
+      await clearAuthSessionCache(qc, clearAuth);
+      router.replace("/login");
+    },
+    onError: async () => {
+      await clearAuthSessionCache(qc, clearAuth);
+      router.replace("/login");
     },
   });
 
