@@ -1,10 +1,17 @@
 import { axiosInstance } from "@/lib/axios";
+import type { AxiosProgressEvent } from "axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import { UpdatePostPayload } from "../interfaces/post.interface";
 
 export const PostService = {
-  createPost: (payload: FormData) => {
-    return axiosInstance.post(`${API_ENDPOINT.POSTS.CREATE_POST}`, payload);
+  createPost: (
+    payload: FormData,
+    onUploadProgress?: (event: AxiosProgressEvent) => void,
+  ) => {
+    return axiosInstance.post(`${API_ENDPOINT.POSTS.CREATE_POST}`, payload, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress,
+    });
   },
 
   updatePost: (payload: UpdatePostPayload) => {

@@ -77,6 +77,7 @@ export class S3Service {
         }
       }
 
+      const metadata = isStaticImage ? await sharp(buffer).metadata() : null;
       const key = this.generateKey(folder, ext);
 
       const command = new PutObjectCommand({
@@ -96,6 +97,8 @@ export class S3Service {
         key,
         size: buffer.length,
         mimetype,
+        width: metadata?.width,
+        height: metadata?.height,
       };
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -202,6 +205,8 @@ export class S3Service {
       key,
       size: buffer.length,
       mimetype: 'image/jpeg',
+      width: 300,
+      height: 300,
     };
   }
 

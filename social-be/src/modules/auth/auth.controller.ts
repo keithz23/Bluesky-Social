@@ -49,6 +49,8 @@ import { RequestUpdateEmail } from './dto/request-update-email.dto';
 import { ChangeUsernameDto } from './dto/change-username.dto';
 import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
 import { DeactivateAccountDto } from './dto/deactivate-account-dto';
+import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
+import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
@@ -262,7 +264,12 @@ export class AuthController {
   async updateProfile(
     @CurrentUser('id') userId: string,
     @Body() updateDto: UpdateProfileDto,
-    @UploadedFiles()
+    @UploadedFiles(
+      new ImageValidationPipe(
+        IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
+        IMAGE_UPLOAD.MAX_PROFILE_IMAGES,
+      ),
+    )
     files: {
       avatar?: Express.Multer.File[];
       cover?: Express.Multer.File[];
