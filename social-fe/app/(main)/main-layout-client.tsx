@@ -197,7 +197,6 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
   useEffect(() => {
     if (shouldRedirectToLogin) {
       router.replace("/login");
-      router.refresh();
     }
   }, [router, shouldRedirectToLogin]);
 

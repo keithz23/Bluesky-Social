@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/app/store/use-auth.store";
+import { isAuthLogoutLocked } from "@/app/utils/auth-cache.util";
 import axios, {
   AxiosError,
   AxiosRequestConfig,
@@ -37,6 +38,12 @@ const refreshClient = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (isAuthLogoutLocked()) {
+    useAuthStore.getState().clearAuth();
+    delete config.headers.Authorization;
+    return config;
+  }
+
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -67,6 +74,11 @@ const unwrapApiData = <T>(payload: T | ApiEnvelope<T>): T => {
 };
 
 export const refreshAuthSession = async (): Promise<RefreshResponse> => {
+  if (isAuthLogoutLocked()) {
+    useAuthStore.getState().clearAuth();
+    throw new Error("Auth refresh skipped during logout.");
+  }
+
   if (isRefreshing) {
     return new Promise<RefreshResponse>((resolve, reject) => {
       failedQueue.push({ resolve, reject });
@@ -79,6 +91,10 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
     const res =
       await refreshClient.post<ApiEnvelope<RefreshResponse>>("/auth/refresh");
     const session = unwrapApiData(res.data);
+
+    if (isAuthLogoutLocked()) {
+      throw new Error("Auth refresh skipped during logout.");
+    }
 
     useAuthStore
       .getState()
@@ -106,6 +122,7 @@ axiosInstance.interceptors.response.use(
     const status = error.response?.status;
     const requestUrl = originalRequest?.url ?? "";
     const shouldSkipRefresh =
+      isAuthLogoutLocked() ||
       requestUrl.includes("/auth/refresh") ||
       requestUrl.includes("/auth/logout") ||
       requestUrl.includes("/auth/login") ||

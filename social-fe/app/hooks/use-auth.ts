@@ -10,20 +10,33 @@ import {
 } from "../interfaces/auth.interface";
 import { AxiosError } from "axios";
 import { useAuthStore } from "../store/use-auth.store";
+import { useRouter } from "next/navigation";
+import {
+  clearAuthLogoutLock,
+  clearAuthSessionCache,
+  isAuthLogoutLocked,
+  setAuthLogoutLock,
+} from "../utils/auth-cache.util";
 
 export function useAuth() {
   const qc = useQueryClient();
-  const setAuth = useAuthStore((s) => s.setAuth)
-  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
       try {
-        const { data } = await AuthService.me();
-        return data;
+        if (isAuthLogoutLocked()) {
+          clearAuth();
+          return null;
+        }
+
+        return await AuthService.me();
       } catch (e: unknown) {
         if (e instanceof AxiosError && e?.response?.status === 401) {
+          clearAuth();
           return null;
         }
         throw e;
@@ -39,10 +52,11 @@ export function useAuth() {
 
   const login = useMutation({
     mutationFn: async ({ loginDto }: { loginDto: LoginCredentials }) => {
-      return await AuthService.login(loginDto)
+      return await AuthService.login(loginDto);
     },
     onSuccess: async (data) => {
-      setAuth(data.accessToken, data.user.username, data.user.email || '')
+      clearAuthLogoutLock();
+      setAuth(data.accessToken, data.user.username, data.user.email || "");
       qc.setQueryData(["me"], data.user);
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Glad to have you back.");
@@ -56,7 +70,7 @@ export function useAuth() {
   const signup = useMutation({
     mutationFn: async ({ registerDto }: { registerDto: RegisterData }) => {
       const res = await AuthService.register(registerDto);
-      return res.data
+      return res.data;
     },
     onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -72,9 +86,18 @@ export function useAuth() {
     mutationFn: async () => {
       return AuthService.logout();
     },
-    onSettled: () => {
+    onMutate: async () => {
+      setAuthLogoutLock();
       clearAuth();
-      qc.setQueryData(["me"], null);
+      await qc.cancelQueries();
+    },
+    onSettled: async () => {
+      await clearAuthSessionCache(qc, clearAuth);
+      router.replace("/login");
+    },
+    onError: async () => {
+      await clearAuthSessionCache(qc, clearAuth);
+      router.replace("/login");
     },
   });
 
@@ -109,10 +132,10 @@ export function useAuth() {
       resetPasswordData: ResetPasswordData;
     }) => {
       const res = await AuthService.reset(resetPasswordData);
-      return res.data
+      return res.data;
     },
     onSuccess: (data) => {
-      toast.success(data?.message || "Password reset successful.")
+      toast.success(data?.message || "Password reset successful.");
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
