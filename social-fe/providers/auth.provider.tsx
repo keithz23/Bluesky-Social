@@ -3,6 +3,7 @@ import React, { useEffect, useCallback } from "react";
 import { AuthService } from "@/app/services/auth.service";
 import { useAuthStore } from "@/app/store/use-auth.store";
 import { useQueryClient } from "@tanstack/react-query";
+import { isAuthLogoutLocked } from "@/app/utils/auth-cache.util";
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const queryClient = useQueryClient();
@@ -10,6 +11,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const performRefresh = useCallback(async () => {
     try {
+      if (isAuthLogoutLocked()) {
+        clearAuth();
+        queryClient.setQueryData(["me"], null);
+        return;
+      }
+
       const res = await AuthService.refresh();
 
       if (!res.accessToken || !res.user.username) {

@@ -11,7 +11,12 @@ import {
 import { AxiosError } from "axios";
 import { useAuthStore } from "../store/use-auth.store";
 import { useRouter } from "next/navigation";
-import { clearAuthSessionCache } from "../utils/auth-cache.util";
+import {
+  clearAuthLogoutLock,
+  clearAuthSessionCache,
+  isAuthLogoutLocked,
+  setAuthLogoutLock,
+} from "../utils/auth-cache.util";
 
 export function useAuth() {
   const qc = useQueryClient();
@@ -23,6 +28,11 @@ export function useAuth() {
     queryKey: ["me"],
     queryFn: async () => {
       try {
+        if (isAuthLogoutLocked()) {
+          clearAuth();
+          return null;
+        }
+
         return await AuthService.me();
       } catch (e: unknown) {
         if (e instanceof AxiosError && e?.response?.status === 401) {
@@ -45,6 +55,7 @@ export function useAuth() {
       return await AuthService.login(loginDto);
     },
     onSuccess: async (data) => {
+      clearAuthLogoutLock();
       setAuth(data.accessToken, data.user.username, data.user.email || "");
       qc.setQueryData(["me"], data.user);
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -76,12 +87,17 @@ export function useAuth() {
       return AuthService.logout();
     },
     onMutate: async () => {
-      await clearAuthSessionCache(qc, clearAuth);
-      router.replace("/login");
+      setAuthLogoutLock();
+      clearAuth();
+      await qc.cancelQueries();
     },
     onSettled: async () => {
       await clearAuthSessionCache(qc, clearAuth);
-      router.refresh();
+      router.replace("/login");
+    },
+    onError: async () => {
+      await clearAuthSessionCache(qc, clearAuth);
+      router.replace("/login");
     },
   });
 
