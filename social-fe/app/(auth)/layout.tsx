@@ -4,19 +4,20 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Loading from "../components/loading";
 import { useAuth } from "../hooks/use-auth";
+import { isAuthLogoutLocked } from "../utils/auth-cache.util";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, isLoadingProfile } = useAuth();
+  const isLoggingOut = isAuthLogoutLocked();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLoggingOut) {
       router.replace("/");
-      router.refresh();
     }
-  }, [router, isAuthenticated]);
+  }, [router, isAuthenticated, isLoggingOut]);
 
-  if (isLoadingProfile || isAuthenticated) {
+  if (isLoadingProfile || (isAuthenticated && !isLoggingOut)) {
     return <Loading />;
   }
 
