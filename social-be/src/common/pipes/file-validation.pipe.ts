@@ -1,4 +1,5 @@
 import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
+import { IMAGE_UPLOAD, formatUploadSize } from '../constants/upload.constant';
 
 @Injectable()
 export class ImageValidationPipe implements PipeTransform {
@@ -7,27 +8,27 @@ export class ImageValidationPipe implements PipeTransform {
   private readonly allowedMimeTypes: string[];
 
   constructor(
-    maxSize: number = 10 * 1024 * 1024, // 10MB
-    maxFiles: number = 10,
-    allowedMimeTypes: string[] = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-    ],
+    maxSize: number = IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
+    maxFiles: number = IMAGE_UPLOAD.MAX_POST_IMAGES,
+    allowedMimeTypes: readonly string[] = IMAGE_UPLOAD.ALLOWED_MIME_TYPES,
   ) {
     this.maxSize = maxSize;
     this.maxFiles = maxFiles;
-    this.allowedMimeTypes = allowedMimeTypes;
+    this.allowedMimeTypes = [...allowedMimeTypes];
   }
 
-  transform(value: Express.Multer.File | Express.Multer.File[]) {
+  transform(
+    value:
+      | Express.Multer.File
+      | Express.Multer.File[]
+      | Record<string, Express.Multer.File[]>
+      | undefined,
+  ) {
     if (!value) {
       return value; // Optional files
     }
 
-    const files = Array.isArray(value) ? value : [value];
+    const files = this.toFiles(value);
 
     if (files.length > this.maxFiles) {
       throw new BadRequestException(
@@ -40,14 +41,14 @@ export class ImageValidationPipe implements PipeTransform {
       // Check size
       if (file.size > this.maxSize) {
         throw new BadRequestException(
-          `File "${file.originalname}" is too large. Maximum size is ${this.maxSize / 1024 / 1024}MB.`,
+          `File "${file.originalname}" is too large. Maximum size is ${formatUploadSize(this.maxSize)}.`,
         );
       }
 
       // Check mime type
       if (!this.allowedMimeTypes.includes(file.mimetype)) {
         throw new BadRequestException(
-          `File "${file.originalname}" has invalid type. Only images are allowed.`,
+          `File "${file.originalname}" has invalid type. Only JPG, PNG, and WEBP images are allowed.`,
         );
       }
 
@@ -62,11 +63,31 @@ export class ImageValidationPipe implements PipeTransform {
     return value;
   }
 
+  private toFiles(
+    value:
+      | Express.Multer.File
+      | Express.Multer.File[]
+      | Record<string, Express.Multer.File[]>,
+  ): Express.Multer.File[] {
+    if (Array.isArray(value)) return value;
+    if (this.isMulterFile(value)) return [value];
+
+    return Object.values(value).flat();
+  }
+
+  private isMulterFile(value: unknown): value is Express.Multer.File {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'buffer' in value &&
+      Buffer.isBuffer((value as { buffer?: unknown }).buffer)
+    );
+  }
+
   private isValidImageBuffer(buffer: Buffer): boolean {
     const magicNumbers = {
       jpg: 'ffd8ff',
       png: '89504e47',
-      gif: '47494638',
       webp: '52494646',
     };
 

@@ -19,6 +19,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 import * as z from "zod";
+import { toast } from "sonner";
+import {
+  IMAGE_UPLOAD_RULES,
+  validateImageFile,
+} from "@/app/utils/upload-rules.util";
 
 interface EditableProfile {
   displayName?: string | null;
@@ -56,7 +61,8 @@ export default function EditProfileModal({
   open,
   onOpenChange,
 }: EditProfileModalProps) {
-  const { updateProfileMutation, isUpdating } = useAuth();
+  const { updateProfileMutation, isUpdating, profileUploadProgress } =
+    useAuth();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const [coverPhoto, setCoverPhoto] = useState<string | undefined>(undefined);
@@ -101,6 +107,12 @@ export default function EditProfileModal({
     setCoverFile(undefined);
   };
 
+  const revokeLocalPreview = (value?: string) => {
+    if (value?.startsWith("blob:")) {
+      URL.revokeObjectURL(value);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
 
@@ -112,20 +124,45 @@ export default function EditProfileModal({
     setCoverFile(undefined);
   }, [open, initialDisplayName, initialBio, initialAvatar, initialCover]);
 
+  useEffect(() => {
+    return () => {
+      revokeLocalPreview(avatar);
+      revokeLocalPreview(coverPhoto);
+    };
+  }, [avatar, coverPhoto]);
+
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      setAvatar(URL.createObjectURL(file));
-      setAvatarFile(file);
+    if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      event.target.value = "";
+      return;
     }
+
+    revokeLocalPreview(avatar);
+    setAvatar(URL.createObjectURL(file));
+    setAvatarFile(file);
+    event.target.value = "";
   };
 
   const handleCoverUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      setCoverPhoto(URL.createObjectURL(file));
-      setCoverFile(file);
+    if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      event.target.value = "";
+      return;
     }
+
+    revokeLocalPreview(coverPhoto);
+    setCoverPhoto(URL.createObjectURL(file));
+    setCoverFile(file);
+    event.target.value = "";
   };
 
   const resetForm = () => {
@@ -246,16 +283,30 @@ export default function EditProfileModal({
               type="file"
               hidden
               ref={coverInputRef}
-              accept="image/*"
+              accept={IMAGE_UPLOAD_RULES.accept}
               onChange={handleCoverUpload}
             />
             <input
               type="file"
               hidden
               ref={avatarInputRef}
-              accept="image/*"
+              accept={IMAGE_UPLOAD_RULES.accept}
               onChange={handleAvatarUpload}
             />
+
+            {isUpdating && profileUploadProgress !== null && (
+              <div className="border-b border-slate-100 px-4 py-2">
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-blue-600 transition-[width]"
+                    style={{ width: `${profileUploadProgress}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-right text-[11px] font-medium text-slate-500">
+                  Uploading {profileUploadProgress}%
+                </p>
+              </div>
+            )}
 
             {/* Cover Photo Area */}
             <div

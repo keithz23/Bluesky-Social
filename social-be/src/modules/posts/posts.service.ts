@@ -147,8 +147,11 @@ export class PostsService {
             data: uploadResults.map((u, idx) => ({
               postId: created.id,
               mediaUrl: u.url,
+              storageKey: u.key,
               mediaType: MediaType.IMAGE,
               fileSize: u.size,
+              width: u.width,
+              height: u.height,
               orderIndex: idx,
             })),
           });
@@ -159,6 +162,7 @@ export class PostsService {
             data: {
               postId: created.id,
               mediaUrl: gifUploadResult.url,
+              storageKey: gifUploadResult.key,
               mediaType: MediaType.GIF,
               fileSize: gifUploadResult.size,
               orderIndex: 0,
@@ -1009,8 +1013,11 @@ export class PostsService {
             data: uploadResults.map((u, idx) => ({
               postId: created.id,
               mediaUrl: u.url,
+              storageKey: u.key,
               mediaType: MediaType.IMAGE,
               fileSize: u.size,
+              width: u.width,
+              height: u.height,
               orderIndex: idx,
             })),
           });
@@ -1021,6 +1028,7 @@ export class PostsService {
             data: {
               postId: created.id,
               mediaUrl: gifUploadResult.url,
+              storageKey: gifUploadResult.key,
               mediaType: MediaType.GIF,
               fileSize: gifUploadResult.size,
               orderIndex: 0,
