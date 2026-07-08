@@ -3,6 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useState } from "react";
 import { CreateReplyDto } from "../interfaces/post.interface";
 import { ReplyService } from "../services/reply.service";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { infiniteQueryOptions } from "./infinite-query-options";
 import { Feed } from "../interfaces/feed.interface";
 import { updatePostEverywhere } from "../utils/post-cache.util";
+import { extractErrMsg } from "../utils/error.util";
 
 type InfiniteRepliesData = {
   pages: Array<{
@@ -48,9 +50,13 @@ const appendReplyToThread = (old: unknown, reply: Feed) => {
 export const useCreateReply = (postId: string) => {
   const router = useRouter();
   const qc = useQueryClient();
+  const [createReplyUploadProgress, setCreateReplyUploadProgress] = useState<
+    number | null
+  >(null);
 
   const createReplyMutation = useMutation({
     mutationFn: async (payload: CreateReplyDto) => {
+      const hasUpload = Boolean(payload.images?.length);
       const formData = new FormData();
       if (payload.content) formData.append("content", payload.content);
       if (payload.images?.length) {
@@ -58,7 +64,19 @@ export const useCreateReply = (postId: string) => {
       }
       if (payload.gifUrl) formData.append("gifUrl", payload.gifUrl);
 
-      return await ReplyService.createReply(postId, formData as CreateReplyDto);
+      setCreateReplyUploadProgress(hasUpload ? 0 : null);
+      const response = await ReplyService.createReply(
+        postId,
+        formData,
+        (event) => {
+          if (!event.total) return;
+          setCreateReplyUploadProgress(
+            Math.min(99, Math.round((event.loaded / event.total) * 100)),
+          );
+        },
+      );
+      setCreateReplyUploadProgress(hasUpload ? 100 : null);
+      return response;
     },
 
     onSuccess: (data) => {
@@ -85,12 +103,16 @@ export const useCreateReply = (postId: string) => {
     },
     onError: (error) => {
       console.error("Create reply failed:", error);
-      toast.error("Failed to send reply. Please try again.");
+      toast.error(extractErrMsg(error));
+    },
+    onSettled: () => {
+      setCreateReplyUploadProgress(null);
     },
   });
 
   return {
     createReply: createReplyMutation,
+    createReplyUploadProgress,
     isCreatingReply: createReplyMutation.isPending,
   };
 };

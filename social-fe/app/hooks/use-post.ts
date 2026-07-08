@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useState } from "react";
 import { CreatePostPayload } from "../interfaces/post.interface";
 import { PostService } from "../services/post.service";
 import { toast } from "sonner";
@@ -13,12 +14,17 @@ import {
   prependPostToFeedCache,
   prependPostToUserPostCaches,
 } from "../utils/post-cache.util";
+import { extractErrMsg } from "../utils/error.util";
 
 export function usePost() {
   const qc = useQueryClient();
+  const [createUploadProgress, setCreateUploadProgress] = useState<
+    number | null
+  >(null);
 
   const createPostMutation = useMutation({
     mutationFn: async (payload: CreatePostPayload) => {
+      const hasUpload = Boolean(payload.images?.length);
       const formData = new FormData();
       if (payload.content) formData.append("content", payload.content);
       if (payload.replyPrivacy) {
@@ -29,7 +35,14 @@ export function usePost() {
       }
       if (payload.gifUrl) formData.append("gifUrl", payload.gifUrl);
 
-      const response = await PostService.createPost(formData as any);
+      setCreateUploadProgress(hasUpload ? 0 : null);
+      const response = await PostService.createPost(formData as any, (event) => {
+        if (!event.total) return;
+        setCreateUploadProgress(
+          Math.min(99, Math.round((event.loaded / event.total) * 100)),
+        );
+      });
+      setCreateUploadProgress(hasUpload ? 100 : null);
       return response.data;
     },
 
@@ -47,7 +60,10 @@ export function usePost() {
 
     onError: (error) => {
       console.error("Create post failed:", error);
-      toast.error("Failed to create post");
+      toast.error(extractErrMsg(error));
+    },
+    onSettled: () => {
+      setCreateUploadProgress(null);
     },
   });
 
@@ -109,6 +125,7 @@ export function usePost() {
 
   return {
     createPost: createPostMutation,
+    createUploadProgress,
     deletePost: deletePostMutation,
     isCreatingPost: createPostMutation.isPending,
     isDeletingPost: deletePostMutation.isPending,

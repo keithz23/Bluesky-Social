@@ -9,13 +9,11 @@ import {
   UseInterceptors,
   Query,
 } from '@nestjs/common';
-import {
-  AnyFilesInterceptor,
-  FilesInterceptor,
-} from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
+import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -27,10 +25,16 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post('create-post')
-  @UseInterceptors(AnyFilesInterceptor())
+  @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   async create(
     @Body() createPostDto: CreatePostDto,
-    @UploadedFiles(new ImageValidationPipe()) images: Express.Multer.File[],
+    @UploadedFiles(
+      new ImageValidationPipe(
+        IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
+        IMAGE_UPLOAD.MAX_POST_IMAGES,
+      ),
+    )
+    images: Express.Multer.File[],
     @CurrentUser('id') userId: string,
   ) {
     const post = await this.postsService.create(userId, createPostDto, images);
@@ -71,12 +75,18 @@ export class PostsController {
   }
 
   @Post(':postId/replies')
-  @UseInterceptors(FilesInterceptor('images', 4))
+  @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   createReply(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,
     @Body() createReplyDto: CreateReplyDto,
-    @UploadedFiles() images?: Express.Multer.File[],
+    @UploadedFiles(
+      new ImageValidationPipe(
+        IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
+        IMAGE_UPLOAD.MAX_POST_IMAGES,
+      ),
+    )
+    images?: Express.Multer.File[],
   ) {
     return this.postsService.createReply(
       userId,

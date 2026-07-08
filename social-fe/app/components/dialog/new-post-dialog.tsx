@@ -22,10 +22,15 @@ import { User } from "@/app/interfaces/user.interface";
 import { useAuth } from "@/app/hooks/use-auth";
 import Avatar from "../avatar";
 import ComposerFloatingPicker from "./composer-floating-picker";
+import { toast } from "sonner";
+import {
+  IMAGE_UPLOAD_RULES,
+  validateImageFile,
+} from "@/app/utils/upload-rules.util";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_POST_LENGTH = 300;
-
+const MAX_IMAGE_COUNT = IMAGE_UPLOAD_RULES.maxPostImages;
 interface ImagePreview {
   file: File;
   preview: string;
@@ -115,7 +120,7 @@ export default function NewPostModal({
   const hasGif = !!selectedGif;
   const imageCount = selectedImages.length;
   const gifDisabled = hasImages;
-  const imageDisabled = hasGif || imageCount >= 4;
+  const imageDisabled = hasGif || imageCount >= MAX_IMAGE_COUNT;
 
   const hasChanges = postText.trim().length > 0 || hasImages || hasGif;
 
@@ -123,7 +128,7 @@ export default function NewPostModal({
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { createPost } = usePost();
+  const { createPost, createUploadProgress } = usePost();
 
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
 
@@ -161,19 +166,34 @@ export default function NewPostModal({
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const remaining = 4 - selectedImages.length;
-    const toAdd = files
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, remaining)
-      .map((f) => ({
-        file: f,
-        preview: URL.createObjectURL(f),
-      }));
+    const remaining = MAX_IMAGE_COUNT - selectedImages.length;
+
+    if (files.length > remaining) {
+      toast.error(`You can only add ${remaining} more image(s).`);
+    }
+
+    const validFiles: File[] = [];
+
+    for (const file of files) {
+      const validationError = validateImageFile(file);
+      if (validationError) {
+        toast.error(validationError);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    const toAdd = validFiles.slice(0, remaining).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
 
     if (toAdd.length === 0) {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
+
     setSelectedImages((prev) => [...prev, ...toAdd]);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -490,9 +510,10 @@ export default function NewPostModal({
                   );
                 })}
               </div>
-              {imageCount < 4 && (
+              {imageCount < MAX_IMAGE_COUNT && (
                 <p className="mt-2 text-xs text-slate-400">
-                  {imageCount}/4 images - {4 - imageCount} remaining
+                  {imageCount}/{MAX_IMAGE_COUNT} images -{" "}
+                  {MAX_IMAGE_COUNT - imageCount} remaining
                 </p>
               )}
             </div>
@@ -573,7 +594,7 @@ export default function NewPostModal({
 
             <input
               type="file"
-              accept="image/*"
+              accept={IMAGE_UPLOAD_RULES.accept}
               className="hidden"
               multiple
               ref={fileInputRef}
@@ -587,8 +608,8 @@ export default function NewPostModal({
                 title={
                   hasGif
                     ? "Remove the GIF before adding images"
-                    : imageCount >= 4
-                      ? "Maximum of 4 images reached"
+                    : imageCount >= MAX_IMAGE_COUNT
+                      ? `Maximum of ${MAX_IMAGE_COUNT} images reached`
                       : "Add images"
                 }
                 className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${imageDisabled
@@ -640,6 +661,19 @@ export default function NewPostModal({
             </div>
 
             <div className="flex shrink-0 items-center gap-3">
+              {createPost.isPending && createUploadProgress !== null && (
+                <div className="flex w-28 flex-col gap-1 sm:w-36">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-[#0066FF] transition-[width]"
+                      style={{ width: `${createUploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-right text-[11px] font-medium text-slate-500">
+                    Uploading {createUploadProgress}%
+                  </span>
+                </div>
+              )}
               <span
                 className={`text-sm font-medium ${MAX_POST_LENGTH - postText.length < 30
                   ? "text-amber-600"
