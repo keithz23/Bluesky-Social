@@ -39,6 +39,15 @@ export class ModerationService {
         },
       });
 
+      await tx.homeTimeline.deleteMany({
+        where: {
+          OR: [
+            { userId: blockerId, authorId: blockedId },
+            { userId: blockedId, authorId: blockerId },
+          ],
+        },
+      });
+
       await Promise.all(
         follows.flatMap((follow) => [
           tx.user.update({
@@ -73,6 +82,10 @@ export class ModerationService {
       where: { muterId_mutedId: { muterId, mutedId } },
       create: { muterId, mutedId },
       update: {},
+    });
+
+    await this.prisma.homeTimeline.deleteMany({
+      where: { userId: muterId, authorId: mutedId },
     });
 
     return { muted: true, userId: mute.mutedId };

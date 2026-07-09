@@ -1,6 +1,7 @@
 export const QUEUE_NAMES = {
   IMAGE_PROCESSING: 'image-processing',
   CLEANUP: 'cleanup',
+  FEED_FANOUT: 'feed-fanout',
 } as const;
 
 export const JOB_NAMES = {
@@ -12,6 +13,11 @@ export const JOB_NAMES = {
   // Cleanup jobs
   CLEANUP_FAILED_UPLOAD: 'cleanup-failed-upload',
   CLEANUP_ORPHANED_FILES: 'cleanup-orphaned-files',
+
+  // Feed
+  FANOUT_POST: 'fanout-post',
+  BACKFILL_USER_FEED: 'backfill-user-feed',
+  CLEANUP_AUTHOR_FEED: 'cleanup-author-feed',
 } as const;
 
 // Job data interfaces
@@ -46,10 +52,24 @@ export interface CleanupJobData {
 export interface ResizeImageJobData {
   key: string;
   bucket: string;
-  list_deleted;
   sizes: {
     width: number;
     height: number;
     suffix: string;
   }[];
+}
+
+export interface FanoutPostJobData {
+  postId: string;
+  authorId: string;
+}
+
+export interface BackfillUserFeedJobData {
+  followerId: string;
+  followingId: string;
+}
+
+export interface CleanupAuthorFeedJobData {
+  userId: string;
+  authorId: string;
 }

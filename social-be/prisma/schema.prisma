@@ -21,7 +21,7 @@ model User {
   avatarUrl    String? @map("avatar_url")
   coverUrl     String? @map("cover_url")
 
-  googleId    String?  @unique
+  googleId    String?   @unique
   dateOfBirth DateTime? @map("date_of_birth") @db.Date
 
   // Status
@@ -77,10 +77,12 @@ model User {
   listMembers             ListMember[]
 
   // Deactive & Delete
-  status            UserStatus @default(ACTIVE) @map("status")
-  deactivatedAt     DateTime?  @map("deactivated_at")
-  deletedAt         DateTime?  @map("deleted_at")
-  deleteScheduledAt DateTime?  @map("delete_scheduled_at")
+  status            UserStatus     @default(ACTIVE) @map("status")
+  deactivatedAt     DateTime?      @map("deactivated_at")
+  deletedAt         DateTime?      @map("deleted_at")
+  deleteScheduledAt DateTime?      @map("delete_scheduled_at")
+  homeTimelines     HomeTimeline[] @relation("TimelineOwner")
+  authoredTimelines HomeTimeline[] @relation("TimelineAuthor")
 
   @@index([username])
   @@index([email])
@@ -137,6 +139,7 @@ model Post {
   reports       Report[]
   lists         List[]
   listItems     ListItem[]
+  homeTimelines HomeTimeline[]
 
   @@index([userId])
   @@index([parentPostId])
@@ -728,6 +731,26 @@ model AuditLog {
   @@index([userId, createdAt(sort: Desc)], map: "idx_audit_logs_user_created")
   @@index([action, createdAt(sort: Desc)], map: "idx_audit_logs_action_created")
   @@map("audit_logs")
+}
+
+model HomeTimeline {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id") // người nhận feed
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  score     Float    @default(0)
+  reason    String? // follow, repost, suggested
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User @relation("TimelineOwner", fields: [userId], references: [id], onDelete: Cascade)
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation("TimelineAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId])
+  @@index([postId])
+  @@map("home_timelines")
 }
 
 // ============================================
