@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { useModeration } from "@/app/hooks/use-moderation";
 import { ReportReason } from "@/app/services/moderation.service";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
+import EditPostDialog from "../dialog/edit-post-dialog";
+import { Pencil } from "lucide-react";
 
 interface PostDropDownProps {
   post: Feed;
@@ -38,6 +40,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
   const [reportDetails, setReportDetails] = useState("");
@@ -47,15 +50,21 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
 
   const dropdownItems = isOwner
     ? [
-        ...items,
-        {
-          id: 99,
-          title: "Delete post",
-          icon: <Trash size={18} />,
-          onClick: () => setIsModalOpen(true),
-          className: "text-red-600 focus:text-red-700 focus:bg-red-50",
-        },
-      ]
+      {
+        id: 98,
+        title: "Edit post",
+        icon: <Pencil size={18} />,
+        onClick: () => setIsEditOpen(true),
+      },
+      ...items,
+      {
+        id: 99,
+        title: "Delete post",
+        icon: <Trash size={18} />,
+        onClick: () => setIsModalOpen(true),
+        className: "text-red-600 focus:text-red-700 focus:bg-red-50",
+      },
+    ]
     : items;
 
   const confirmDelete = () => {
@@ -179,13 +188,16 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
   };
 
   return (
-    <>
+    <div
+      className="contents"
+      onClick={(event) => event.stopPropagation()}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger className="focus:outline-none cursor-pointer p-2 rounded-full hover:bg-slate-100 transition-colors">
           <MoreHorizontal size={18} strokeWidth={2.2} />
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent className="w-60 p-1 text-[#111827]">
+        <DropdownMenuContent className="w-60 p-1 text-[#111827]" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuGroup>
             {dropdownItems.map((item, index) => (
               <React.Fragment key={item.id}>
@@ -206,7 +218,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
             ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu >
 
       <Dialog
         open={isModalOpen}
@@ -257,6 +269,12 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <EditPostDialog
+        post={post}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
 
       <Dialog
         open={isReportOpen}
@@ -331,7 +349,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 

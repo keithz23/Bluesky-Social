@@ -5,7 +5,10 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import { CreatePostPayload } from "../interfaces/post.interface";
+import {
+  CreatePostPayload,
+  UpdatePostPayload,
+} from "../interfaces/post.interface";
 import { PostService } from "../services/post.service";
 import { toast } from "sonner";
 import { infiniteQueryOptions } from "./infinite-query-options";
@@ -13,12 +16,18 @@ import {
   extractCreatedPost,
   prependPostToFeedCache,
   prependPostToUserPostCaches,
+  rollbackPostCaches,
+  snapshotPostCaches,
+  updatePostEverywhere,
 } from "../utils/post-cache.util";
 import { extractErrMsg } from "../utils/error.util";
 
 export function usePost() {
   const qc = useQueryClient();
   const [createUploadProgress, setCreateUploadProgress] = useState<
+    number | null
+  >(null);
+  const [updateUploadProgress, setUpdateUploadProgress] = useState<
     number | null
   >(null);
 
@@ -123,11 +132,85 @@ export function usePost() {
     },
   });
 
+  const updatePostMutation = useMutation({
+    mutationFn: async (payload: UpdatePostPayload) => {
+      const hasUpload = Boolean(payload.images?.length);
+      const formData = new FormData();
+
+      if (payload.content !== undefined) formData.append("content", payload.content);
+      if (payload.replyPrivacy) {
+        formData.append("replyPrivacy", JSON.stringify(payload.replyPrivacy));
+      }
+      if (payload.keepMediaIds) {
+        formData.append("keepMediaIds", JSON.stringify(payload.keepMediaIds));
+      }
+      if (payload.images && payload.images.length > 0) {
+        payload.images.forEach((image) => formData.append("images", image));
+      }
+      if (payload.gifUrl) formData.append("gifUrl", payload.gifUrl);
+
+      setUpdateUploadProgress(hasUpload ? 0 : null);
+      const response = await PostService.updatePost(
+        payload.id,
+        formData,
+        (event) => {
+          if (!event.total) return;
+          setUpdateUploadProgress(
+            Math.min(99, Math.round((event.loaded / event.total) * 100)),
+          );
+        },
+      );
+      setUpdateUploadProgress(hasUpload ? 100 : null);
+      return response.data;
+    },
+
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ["feed"] });
+      await qc.cancelQueries({ queryKey: ["userPosts"] });
+      await qc.cancelQueries({ queryKey: ["post-detail"] });
+      await qc.cancelQueries({ queryKey: ["bookmarks"] });
+
+      return snapshotPostCaches(qc);
+    },
+
+    onSuccess: (data) => {
+      const updatedPost = extractCreatedPost(data);
+      if (updatedPost) {
+        updatePostEverywhere(qc, updatedPost.id, (post) => ({
+          ...post,
+          ...updatedPost,
+          user: {
+            ...post.user,
+            ...updatedPost.user,
+          },
+        }));
+      }
+
+      qc.invalidateQueries({ queryKey: ["feed"] });
+      qc.invalidateQueries({ queryKey: ["userPosts"] });
+      qc.invalidateQueries({ queryKey: ["post-detail"] });
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
+      toast.success("Post updated successfully");
+    },
+
+    onError: (error, _payload, snapshot) => {
+      if (snapshot) rollbackPostCaches(qc, snapshot);
+      console.error("Update post failed:", error);
+      toast.error(extractErrMsg(error));
+    },
+    onSettled: () => {
+      setUpdateUploadProgress(null);
+    },
+  });
+
   return {
     createPost: createPostMutation,
     createUploadProgress,
+    updatePost: updatePostMutation,
+    updateUploadProgress,
     deletePost: deletePostMutation,
     isCreatingPost: createPostMutation.isPending,
+    isUpdatingPost: updatePostMutation.isPending,
     isDeletingPost: deletePostMutation.isPending,
   };
 }
