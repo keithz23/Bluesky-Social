@@ -14,6 +14,8 @@ type FakerApi = typeof import('@faker-js/faker');
 const FANOUT_WRITE_MAX_FOLLOWERS = 5000;
 
 const importFaker = async (): Promise<FakerApi> =>
+  // Faker is ESM-only; keep native dynamic import when this CommonJS app is built.
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   new Function('specifier', 'return import(specifier)')('@faker-js/faker');
 
 const envInt = (name: string, fallback: number) => {
@@ -32,12 +34,12 @@ export class DevPostBotsService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
     private readonly feedFanoutQueue: Queue,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     if (process.env.DEV_POST_BOTS_ENABLED !== 'true') return;
 
-    const intervalMs = envInt('DEV_POST_BOTS_INTERVAL_MS', 300_000);
+    const intervalMs = envInt('DEV_POST_BOTS_INTERVAL_MS', 60_000);
     this.logger.warn(
       `Dev post bots enabled. interval=${intervalMs}ms batch=${this.batchSize}`,
     );
