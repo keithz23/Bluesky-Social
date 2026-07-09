@@ -22,7 +22,7 @@ const settingSections = [
   { id: "account", label: "Account", icon: User, href: "/settings/account" },
   {
     id: "privacy",
-    label: "Privacy and security",
+    label: "Privacy and Security",
     icon: Lock,
     href: "/settings/privacy",
   },

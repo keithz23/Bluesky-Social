@@ -6,13 +6,15 @@ export type MailType =
   | 'forgot'
   | 'request-email-otp'
   | 'request-password-otp'
-  | 'request-deactivate-account-otp';
+  | 'request-deactivate-account-otp'
+  | 'request-enabled-2fa'
 
 export type AccountCodeMailPurpose =
   | 'password-reset'
   | 'email-update'
   | 'password-update'
-  | 'deactivate-account';
+  | 'deactivate-account'
+  | 'enabled-2fa'
 
 export interface SendMailDto {
   to: string;

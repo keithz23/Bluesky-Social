@@ -31,12 +31,16 @@ const ACCOUNT_CODE_MAIL_CONFIG: Record<
     type: 'request-deactivate-account-otp',
     subject: 'Confirm account deactivation',
   },
+  'enabled-2fa': {
+    type: 'request-enabled-2fa',
+    subject: 'Enabled 2FA'
+  }
 };
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) {}
+  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) { }
 
   private makeJobId(payload: SendMailDto) {
     const raw = `${payload.to}|${payload.type}|${JSON.stringify(payload.context)}`;

@@ -84,10 +84,54 @@ model User {
   homeTimelines     HomeTimeline[] @relation("TimelineOwner")
   authoredTimelines HomeTimeline[] @relation("TimelineAuthor")
 
+  twoFactorEnabled   Boolean          @default(false) @map("two_factor_enabled")
+  twoFactorMethod    TwoFactorMethod?
+  twoFactorSecret    String?          @map("two_factor_secret")
+  twoFactorEnabledAt DateTime?        @map("two_factor_enabled_at")
+
+  appPasswords  AppPassword[]
+  recoveryCodes RecoveryCode[]
+
   @@index([username])
   @@index([email])
   @@index([createdAt(sort: Desc)])
   @@map("users")
+}
+
+model AppPassword {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  name       String
+  secretHash String    @unique @map("secret_hash")
+  prefix     String
+  scopes     String[]  @default([])
+  lastUsedAt DateTime? @map("last_used_at")
+  expiresAt  DateTime? @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  createdIp  String?
+  createdUa  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("app_passwords")
+}
+
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  codeHash  String    @unique @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, usedAt])
+  @@map("recovery_codes")
 }
 
 // ============================================
@@ -843,4 +887,9 @@ enum ReplyPolicy {
   FOLLOWERS // Your followers
   FOLLOWING // People you follow
   MENTIONED // People you mention
+}
+
+enum TwoFactorMethod {
+  TOTP
+  EMAIL
 }
