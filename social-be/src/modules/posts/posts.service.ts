@@ -28,6 +28,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { SearchPostsDto } from './dto/search-posts.dto';
 
+const FANOUT_WRITE_MAX_FOLLOWERS = 5000;
 @Injectable()
 export class PostsService {
   private logger = new Logger(PostsService.name);
@@ -40,7 +41,9 @@ export class PostsService {
     private cleanupQueue: Queue<CleanupJobData>,
     @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
     private imageProcessingQueue: Queue,
-  ) {}
+    @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
+    private feedFanoutQueue: Queue,
+  ) { }
 
   async create(
     userId: string,
@@ -236,6 +239,22 @@ export class PostsService {
             userId: user.id,
           });
         });
+      }
+
+      try {
+        const author = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { followersCount: true },
+        });
+
+        if ((author?.followersCount ?? 0) <= FANOUT_WRITE_MAX_FOLLOWERS) {
+          await this.feedFanoutQueue.add(JOB_NAMES.FANOUT_POST, {
+            postId: fullPost.post!.id,
+            authorId: userId,
+          });
+        }
+      } catch (error) {
+        this.logger.warn('Failed to enqueue feed fanout job', error);
       }
 
       return fullPost.post;
@@ -458,14 +477,14 @@ export class PostsService {
         isReposted: repostedSet.has(post.id),
         user: userInfo
           ? {
-              ...userInfo,
-              followStatus:
-                userInfo.id === currentUserId
-                  ? null
-                  : followingSet.has(userInfo.id)
-                    ? 'following'
-                    : 'none',
-            }
+            ...userInfo,
+            followStatus:
+              userInfo.id === currentUserId
+                ? null
+                : followingSet.has(userInfo.id)
+                  ? 'following'
+                  : 'none',
+          }
           : null,
       })),
       nextCursor,
@@ -774,21 +793,21 @@ export class PostsService {
       }),
       parentIds.length > 0
         ? this.prisma.like.findMany({
-            where: { userId, postId: { in: parentIds } },
-            select: { postId: true },
-          })
+          where: { userId, postId: { in: parentIds } },
+          select: { postId: true },
+        })
         : [],
       parentIds.length > 0
         ? this.prisma.bookmark.findMany({
-            where: { userId, postId: { in: parentIds } },
-            select: { postId: true },
-          })
+          where: { userId, postId: { in: parentIds } },
+          select: { postId: true },
+        })
         : [],
       parentIds.length > 0
         ? this.prisma.repost.findMany({
-            where: { userId, postId: { in: parentIds } },
-            select: { postId: true },
-          })
+          where: { userId, postId: { in: parentIds } },
+          select: { postId: true },
+        })
         : [],
       this.prisma.follow.findMany({
         where: {
@@ -1231,6 +1250,7 @@ export class PostsService {
       });
 
       await tx.postMedia.deleteMany({ where: { postId } });
+      await tx.homeTimeline.deleteMany({ where: { postId } });
 
       if (post.parentPostId) {
         await tx.post.update({
