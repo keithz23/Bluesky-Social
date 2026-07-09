@@ -16,9 +16,9 @@ const envInt = (name: string, fallback: number) => {
 
 const config = {
   runId: process.env.REALISTIC_RUN_ID ?? Date.now().toString(36),
-  users: envInt('REALISTIC_USERS', 80),
-  postsPerUser: envInt('REALISTIC_POSTS_PER_USER', 6),
-  followsPerUser: envInt('REALISTIC_FOLLOWS_PER_USER', 18),
+  users: envInt('REALISTIC_USERS', 5000),
+  postsPerUser: envInt('REALISTIC_POSTS_PER_USER', 20),
+  followsPerUser: envInt('REALISTIC_FOLLOWS_PER_USER', 100),
   batchSize: envInt('REALISTIC_BATCH_SIZE', 500),
   timelinePostsPerFollow: envInt('REALISTIC_TIMELINE_POSTS_PER_FOLLOW', 3),
   maxTimelineRows: envInt('REALISTIC_MAX_TIMELINE_ROWS', 1_000_000),

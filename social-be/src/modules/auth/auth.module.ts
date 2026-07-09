@@ -10,12 +10,14 @@ import { MailModule } from 'src/mail/mail.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { CacheModule } from '../cache/cache.module';
+import { UploadModule } from 'src/uploads/upload.module';
 
 @Module({
   imports: [
     MailModule,
     PrismaModule,
     CacheModule,
+    UploadModule,
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => {
         const secret = configService.get('config.jwt.secret');
