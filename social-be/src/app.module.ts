@@ -30,7 +30,7 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { createRedisOptions } from './config/redis-options';
 
-@Module({
+@Module({ 
   imports: [
     // Configuration
     ConfigModule.forRoot({
@@ -118,4 +118,4 @@ import { createRedisOptions } from './config/redis-options';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
