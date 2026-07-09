@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { useModeration } from "@/app/hooks/use-moderation";
 import { ReportReason } from "@/app/services/moderation.service";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
+import EditPostDialog from "../dialog/edit-post-dialog";
+import { Pencil } from "lucide-react";
 
 interface PostDropDownProps {
   post: Feed;
@@ -38,6 +40,7 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
   const [reportDetails, setReportDetails] = useState("");
@@ -47,6 +50,12 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
 
   const dropdownItems = isOwner
     ? [
+        {
+          id: 98,
+          title: "Edit post",
+          icon: <Pencil size={18} />,
+          onClick: () => setIsEditOpen(true),
+        },
         ...items,
         {
           id: 99,
@@ -257,6 +266,12 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <EditPostDialog
+        post={post}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
 
       <Dialog
         open={isReportOpen}
