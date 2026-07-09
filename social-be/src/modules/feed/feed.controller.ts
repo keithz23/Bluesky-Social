@@ -4,6 +4,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FeedService } from './feed.service';
 import { FeedQueryDto } from './dto/feed-query.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -16,6 +17,7 @@ export class FeedController {
 
   @Public()
   @UseGuards(OptionalJwtAuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 300 } })
   @Get()
   async getFeed(
     @Query() query: FeedQueryDto,

@@ -10,7 +10,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             retry: (failureCount, error: any) => {
-              if (error.response?.status === 401) return false;
+              if ([401, 429].includes(error.response?.status)) return false;
               return failureCount < 3;
             },
             refetchOnWindowFocus: false,

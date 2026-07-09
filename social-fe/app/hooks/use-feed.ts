@@ -13,14 +13,10 @@ export const useFeed = () => {
   return useInfiniteQuery({
     queryKey: ["feed"],
     queryFn: ({ pageParam }) =>
-      FeedService.getFeed(pageParam, undefined, feedSeed),
+      FeedService.getFeed(pageParam, 30, feedSeed),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
     ...infiniteQueryOptions,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
   });
 };
