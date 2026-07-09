@@ -1,112 +1,201 @@
 import { Injectable } from '@nestjs/common';
-import { CreateFeedDto } from './dto/create-feed.dto';
-import { UpdateFeedDto } from './dto/update-feed.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FeedQueryDto } from './dto/feed-query.dto';
 
+type FeedPost = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  likeCount: number;
+  replyCount: number;
+  repostCount: number;
+  bookmarkCount: number;
+  viewCount: number;
+  user: {
+    id: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
 @Injectable()
 export class FeedService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getFeed(currentUserId: string | null, query: FeedQueryDto) {
     const limit = query.limit ?? 20;
-    const parsedCursor = Number(query.cursor ?? 0);
-    const offset =
-      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
+    const offset = this.parseOffsetCursor(query.cursor);
     const seed = query.seed ?? `${Date.now()}`;
-    const poolSize = Math.max(limit * 15, 300);
 
-    let followingIds: string[] = [];
-    let excludedUserIds: string[] = [];
+    const { followingIds, excludedUserIds } =
+      await this.getViewerContext(currentUserId);
 
     if (currentUserId) {
-      const [following, blocks, mutes] = await Promise.all([
-        this.prisma.follow.findMany({
-          where: { followerId: currentUserId },
-          select: { followingId: true },
-        }),
-        this.prisma.block.findMany({
-          where: { blockerId: currentUserId },
-          select: { blockedId: true },
-        }),
-        this.prisma.mute.findMany({
-          where: { muterId: currentUserId },
-          select: { mutedId: true },
-        }),
-      ]);
-      followingIds = following.map((f) => f.followingId);
-      excludedUserIds = [
-        ...blocks.map((block) => block.blockedId),
-        ...mutes.map((mute) => mute.mutedId),
-      ];
+      return this.getHybridFeed({
+        currentUserId,
+        followingIds,
+        excludedUserIds,
+        limit,
+        offset,
+        seed,
+      });
     }
 
-    const userIdFilter =
-      excludedUserIds.length > 0
-        ? {
-            notIn: excludedUserIds,
-          }
-        : undefined;
+    const rankedPosts = await this.getRankedDiscoveryPosts({
+      followingIds,
+      excludedUserIds,
+      seed,
+      take: Math.max(limit * 15, 300),
+    });
 
+    return this.paginateAndFormat({
+      currentUserId,
+      followingIds,
+      posts: rankedPosts,
+      offset,
+      limit,
+    });
+  }
+
+  private async getHybridFeed({
+    currentUserId,
+    followingIds,
+    excludedUserIds,
+    limit,
+    offset,
+    seed,
+  }: {
+    currentUserId: string;
+    followingIds: string[];
+    excludedUserIds: string[];
+    limit: number;
+    offset: number;
+    seed: string;
+  }) {
+    const poolSize = Math.max((offset + limit) * 5, 300);
+    const timelineWhere = {
+      userId: currentUserId,
+      post: {
+        isDeleted: false,
+        parentPostId: null,
+        ...(excludedUserIds.length > 0 && {
+          userId: { notIn: excludedUserIds },
+        }),
+      },
+    };
+
+    const timelineRows = await this.prisma.homeTimeline.findMany({
+      where: timelineWhere,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: poolSize,
+      select: {
+        post: {
+          select: this.getPostSelect(),
+        },
+      },
+    });
+    const timelinePosts = timelineRows.map((row) => row.post);
+    const discoveryPosts = await this.getRankedDiscoveryPosts({
+      followingIds,
+      excludedUserIds,
+      excludedPostIds: timelinePosts.map((post) => post.id),
+      seed,
+      take: poolSize,
+    });
+    const rankedPosts = this.rankPosts(
+      [...timelinePosts, ...discoveryPosts],
+      followingIds,
+      seed,
+    );
+    const posts = rankedPosts.slice(offset, offset + limit);
+    const result = await this.formatPosts(
+      posts,
+      currentUserId,
+      followingIds,
+    );
+    const nextOffset = offset + result.length;
+    const hasMore = nextOffset < rankedPosts.length;
+
+    return {
+      posts: result,
+      nextCursor: hasMore ? String(nextOffset) : null,
+      hasMore,
+    };
+  }
+
+  private async getViewerContext(currentUserId: string | null) {
+    if (!currentUserId) {
+      return { followingIds: [], excludedUserIds: [] };
+    }
+
+    const [following, blocks, mutes] = await Promise.all([
+      this.prisma.follow.findMany({
+        where: { followerId: currentUserId },
+        select: { followingId: true },
+      }),
+      this.prisma.block.findMany({
+        where: { blockerId: currentUserId },
+        select: { blockedId: true },
+      }),
+      this.prisma.mute.findMany({
+        where: { muterId: currentUserId },
+        select: { mutedId: true },
+      }),
+    ]);
+
+    return {
+      followingIds: following.map((f) => f.followingId),
+      excludedUserIds: [
+        ...blocks.map((block) => block.blockedId),
+        ...mutes.map((mute) => mute.mutedId),
+      ],
+    };
+  }
+
+  private async getRankedDiscoveryPosts({
+    followingIds,
+    excludedUserIds,
+    excludedPostIds = [],
+    seed,
+    take,
+  }: {
+    followingIds: string[];
+    excludedUserIds: string[];
+    excludedPostIds?: string[];
+    seed: string;
+    take: number;
+  }) {
     const posts = await this.prisma.post.findMany({
       where: {
         isDeleted: false,
         parentPostId: null,
-        ...(userIdFilter && { userId: userIdFilter }),
+        ...(excludedUserIds.length > 0 && {
+          userId: { notIn: excludedUserIds },
+        }),
+        ...(excludedPostIds.length > 0 && {
+          id: { notIn: excludedPostIds },
+        }),
       },
       orderBy: { createdAt: 'desc' },
-      take: poolSize,
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        likeCount: true,
-        replyCount: true,
-        repostCount: true,
-        bookmarkCount: true,
-        viewCount: true,
-        replyPolicy: true,
-        replyFollowers: true,
-        replyFollowing: true,
-        replyMentioned: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-            verified: true,
-            followersCount: true,
-            followingCount: true,
-            bio: true,
-          },
-        },
-        media: {
-          orderBy: { orderIndex: 'asc' },
-          select: {
-            id: true,
-            mediaUrl: true,
-            mediaType: true,
-            width: true,
-            height: true,
-            altText: true,
-          },
-        },
-      },
+      take,
+      select: this.getPostSelect(),
     });
 
-    if (posts.length === 0) {
-      return { posts: [], nextCursor: null, hasMore: false };
-    }
+    return this.rankPosts(posts, followingIds, seed);
+  }
 
-    let likedSet = new Set<string>();
-    let bookmarkedSet = new Set<string>();
-    let repostedSet = new Set<string>();
-    let authorFollowsMeSet = new Set<string>();
+  private rankPosts(
+    posts: FeedPost[],
+    followingIds: string[],
+    seed: string,
+  ) {
+    const uniquePosts = new Map<string, (typeof posts)[number]>();
+    posts.forEach((post) => uniquePosts.set(post.id, post));
+
     const followingSet = new Set(followingIds);
     const now = Date.now();
 
-    const rankedPosts = posts
+    return [...uniquePosts.values()]
       .map((post) => {
         const ageHours = Math.max(
           0,
@@ -133,12 +222,53 @@ export class FeedService {
         return b.post.createdAt.getTime() - a.post.createdAt.getTime();
       })
       .map(({ post }) => post);
+  }
 
-    const pagePosts = rankedPosts.slice(offset, offset + limit);
+  private async paginateAndFormat({
+    currentUserId,
+    followingIds,
+    posts,
+    offset,
+    limit,
+  }: {
+    currentUserId: string | null;
+    followingIds: string[];
+    posts: FeedPost[];
+    offset: number;
+    limit: number;
+  }) {
+    const pagePosts = posts.slice(offset, offset + limit);
+    const result = await this.formatPosts(
+      pagePosts,
+      currentUserId,
+      followingIds,
+    );
+    const nextOffset = offset + result.length;
+    const hasMore = nextOffset < posts.length;
+
+    return {
+      posts: result,
+      nextCursor: hasMore ? String(nextOffset) : null,
+      hasMore,
+    };
+  }
+
+  private async formatPosts(
+    posts: FeedPost[],
+    currentUserId: string | null,
+    followingIds: string[],
+  ) {
+    if (posts.length === 0) return [];
+
+    let likedSet = new Set<string>();
+    let bookmarkedSet = new Set<string>();
+    let repostedSet = new Set<string>();
+    let authorFollowsMeSet = new Set<string>();
+    const followingSet = new Set(followingIds);
 
     if (currentUserId) {
-      const postIds = pagePosts.map((p) => p.id);
-      const authorIds = [...new Set(pagePosts.map((p) => p.user.id))];
+      const postIds = posts.map((post) => post.id);
+      const authorIds = [...new Set(posts.map((post) => post.user.id))];
 
       const [likedPosts, bookmarkedPosts, repostedPosts, authorFollowsMe] =
         await Promise.all([
@@ -160,13 +290,17 @@ export class FeedService {
           }),
         ]);
 
-      likedSet = new Set(likedPosts.map((l) => l.postId));
-      bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
-      repostedSet = new Set(repostedPosts.map((r) => r.postId));
-      authorFollowsMeSet = new Set(authorFollowsMe.map((f) => f.followerId));
+      likedSet = new Set(likedPosts.map((like) => like.postId));
+      bookmarkedSet = new Set(
+        bookmarkedPosts.map((bookmark) => bookmark.postId),
+      );
+      repostedSet = new Set(repostedPosts.map((repost) => repost.postId));
+      authorFollowsMeSet = new Set(
+        authorFollowsMe.map((follow) => follow.followerId),
+      );
     }
 
-    const result = pagePosts.map((post) => ({
+    return posts.map((post) => ({
       ...post,
       isLiked: likedSet.has(post.id),
       isBookmarked: bookmarkedSet.has(post.id),
@@ -185,12 +319,53 @@ export class FeedService {
           : false,
       },
     }));
+  }
 
-    const nextOffset = offset + result.length;
-    const hasMore = nextOffset < rankedPosts.length;
-    const nextCursor = hasMore ? String(nextOffset) : null;
+  private getPostSelect() {
+    return {
+      id: true,
+      content: true,
+      createdAt: true,
+      likeCount: true,
+      replyCount: true,
+      repostCount: true,
+      bookmarkCount: true,
+      viewCount: true,
+      replyPolicy: true,
+      replyFollowers: true,
+      replyFollowing: true,
+      replyMentioned: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+          verified: true,
+          followersCount: true,
+          followingCount: true,
+          bio: true,
+        },
+      },
+      media: {
+        orderBy: { orderIndex: 'asc' as const },
+        select: {
+          id: true,
+          mediaUrl: true,
+          mediaType: true,
+          width: true,
+          height: true,
+          altText: true,
+        },
+      },
+    };
+  }
 
-    return { posts: result, nextCursor, hasMore };
+  private parseOffsetCursor(cursor?: string) {
+    const parsedCursor = Number(cursor ?? 0);
+    return Number.isFinite(parsedCursor) && parsedCursor > 0
+      ? parsedCursor
+      : 0;
   }
 
   private seededRandom(input: string) {
@@ -201,25 +376,5 @@ export class FeedService {
     }
 
     return (hash >>> 0) / 4294967295;
-  }
-
-  create(createFeedDto: CreateFeedDto) {
-    return 'This action adds a new feed';
-  }
-
-  findAll() {
-    return `This action returns all feed`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} feed`;
-  }
-
-  update(id: number, updateFeedDto: UpdateFeedDto) {
-    return `This action updates a #${id} feed`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} feed`;
   }
 }
