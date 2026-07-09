@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   Bell,
+  Clock,
   LogOut,
   Menu,
   PlusSquare,
   Search,
   Settings,
   UserRound,
+  X,
 } from "lucide-react";
 import {
   Avatar,
@@ -104,12 +106,31 @@ function SearchAvatar({ user }: { user: Pick<User, "avatarUrl" | "username"> }) 
   );
 }
 
+function readSearchHistory() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const history = JSON.parse(
+      window.localStorage.getItem("searchHistory") || "[]",
+    ) as unknown;
+
+    return Array.isArray(history)
+      ? history.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function HeaderSearch() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [searchHistory, setSearchHistory] =
+    useState<string[]>(readSearchHistory);
 
   const trimmedQuery = query.trim();
   const debouncedQuery = useDebounce(trimmedQuery, 300);
@@ -128,6 +149,7 @@ function HeaderSearch() {
   const hasQuery = trimmedQuery.length > 0;
   const hasPeople = users.length > 0;
   const hasPosts = posts.length > 0;
+
   const isLoading = hasQuery && (isFetchingUsers || isFetchingPosts);
   const showEmpty = hasQuery && !isLoading && !hasPeople && !hasPosts;
 
@@ -138,12 +160,45 @@ function HeaderSearch() {
     if (trimmedQuery) params.set("q", trimmedQuery);
     params.set("tab", tab);
     closeSearch();
+    saveSearchHistory(query);
     router.push(`/search?${params.toString()}`);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     goToSearch("people");
+  };
+
+  const writeSearchHistory = (history: string[]) => {
+    setSearchHistory(history);
+    localStorage.setItem("searchHistory", JSON.stringify(history));
+  };
+
+  const clearQuery = () => {
+    setQuery("");
+    setIsOpen(true);
+    inputRef.current?.focus();
+  };
+
+  const goToHistorySearch = (historyQuery: string) => {
+    const value = historyQuery.trim();
+    if (!value) return;
+
+    const params = new URLSearchParams();
+    params.set("q", value);
+    params.set("tab", "people");
+    closeSearch();
+    saveSearchHistory(value);
+    router.push(`/search?${params.toString()}`);
+  };
+
+  const removeSearchHistory = (historyQuery: string) => {
+    writeSearchHistory(searchHistory.filter((item) => item !== historyQuery));
+  };
+
+  const clearSearchHistory = () => {
+    writeSearchHistory([]);
+    inputRef.current?.focus();
   };
 
   useEffect(() => {
@@ -183,15 +238,30 @@ function HeaderSearch() {
     };
   }, [isOpen]);
 
+
+  const saveSearchHistory = (query: string) => {
+    const value = query.trim();
+    if (!value) return;
+
+    const newHistory = [
+      value,
+      ...searchHistory.filter((item) => item !== value),
+    ].slice(0, 10);
+
+    writeSearchHistory(newHistory);
+  };
+
+
   return (
     <div
       ref={containerRef}
       className="relative hidden w-full justify-self-center md:block"
     >
       <form onSubmit={handleSubmit} role="search">
-        <div className="flex h-10 items-center gap-3 rounded-full bg-slate-100 px-4 transition focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-300">
+        <div className="flex h-10 items-center gap-3 rounded-full bg-slate-100 pl-4 pr-2 transition focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-300">
           <Search className="h-4 w-4 text-slate-500" />
           <input
+            ref={inputRef}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -204,6 +274,16 @@ function HeaderSearch() {
             placeholder="Search Konekt"
             className="h-full min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
           />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={clearQuery}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </form>
 
@@ -213,8 +293,55 @@ function HeaderSearch() {
           className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
         >
           {!hasQuery ? (
-            <div className="px-4 py-6 text-center text-sm text-slate-500">
-              Search for people, posts, or hashtags.
+            <div className="py-2">
+              {searchHistory.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between px-4 py-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Recent
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={clearSearchHistory}
+                      className="text-xs font-semibold text-[#FF4500] hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+
+                  <div className="pb-1">
+                    {searchHistory.map((item) => (
+                      <div
+                        key={item}
+                        className="group flex items-center gap-1 px-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => goToHistorySearch(item)}
+                          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-slate-50"
+                        >
+                          <Clock className="h-4 w-4 shrink-0 text-slate-400" />
+                          <span className="truncate text-sm font-medium text-slate-800">
+                            {item}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${item} from recent searches`}
+                          onClick={() => removeSearchHistory(item)}
+                          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-900 group-hover:opacity-100 focus:opacity-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="px-4 py-6 text-center text-sm text-slate-500">
+                  Search for people, posts, or hashtags.
+                </div>
+              )}
             </div>
           ) : (
             <div className="max-h-[70vh] overflow-y-auto py-2">
@@ -331,15 +458,17 @@ function HeaderSearch() {
             </div>
           )}
 
-          <div className="border-t border-slate-100 bg-slate-50 p-2">
-            <button
-              type="button"
-              onClick={() => goToSearch("people")}
-              className="block w-full rounded-xl py-2 text-center text-sm font-semibold text-[#FF4500] transition hover:bg-slate-200"
-            >
-              View all results
-            </button>
-          </div>
+          {hasQuery && (
+            <div className="border-t border-slate-100 bg-slate-50 p-2">
+              <button
+                type="button"
+                onClick={() => goToSearch("people")}
+                className="block w-full rounded-xl py-2 text-center text-sm font-semibold text-[#FF4500] transition hover:bg-slate-200"
+              >
+                View all results
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
