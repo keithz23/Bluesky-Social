@@ -36,6 +36,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeUsernameDto } from './dto/change-username.dto';
 import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
 import { DeactivateAccountDto } from './dto/deactivate-account-dto';
+import { Enabled2FADto } from './dto/enabled-2fa.dto';
 
 const RESET_TTL_MINUTES = 15;
 const MAX_ACTIVE_EMAIL_CODES = 3;
@@ -46,7 +47,8 @@ type AccountEmailCodePurpose =
   | 'password-reset'
   | 'email-update'
   | 'password-update'
-  | 'deactivate-account';
+  | 'deactivate-account'
+  | 'enabled-2fa'
 
 type AccountEmailCodePayload = {
   user: Pick<User, 'id' | 'email' | 'username'>;
@@ -78,7 +80,7 @@ export class AuthService {
     private redisService: CacheService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
@@ -313,9 +315,9 @@ export class AuthService {
       // Get old image before update to delete later
       const oldUser = uploadedKeys.length
         ? await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { avatarUrl: true, coverUrl: true },
-          })
+          where: { id: userId },
+          select: { avatarUrl: true, coverUrl: true },
+        })
         : null;
 
       const user = await this.prisma.user.update({
@@ -917,6 +919,21 @@ export class AuthService {
     } catch {
       return false;
     }
+  }
+
+  async requestEnable2FA(userId: string, userAgent?: string, ipAddress?: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) throw new NotFoundException("User not found");
+
+    await this.createAndSendAccountEmailCode({
+      user,
+      purpose: 'enabled-2fa',
+      userAgent,
+      ipAddress
+    })
   }
 
   async requestUpdateEmail(
