@@ -24,8 +24,9 @@ export interface CreateReplyDto {
   gifUrl?: string;
 }
 
-export interface UpdatePostPayload extends CreatePostPayload {
+export interface UpdatePostPayload extends Partial<CreatePostPayload> {
   id: string;
+  keepMediaIds?: string[];
 }
 
 export interface PostMedia {
