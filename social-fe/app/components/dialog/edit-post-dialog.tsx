@@ -435,10 +435,13 @@ export default function EditPostDialog({
               return;
             }
 
-            if (updatePost.isPending || hasChanges) {
+            if (updatePost.isPending) {
               event.preventDefault();
-              if (!updatePost.isPending) setShowExitConfirm(true);
+              return;
             }
+
+            event.preventDefault();
+            closeAndReset();
           }}
           onEscapeKeyDown={(event) => {
             if (isPrivacyModalOpen) {
