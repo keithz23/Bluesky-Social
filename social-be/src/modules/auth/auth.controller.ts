@@ -86,7 +86,7 @@ export class AuthController {
     private jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   // ============= PUBLIC ROUTES =============
 
@@ -213,8 +213,7 @@ export class AuthController {
     if (refreshToken) {
       void this.authService.logout(userId, refreshToken).catch((error) => {
         this.logger.warn(
-          `Failed to revoke refresh token during logout: ${
-            error instanceof Error ? error.message : String(error)
+          `Failed to revoke refresh token during logout: ${error instanceof Error ? error.message : String(error)
           }`,
         );
       });
@@ -524,7 +523,7 @@ export class AuthController {
   @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   @ApiResponse({ status: 302, description: 'Redirects to Google login page' })
-  async googleAuth() {}
+  async googleAuth() { }
 
   @Public()
   @Get('google/callback')
@@ -572,6 +571,15 @@ export class AuthController {
         `${frontendUrl}/login?error=google_login_failed&message=${errorMessage}`,
       );
     }
+  }
+
+  @Post('request-enabled-2fa')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestEnable2FA(@CurrentUser('id') userId: string, @Ip() ipAddress: string, @Headers('user-agent') userAgent: string) {
+    await this.authService.requestEnable2FA(userId, userAgent, ipAddress)
+
+    return { message: 'Code has been sent to your email.' };
   }
 
   // ============= ACCOUNT DEACTIVATION ROUTES =============

@@ -51,6 +51,7 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('request-email-otp');
     this.loadTemplate('request-pwd-otp');
     this.loadTemplate('request-deactivate-account-otp');
+    this.loadTemplate('request-enabled-2fa')
   }
 
   private loadTemplate(name: string): void {
@@ -123,11 +124,10 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${
-              context.redirect
-                ? `?redirect=${encodeURIComponent(context.redirect)}`
-                : ''
-            }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect
+              ? `?redirect=${encodeURIComponent(context.redirect)}`
+              : ''
+              }`,
           });
           break;
         }
@@ -150,6 +150,13 @@ export class MailProcessor extends WorkerHost {
           html = this.renderTemplate('request-deactivate-account-otp', {
             ...context,
           });
+          break;
+        }
+        case 'request-enabled-2fa': {
+          subject ||= 'Your two-factor authentication code',
+            html = this.renderTemplate('request-enabled-2fa', {
+              ...context
+            })
           break;
         }
         case 'welcome':
