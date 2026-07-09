@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const SETTINGS_TITLES: Record<string, string> = {
   account: "Account",
-  privacy: "Privacy and security",
+  privacy: "Privacy and Security",
   moderation: "Moderation",
   notifications: "Notifications",
   content: "Content and media",
