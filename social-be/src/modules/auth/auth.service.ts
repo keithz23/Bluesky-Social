@@ -776,10 +776,17 @@ export class AuthService {
     }
 
     if (user && user.googleId) {
-      if (!user.avatarUrl && googleUser.picture) {
+      if (
+        googleUser.picture &&
+        (!user.avatarUrl || this.isGoogleAvatarUrl(user.avatarUrl))
+      ) {
+        const avatarUrl = await this.importGoogleAvatar(
+          googleUser.picture,
+          user.id,
+        );
         user = await this.prisma.user.update({
           where: { id: user.id },
-          data: { avatarUrl: googleUser.picture },
+          data: { avatarUrl },
         });
       }
 
@@ -816,11 +823,22 @@ export class AuthService {
         email: googleUser.email,
         username: username,
         googleId: googleUser.googleId,
-        avatarUrl: googleUser.picture,
+        avatarUrl: null,
         verified: true,
         displayName: username,
       },
     });
+
+    if (googleUser.picture) {
+      const avatarUrl = await this.importGoogleAvatar(
+        googleUser.picture,
+        user.id,
+      );
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { avatarUrl },
+      });
+    }
 
     const tokens = await this.generateTokens(
       user.id,
@@ -839,6 +857,66 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     };
+  }
+
+  private async importGoogleAvatar(pictureUrl: string, userId: string) {
+    try {
+      const response = await fetch(pictureUrl);
+      if (!response.ok) {
+        throw new Error(`Google avatar download failed: ${response.status}`);
+      }
+
+      const contentType = (
+        response.headers.get('content-type') ?? 'image/jpeg'
+      )
+        .split(';')[0]
+        .trim();
+      if (!contentType.startsWith('image/')) {
+        throw new Error(`Invalid Google avatar content type: ${contentType}`);
+      }
+
+      const extensionByContentType: Record<string, string> = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+      };
+      const extension = extensionByContentType[contentType];
+      if (!extension) {
+        throw new Error(`Unsupported Google avatar content type: ${contentType}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const file = {
+        fieldname: 'avatar',
+        originalname: `google-avatar.${extension}`,
+        encoding: '7bit',
+        mimetype: contentType,
+        size: buffer.length,
+        buffer,
+      } as Express.Multer.File;
+      const uploaded = await this.s3Service.uploadImage(
+        file,
+        `public/avatar/${userId}`,
+        { resize: true, quality: 85 },
+      );
+
+      return uploaded.url;
+    } catch (error) {
+      this.logger.warn('Failed to import Google avatar', error);
+      return pictureUrl;
+    }
+  }
+
+  private isGoogleAvatarUrl(url: string) {
+    try {
+      const hostname = new URL(url).hostname;
+      return (
+        hostname === 'googleusercontent.com' ||
+        hostname.endsWith('.googleusercontent.com')
+      );
+    } catch {
+      return false;
+    }
   }
 
   async requestUpdateEmail(
