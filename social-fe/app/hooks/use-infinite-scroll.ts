@@ -18,7 +18,7 @@ export function useInfiniteScroll({
   fetchNextPage,
   enabled = true,
   root = null,
-  rootMargin = "300px",
+  rootMargin = "1000px",
   readyDelay = 100,
   minFetchInterval = 800,
 }: UseInfiniteScrollOptions) {
