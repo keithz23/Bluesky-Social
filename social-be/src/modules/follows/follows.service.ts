@@ -3,12 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { JOB_NAMES, QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FollowQueryDto } from './dto/follow-query.dto';
 
 @Injectable()
 export class FollowsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
+    private readonly feedFanoutQueue: Queue,
+  ) { }
 
   async follow(followerId: string, followingId: string) {
     if (followerId == followingId) {
@@ -34,7 +41,7 @@ export class FollowsService {
       return this.createFollowRequest(followerId, followingId);
     }
 
-    const [follow] = await this.prisma.$transaction([
+    await this.prisma.$transaction([
       this.prisma.follow.create({
         data: { followerId, followingId },
       }),
@@ -49,6 +56,11 @@ export class FollowsService {
         data: { followersCount: { increment: 1 } },
       }),
     ]);
+
+    await this.feedFanoutQueue.add(JOB_NAMES.BACKFILL_USER_FEED, {
+      followerId,
+      followingId,
+    });
 
     return { success: true, status: 'following' };
   }
@@ -79,6 +91,11 @@ export class FollowsService {
         data: { followersCount: { decrement: 1 } },
       }),
     ]);
+
+    await this.feedFanoutQueue.add(JOB_NAMES.CLEANUP_AUTHOR_FEED, {
+      userId: followerId,
+      authorId: followingId,
+    });
 
     return { success: true, status: 'unfollowed' };
   }
@@ -132,6 +149,11 @@ export class FollowsService {
         data: { followersCount: { increment: 1 } },
       }),
     ]);
+
+    await this.feedFanoutQueue.add(JOB_NAMES.BACKFILL_USER_FEED, {
+      followerId: senderId,
+      followingId: currentUserId,
+    });
 
     return { success: true };
   }

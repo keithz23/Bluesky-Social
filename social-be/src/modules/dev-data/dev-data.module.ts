@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { FollowsService } from './follows.service';
-import { FollowsController } from './follows.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
 import { BullModule } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
+import { PrismaModule } from 'src/prisma/prisma.module';
+import { DevPostBotsService } from './dev-post-bots.service';
 
 @Module({
   imports: [
@@ -12,7 +11,6 @@ import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
       name: QUEUE_NAMES.FEED_FANOUT,
     }),
   ],
-  controllers: [FollowsController],
-  providers: [FollowsService],
+  providers: [DevPostBotsService],
 })
-export class FollowsModule {}
+export class DevDataModule {}

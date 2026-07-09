@@ -202,7 +202,7 @@ jobs:
 
             sudo docker-compose run --rm -T app ./node_modules/.bin/prisma migrate deploy
 
-            sudo docker-compose run --rm -T app npm run seed:perf:prod
+            sudo docker-compose run --rm -T app npm run seed:realistic:prod
 
             sudo docker-compose up -d --remove-orphans
 

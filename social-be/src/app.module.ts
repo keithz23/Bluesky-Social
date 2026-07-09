@@ -29,8 +29,9 @@ import { ListsMemberModule } from './modules/lists-member/lists-member.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { createRedisOptions } from './config/redis-options';
+import { DevDataModule } from './modules/dev-data/dev-data.module';
 
-@Module({
+@Module({ 
   imports: [
     // Configuration
     ConfigModule.forRoot({
@@ -104,6 +105,7 @@ import { createRedisOptions } from './config/redis-options';
     ListsMemberModule,
     MonitoringModule,
     ModerationModule,
+    DevDataModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [
@@ -118,4 +120,4 @@ import { createRedisOptions } from './config/redis-options';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

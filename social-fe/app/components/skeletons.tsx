@@ -188,13 +188,19 @@ export function InfiniteScrollFooter({
   isFetchingNextPage,
   hasNextPage,
   hasItems,
+  showLoadingIndicator = true,
 }: {
   refCallback?: (node?: Element | null) => void;
   isFetchingNextPage: boolean;
   hasNextPage?: boolean;
   hasItems: boolean;
+  showLoadingIndicator?: boolean;
 }) {
   if (!hasItems) return <div ref={refCallback} />;
+
+  if (hasNextPage && !showLoadingIndicator) {
+    return <div ref={refCallback} className="h-px" aria-hidden="true" />;
+  }
 
   return (
     <div
