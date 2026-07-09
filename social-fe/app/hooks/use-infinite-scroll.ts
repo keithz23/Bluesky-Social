@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
 interface UseInfiniteScrollOptions {
@@ -9,6 +9,7 @@ interface UseInfiniteScrollOptions {
   root?: Element | null;
   rootMargin?: string;
   readyDelay?: number;
+  minFetchInterval?: number;
 }
 
 export function useInfiniteScroll({
@@ -17,10 +18,13 @@ export function useInfiniteScroll({
   fetchNextPage,
   enabled = true,
   root = null,
-  rootMargin = "300px",
+  rootMargin = "1000px",
   readyDelay = 100,
+  minFetchInterval = 800,
 }: UseInfiniteScrollOptions) {
   const [isReady, setIsReady] = useState(false);
+  const lastFetchAtRef = useRef(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { ref, inView } = useInView({
     threshold: 0,
@@ -42,9 +46,42 @@ export function useInfiniteScroll({
 
   // Fetch when scrolled into view
   useEffect(() => {
-    if (enabled && inView && hasNextPage && !isFetchingNextPage && isReady) {
-      void fetchNextPage();
+    const clearCooldownTimer = () => {
+      if (!cooldownTimerRef.current) return;
+      clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = null;
+    };
+
+    const canFetch =
+      enabled && inView && hasNextPage && !isFetchingNextPage && isReady;
+
+    if (!canFetch) {
+      clearCooldownTimer();
+      return;
     }
+
+    const runFetch = () => {
+      lastFetchAtRef.current = Date.now();
+      void fetchNextPage();
+    };
+
+    const elapsed = Date.now() - lastFetchAtRef.current;
+    const remaining = minFetchInterval - elapsed;
+
+    if (remaining <= 0) {
+      clearCooldownTimer();
+      runFetch();
+      return;
+    }
+
+    if (!cooldownTimerRef.current) {
+      cooldownTimerRef.current = setTimeout(() => {
+        cooldownTimerRef.current = null;
+        runFetch();
+      }, remaining);
+    }
+
+    return clearCooldownTimer;
   }, [
     enabled,
     inView,
@@ -52,6 +89,7 @@ export function useInfiniteScroll({
     isFetchingNextPage,
     fetchNextPage,
     isReady,
+    minFetchInterval,
   ]);
 
   return { ref, inView, isReady };

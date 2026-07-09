@@ -61,6 +61,7 @@ export default function HomePage() {
           isFetchingNextPage={isFetchingNextPage}
           hasNextPage={hasNextPage}
           hasItems={posts.length > 0}
+          showLoadingIndicator={false}
         />
       </div>
     </>
