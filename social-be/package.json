@@ -13,6 +13,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
     "seed:realistic": "ts-node prisma/seed-realistic.ts",
+    "seed:realistic:prod": "node dist/prisma/seed-realistic.js",
     "seed:perf": "ts-node prisma/seed-perf.ts",
     "seed:perf:prod": "node dist/prisma/seed-perf.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -37,6 +38,7 @@
     "@nestjs/swagger": "^11.2.1",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/websockets": "^11.1.14",
+    "@faker-js/faker": "^10.5.0",
     "@prisma/client": "^6.18.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^6.0.0",
@@ -69,7 +71,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@faker-js/faker": "^10.5.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
