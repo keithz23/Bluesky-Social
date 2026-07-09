@@ -15,10 +15,12 @@ export interface Feed {
   replyFollowers?: boolean;
   replyFollowing?: boolean;
   replyMentioned?: boolean;
+  allowQuote?: boolean;
   userId: string;
   user: User;
   media: PostMedia[];
   createdAt?: Date;
+  updatedAt?: Date;
   parentPostId?: string;
   rootPostId?: string | null;
   rootPost?: Feed;

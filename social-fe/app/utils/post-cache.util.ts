@@ -21,7 +21,7 @@ const isFeedPost = (value: unknown): value is Feed => {
 
 export const snapshotPostCaches = (qc: QueryClient) => ({
   feed: qc.getQueryData(["feed"]),
-  bookmark: qc.getQueryData(["bookmark"]),
+  bookmarks: qc.getQueryData(["bookmarks"]),
   reposts: qc.getQueryData(["reposts"]),
   userPosts: qc.getQueriesData({ queryKey: ["userPosts"] }),
   postDetails: qc.getQueriesData({ queryKey: ["post-detail"] })
@@ -29,7 +29,7 @@ export const snapshotPostCaches = (qc: QueryClient) => ({
 
 export const rollbackPostCaches = (qc: QueryClient, snapshot: ReturnType<typeof snapshotPostCaches>) => {
   qc.setQueryData(["feed"], snapshot.feed);
-  qc.setQueryData(["bookmark"], snapshot.bookmark);
+  qc.setQueryData(["bookmarks"], snapshot.bookmarks);
   qc.setQueryData(["reposts"], snapshot.reposts);
 
   snapshot.userPosts.forEach(([key, data]) => qc.setQueryData(key, data));

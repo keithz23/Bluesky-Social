@@ -1,7 +1,6 @@
 import { axiosInstance } from "@/lib/axios";
 import type { AxiosProgressEvent } from "axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
-import { UpdatePostPayload } from "../interfaces/post.interface";
 
 export const PostService = {
   createPost: (
@@ -14,11 +13,15 @@ export const PostService = {
     });
   },
 
-  updatePost: (payload: UpdatePostPayload) => {
-    return axiosInstance.put(
-      `${API_ENDPOINT.POSTS.UPDATE_POST(payload.id)}`,
-      payload,
-    );
+  updatePost: (
+    postId: string,
+    payload: FormData,
+    onUploadProgress?: (event: AxiosProgressEvent) => void,
+  ) => {
+    return axiosInstance.patch(`${API_ENDPOINT.POSTS.UPDATE_POST(postId)}`, payload, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress,
+    });
   },
 
   getPostsByUsername: async (
