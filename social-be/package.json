@@ -12,6 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
+    "seed:realistic": "ts-node prisma/seed-realistic.ts",
     "seed:perf": "ts-node prisma/seed-perf.ts",
     "seed:perf:prod": "node dist/prisma/seed-perf.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -68,6 +69,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
+    "@faker-js/faker": "^10.5.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
