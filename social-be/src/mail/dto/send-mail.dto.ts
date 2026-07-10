@@ -7,14 +7,18 @@ export type MailType =
   | 'request-email-otp'
   | 'request-password-otp'
   | 'request-deactivate-account-otp'
-  | 'request-enabled-2fa'
+  | 'request-enable-2fa'
+  | 'login-2fa'
+  | 'request-disable-2fa'
 
 export type AccountCodeMailPurpose =
   | 'password-reset'
   | 'email-update'
   | 'password-update'
   | 'deactivate-account'
-  | 'enabled-2fa'
+  | 'enable-2fa'
+  | 'login-2fa'
+  | 'disable-2fa'
 
 export interface SendMailDto {
   to: string;

@@ -31,9 +31,17 @@ const ACCOUNT_CODE_MAIL_CONFIG: Record<
     type: 'request-deactivate-account-otp',
     subject: 'Confirm account deactivation',
   },
-  'enabled-2fa': {
-    type: 'request-enabled-2fa',
-    subject: 'Enabled 2FA'
+  'enable-2fa': {
+    type: 'request-enable-2fa',
+    subject: 'Enable 2FA',
+  },
+  'login-2fa': {
+    type: 'login-2fa',
+    subject: 'Require Sign in Code',
+  },
+  'disable-2fa': {
+    type: 'request-disable-2fa',
+    subject: 'Disable 2FA'
   }
 };
 
