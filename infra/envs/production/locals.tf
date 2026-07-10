@@ -39,7 +39,13 @@ locals {
     { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
     { name = "GOOGLE_CALLBACK_URL", value = "https://${var.api_domain_name}/api/v1/auth/google/callback" },
     { name = "DEV_POST_BOTS_ENABLED", value = var.dev_post_bots_enabled },
-    { name = "DEV_POST_BOTS_INTERVAL_MS", value = var.dev_post_bots_interval_ms }
+    { name = "DEV_POST_BOTS_INTERVAL_MS", value = var.dev_post_bots_interval_ms },
+    { name = "MAIL_HOST", value = var.mail_host },
+    { name = "MAIL_PORT", value = var.mail_port },
+    { name = "MAIL_SECURE", value = var.mail_secure },
+    { name = "MAIL_USER", value = var.mail_user },
+    { name = "MAIL_PASSWORD", value = var.mail_password },
+    { name = "MAIL_FROM", value = var.mail_from },
   ]
 
   frontend_environment = [
