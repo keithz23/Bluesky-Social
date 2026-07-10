@@ -41,14 +41,14 @@ const ACCOUNT_CODE_MAIL_CONFIG: Record<
   },
   'disable-2fa': {
     type: 'request-disable-2fa',
-    subject: 'Disable 2FA'
-  }
+    subject: 'Disable 2FA',
+  },
 };
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) { }
+  constructor(@InjectQueue('mail') private readonly mailQueue: Queue) {}
 
   private makeJobId(payload: SendMailDto) {
     const raw = `${payload.to}|${payload.type}|${JSON.stringify(payload.context)}`;

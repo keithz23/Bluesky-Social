@@ -131,7 +131,9 @@ export class ModerationService {
 
   private async ensureTargetUser(currentUserId: string, targetUserId: string) {
     if (currentUserId === targetUserId) {
-      throw new BadRequestException('You cannot perform this action on yourself');
+      throw new BadRequestException(
+        'You cannot perform this action on yourself',
+      );
     }
 
     const target = await this.prisma.user.findUnique({

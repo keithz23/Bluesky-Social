@@ -43,10 +43,7 @@ export class ChatController {
   }
 
   @Get(':id')
-  getConversation(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ) {
+  getConversation(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.chatService.getConversation(userId, id);
   }
 

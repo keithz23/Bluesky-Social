@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes } from 'crypto';
 
 const CODE_LENGTH = 10;
 export function generateResetCode(): string {

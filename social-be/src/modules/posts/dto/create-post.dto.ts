@@ -1,9 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { plainToInstance, Transform, Type } from 'class-transformer';
 import { ReplyPrivacyDto } from './reply-privacy.dto';
 

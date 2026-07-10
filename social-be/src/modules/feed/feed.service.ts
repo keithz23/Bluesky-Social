@@ -20,7 +20,7 @@ type FeedPost = {
 
 @Injectable()
 export class FeedService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getFeed(currentUserId: string | null, query: FeedQueryDto) {
     const limit = query.limit ?? 20;
@@ -108,11 +108,7 @@ export class FeedService {
       seed,
     );
     const posts = rankedPosts.slice(offset, offset + limit);
-    const result = await this.formatPosts(
-      posts,
-      currentUserId,
-      followingIds,
-    );
+    const result = await this.formatPosts(posts, currentUserId, followingIds);
     const nextOffset = offset + result.length;
     const hasMore = nextOffset < rankedPosts.length;
 
@@ -184,11 +180,7 @@ export class FeedService {
     return this.rankPosts(posts, followingIds, seed);
   }
 
-  private rankPosts(
-    posts: FeedPost[],
-    followingIds: string[],
-    seed: string,
-  ) {
+  private rankPosts(posts: FeedPost[], followingIds: string[], seed: string) {
     const uniquePosts = new Map<string, (typeof posts)[number]>();
     posts.forEach((post) => uniquePosts.set(post.id, post));
 
@@ -363,9 +355,7 @@ export class FeedService {
 
   private parseOffsetCursor(cursor?: string) {
     const parsedCursor = Number(cursor ?? 0);
-    return Number.isFinite(parsedCursor) && parsedCursor > 0
-      ? parsedCursor
-      : 0;
+    return Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
   }
 
   private seededRandom(input: string) {
