@@ -53,6 +53,12 @@ jobs:
       TF_VAR_redis_serverless_cache_name: ${{ vars.PROD_REDIS_SERVERLESS_CACHE_NAME }}
       TF_VAR_dev_post_bots_enabled: ${{vars.DEV_POST_BOTS_ENABLED}}
       TF_VAR_dev_post_bots_interval_ms: ${{vars.DEV_POST_BOTS_INTERVAL_MS}}
+      TF_VAR_mail_host: ${{ vars.MAIL_HOST }}
+      TF_VAR_mail_port: ${{ vars.MAIL_PORT }}
+      TF_VAR_mail_secure: ${{ vars.MAIL_SECURE }}
+      TF_VAR_mail_user: ${{ secrets.MAIL_USER }}
+      TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
+      TF_VAR_mail_from: ${{ vars.MAIL_FROM }}
 
     steps:
       - name: Checkout source code

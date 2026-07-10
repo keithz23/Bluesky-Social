@@ -228,3 +228,39 @@ variable "dev_post_bots_interval_ms" {
   sensitive = true
   default   = ""
 }
+
+variable "mail_host" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "mail_port" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "mail_secure" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "mail_user" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "mail_password" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "mail_from" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
