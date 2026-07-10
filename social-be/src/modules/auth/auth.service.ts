@@ -209,6 +209,12 @@ export class AuthService {
     this.assertActiveAccount(user);
 
     if (user.twoFactorEnabled) {
+      if (!this.hasConfiguredTotp(user)) {
+        throw new BadRequestException(
+          'Two-factor authentication is not configured for authenticator app. Please disable and set it up again.',
+        );
+      }
+
       return this.createAndSendLogin2FAChallenge(user, userAgent, ipAddress);
     }
     // Generate tokens with device info
@@ -261,6 +267,13 @@ export class AuthService {
     if (!user.twoFactorEnabled) {
       await this.redisService.del(redisKey);
       throw new BadRequestException('Two-factor authentication is not enabled');
+    }
+
+    if (!this.hasConfiguredTotp(user)) {
+      await this.redisService.del(redisKey);
+      throw new BadRequestException(
+        'Two-factor authentication is not configured for authenticator app. Please disable and set it up again.',
+      );
     }
 
     const method = dto.method;
@@ -1761,6 +1774,19 @@ export class AuthService {
     return this.verifyTotpCode(
       this.decryptSecuritySecret(user.twoFactorSecret),
       code,
+    );
+  }
+
+  private hasConfiguredTotp(
+    user: Pick<
+      User,
+      'twoFactorEnabled' | 'twoFactorMethod' | 'twoFactorSecret'
+    >,
+  ): boolean {
+    return Boolean(
+      user.twoFactorEnabled &&
+      user.twoFactorMethod === TwoFactorMethod.TOTP &&
+      user.twoFactorSecret,
     );
   }
 

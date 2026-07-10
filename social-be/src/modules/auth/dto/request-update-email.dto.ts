@@ -1,8 +1,8 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail } from 'class-validator';
 
 export class RequestUpdateEmail {
-    @ApiProperty()
-    @IsEmail()
-    newEmail!: string
+  @ApiProperty()
+  @IsEmail()
+  newEmail!: string;
 }

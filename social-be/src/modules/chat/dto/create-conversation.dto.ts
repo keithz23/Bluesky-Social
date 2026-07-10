@@ -1,4 +1,10 @@
-import { IsArray, IsEnum, IsOptional, IsString, ArrayMinSize } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  ArrayMinSize,
+} from 'class-validator';
 
 export class CreateConversationDto {
   @IsEnum(['DIRECT', 'GROUP'])

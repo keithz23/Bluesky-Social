@@ -163,13 +163,7 @@ export class DevPostBotsService implements OnModuleInit, OnModuleDestroy {
       'creative work',
       'product details',
     ];
-    const tags = [
-      '#buildinpublic',
-      '#dev',
-      '#design',
-      '#learning',
-      '#product',
-    ];
+    const tags = ['#buildinpublic', '#dev', '#design', '#learning', '#product'];
 
     return faker.helpers
       .arrayElement(templates)
