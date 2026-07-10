@@ -216,3 +216,15 @@ variable "redis_serverless_cache_name" {
   type    = string
   default = "social-elasticache"
 }
+
+variable "dev_post_bots_enabled" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "dev_post_bots_interval_ms" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
