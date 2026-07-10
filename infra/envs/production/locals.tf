@@ -37,7 +37,9 @@ locals {
     { name = "JWT_REFRESH_SECRET", value = var.jwt_refresh_secret },
     { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
     { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
-    { name = "GOOGLE_CALLBACK_URL", value = "https://${var.api_domain_name}/api/v1/auth/google/callback" }
+    { name = "GOOGLE_CALLBACK_URL", value = "https://${var.api_domain_name}/api/v1/auth/google/callback" },
+    { name = "DEV_POST_BOTS_ENABLED", value = var.dev_post_bots_enabled },
+    { name = "DEV_POST_BOTS_INTERVAL_MS", value = var.dev_post_bots_interval_ms }
   ]
 
   frontend_environment = [
