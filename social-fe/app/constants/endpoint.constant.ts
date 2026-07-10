@@ -17,6 +17,11 @@ export const API_ENDPOINT = {
     REQUEST_DEACTIVATE_ACCOUNT: "/auth/request-deactivate-account",
     DEACTIVATE_ACCOUNT: "/auth/deactivate-account",
     SOCKET_TOKEN: "/auth/socket-token",
+    REQUEST_ENABLE_2FA: "/auth/request-enable-2fa",
+    ENABLE_2FA: "/auth/enable-2fa",
+    REQUEST_DISABLE_2FA: "/auth/request-disable-2fa",
+    DISABLE_2FA: "/auth/disable-2fa",
+    VERIFY_LOGIN_2FA: "/auth/verify-login-2fa",
   },
 
   POSTS: {
