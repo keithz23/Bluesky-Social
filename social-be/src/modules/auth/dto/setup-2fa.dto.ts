@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class Enable2FADto {
+export class Setup2FADto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  otp!: string;
+  password!: string;
 }
