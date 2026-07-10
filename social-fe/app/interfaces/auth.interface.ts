@@ -55,5 +55,10 @@ export interface Enable2FAData {
 }
 
 export interface Disable2FAData {
+  password?: string;
   otp: string;
+}
+
+export interface Setup2FAData {
+  password: string;
 }

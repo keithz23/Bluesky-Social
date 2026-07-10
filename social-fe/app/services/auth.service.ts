@@ -14,6 +14,7 @@ import {
   DeactivateAccountData,
   Enable2FAData,
   Disable2FAData,
+  Setup2FAData,
 } from "../interfaces/auth.interface";
 import { AuthResponse, LoginResponse } from "../interfaces/user.interface";
 import type { User } from "../interfaces/user.interface";
@@ -124,8 +125,11 @@ export const AuthService = {
     );
   },
 
-  requestEnable2FA: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_ENABLE_2FA);
+  requestEnable2FA: (setup2FAData: Setup2FAData) => {
+    return axiosInstance.post(
+      API_ENDPOINT.AUTH.REQUEST_ENABLE_2FA,
+      setup2FAData,
+    );
   },
 
   enable2FA: (enable2FAData: Enable2FAData) => {

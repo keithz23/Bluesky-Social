@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { clearAuthLogoutLock } from "@/app/utils/auth-cache.util";
 
-const otpPattern = /^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/;
+const otpPattern = /^(\d{6}|KNT-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})$/i;
 
 const loginSchema = z.object({
   account: z.string().min(1, "Username or email is required"),
@@ -71,7 +71,7 @@ export default function LoginForm() {
       if (!otpPattern.test(otp)) {
         setError("otp", {
           type: "validate",
-          message: "Verification code should look like XXXXX-XXXXX.",
+          message: "Enter a 6-digit authenticator code or recovery code.",
         });
         return;
       }
@@ -131,8 +131,7 @@ export default function LoginForm() {
     clearErrors("otp");
   };
 
-  const isSubmitting =
-    loginStep === "2fa" ? isVerifyingLogin2FA : isLoggingIn;
+  const isSubmitting = loginStep === "2fa" ? isVerifyingLogin2FA : isLoggingIn;
   const isSubmitDisabled =
     isSubmitting || (loginStep === "2fa" ? !otpValue?.trim() : !isValid);
 

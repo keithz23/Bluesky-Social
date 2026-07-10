@@ -19,7 +19,13 @@ import { SUCCESS_MESSAGES } from 'src/common/constants/success-message';
 import { ERROR_MESSAGES } from 'src/common/constants/error-message';
 import { MailService } from 'src/mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { PasswordResetToken, Prisma, User, UserStatus } from '@prisma/client';
+import {
+  PasswordResetToken,
+  Prisma,
+  TwoFactorMethod,
+  User,
+  UserStatus,
+} from '@prisma/client';
 import * as crypto from 'crypto';
 import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
 import { S3Service } from 'src/uploads/s3.service';
@@ -39,6 +45,9 @@ import { DeactivateAccountDto } from './dto/deactivate-account-dto';
 import { Enable2FADto } from './dto/enable-2fa.dto';
 import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
 import { Disable2FADto } from './dto/disable-2fa.dto';
+import { Setup2FADto } from './dto/setup-2fa.dto';
+import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
+import * as QRCode from 'qrcode';
 
 const RESET_TTL_MINUTES = 15;
 const MAX_ACTIVE_EMAIL_CODES = 3;
@@ -46,6 +55,10 @@ const EMAIL_UPDATE_CODE_PREFIX = 'email_update';
 const PASSWORD_UPDATE_CODE_PREFIX = 'password_update';
 const LOGIN_2FA_TTL_SECONDS = 5 * 60;
 const MAX_LOGIN_2FA_ATTEMPTS = 5;
+const TOTP_SETUP_TTL_SECONDS = 10 * 60;
+const TOTP_ISSUER = 'Konekt';
+const RECOVERY_CODE_COUNT = 10;
+const RECOVERY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 type AccountEmailCodePurpose =
   | 'password-reset'
@@ -53,7 +66,7 @@ type AccountEmailCodePurpose =
   | 'password-update'
   | 'deactivate-account'
   | 'enable-2fa'
-  | 'disable-2fa'
+  | 'disable-2fa';
 
 type AccountEmailCodePayload = {
   user: Pick<User, 'id' | 'email' | 'username'>;
@@ -76,6 +89,7 @@ type AccountEmailCodeData = {
 type Login2FAChallengeResponse = {
   requires2FA: true;
   challengeId: string;
+  methods: Array<'totp' | 'recovery_code'>;
   maskedEmail: string;
 };
 
@@ -83,8 +97,13 @@ type LoginResponse = AuthResponseDto | Login2FAChallengeResponse;
 
 type Login2FAChallengeData = {
   userId: string;
-  otpHash: string;
   attempts: number;
+  createdIp?: string;
+  createdUa?: string;
+};
+
+type TotpSetupData = {
+  secret: string;
   createdIp?: string;
   createdUa?: string;
 };
@@ -101,7 +120,7 @@ export class AuthService {
     private redisService: CacheService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
@@ -231,12 +250,30 @@ export class AuthService {
       throw new BadRequestException('Too many invalid attempts');
     }
 
-    const isValidOtp = await HashUtil.compare(
-      this.normalizeEmailCode(dto.otp),
-      data.otpHash,
-    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
 
-    if (!isValidOtp) {
+    if (!user) throw new NotFoundException('User not found');
+
+    this.assertActiveAccount(user);
+
+    if (!user.twoFactorEnabled) {
+      await this.redisService.del(redisKey);
+      throw new BadRequestException('Two-factor authentication is not enabled');
+    }
+
+    const method = dto.method;
+    const isValidSecondFactor =
+      method === 'recovery_code'
+        ? await this.verifyRecoveryCode(user.id, dto.otp, true)
+        : method === 'totp'
+          ? await this.verifyTotpForUser(user, dto.otp)
+          : await this.verifySecondFactor(user, dto.otp, {
+              consumeRecoveryCode: true,
+            });
+
+    if (!isValidSecondFactor) {
       await this.redisService.set(
         redisKey,
         JSON.stringify({
@@ -246,16 +283,8 @@ export class AuthService {
         LOGIN_2FA_TTL_SECONDS,
       );
 
-      throw new BadRequestException('Invalid OTP');
+      throw new BadRequestException('Invalid authenticator or recovery code');
     }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: data.userId },
-    });
-
-    if (!user) throw new NotFoundException('User not found');
-
-    this.assertActiveAccount(user);
 
     const tokens = await this.generateTokens(
       user.id,
@@ -265,6 +294,21 @@ export class AuthService {
     );
 
     await this.redisService.del(redisKey);
+
+    await this.prisma.auditLog.create({
+      data: this.createAuditLogData({
+        userId: user.id,
+        action: 'MFA_LOGIN_SUCCESS',
+        userAgent,
+        ipAddress,
+        metadata: {
+          method:
+            method === 'recovery_code'
+              ? 'RECOVERY_CODE'
+              : 'TOTP_OR_RECOVERY_CODE',
+        },
+      }),
+    });
 
     return {
       ...tokens,
@@ -399,9 +443,9 @@ export class AuthService {
       // Get old image before update to delete later
       const oldUser = uploadedKeys.length
         ? await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { avatarUrl: true, coverUrl: true },
-        })
+            where: { id: userId },
+            select: { avatarUrl: true, coverUrl: true },
+          })
         : null;
 
       const user = await this.prisma.user.update({
@@ -1007,9 +1051,15 @@ export class AuthService {
 
   async requestEnable2FA(
     userId: string,
+    setup2FADto: Setup2FADto,
     userAgent?: string,
     ipAddress?: string,
-  ): Promise<void> {
+  ): Promise<{
+    secret: string;
+    otpauthUrl: string;
+    qrCodeDataUrl: string;
+    expiresInSeconds: number;
+  }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -1024,12 +1074,32 @@ export class AuthService {
       );
     }
 
-    await this.createAndSendAccountEmailCode({
-      user,
-      purpose: 'enable-2fa',
-      userAgent,
-      ipAddress,
+    await this.assertValidPassword(user, setup2FADto.password);
+
+    const totp = this.createTotp(user.email);
+    const secret = totp.generateSecret();
+    const otpauthUrl = totp.toURI({
+      issuer: TOTP_ISSUER,
+      label: user.email,
+      secret,
     });
+
+    await this.redisService.set(
+      this.getTotpSetupKey(userId),
+      JSON.stringify({
+        secret,
+        createdIp: ipAddress,
+        createdUa: userAgent,
+      } satisfies TotpSetupData),
+      TOTP_SETUP_TTL_SECONDS,
+    );
+
+    return {
+      secret,
+      otpauthUrl,
+      qrCodeDataUrl: await this.generateQrCodeDataURL(otpauthUrl),
+      expiresInSeconds: TOTP_SETUP_TTL_SECONDS,
+    };
   }
 
   async enable2FA(
@@ -1037,7 +1107,7 @@ export class AuthService {
     enabled2FADto: Enable2FADto,
     userAgent?: string,
     ipAddress?: string,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; recoveryCodes: string[] }> {
     const { otp } = enabled2FADto;
 
     const user = await this.prisma.user.findUnique({
@@ -1054,10 +1124,28 @@ export class AuthService {
       );
     }
 
-    const { redisKey } = await this.verifyAccountEmailCode(
-      'enable-2fa',
-      userId,
-      otp,
+    const setupKey = this.getTotpSetupKey(userId);
+    const rawSetup = await this.redisService.get(setupKey);
+
+    if (!rawSetup) {
+      throw new BadRequestException(
+        'Two-factor setup is invalid or expired. Please start again.',
+      );
+    }
+
+    const setup = JSON.parse(rawSetup) as TotpSetupData;
+    const isValidTotp = await this.verifyTotpCode(setup.secret, otp);
+
+    if (!isValidTotp) {
+      throw new BadRequestException('Invalid authenticator code');
+    }
+
+    const recoveryCodes = this.generateRecoveryCodes();
+    const recoveryCodeRows = await Promise.all(
+      recoveryCodes.map(async (code) => ({
+        userId,
+        codeHash: await HashUtil.hash(this.normalizeRecoveryCode(code)),
+      })),
     );
 
     await this.prisma.$transaction([
@@ -1066,56 +1154,72 @@ export class AuthService {
         data: {
           twoFactorEnabled: true,
           twoFactorEnabledAt: new Date(),
-          twoFactorMethod: 'EMAIL',
+          twoFactorMethod: TwoFactorMethod.TOTP,
+          twoFactorSecret: this.encryptSecuritySecret(setup.secret),
         },
+      }),
+      this.prisma.recoveryCode.deleteMany({
+        where: { userId },
+      }),
+      this.prisma.recoveryCode.createMany({
+        data: recoveryCodeRows,
       }),
       this.prisma.auditLog.create({
         data: this.createAuditLogData({
           userId,
-          action: 'ENABLE_TWO_FACTOR',
+          action: 'MFA_TOTP_ENABLED',
           userAgent,
           ipAddress,
           metadata: {
-            method: 'EMAIL',
+            method: 'TOTP',
+            recoveryCodeCount: recoveryCodes.length,
           },
         }),
       }),
     ]);
 
-    await this.redisService.del(redisKey);
+    await this.redisService.del(setupKey);
 
-    return { message: 'Two-factor authentication enabled successfully.' };
+    return {
+      message: 'Two-factor authentication enabled successfully.',
+      recoveryCodes,
+    };
   }
 
-  async requestDisable2FA(userId: string, userAgent?: string, ipAddress?: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) throw new NotFoundException("User not found");
-    this.assertActiveAccount(user)
-
-    if (!user.twoFactorEnabled) {
-      throw new ConflictException("Two-factor authentication not enabled.");
-    }
-
-    await this.createAndSendAccountEmailCode({
-      user,
-      purpose: 'disable-2fa',
-      userAgent,
-      ipAddress
-    })
-
-    return { message: 'Verification code has been sent to your email.' };
-  }
-
-  async disable2FA(userId: string, disable2FADto: Disable2FADto, userAgent?: string, ipAddress?: string): Promise<{ message: string }> {
-    const { otp } = disable2FADto;
+  async requestDisable2FA(
+    userId: string,
+    _userAgent?: string,
+    _ipAddress?: string,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-    })
+    });
 
-    if (!user) throw new NotFoundException("User not found");
+    if (!user) throw new NotFoundException('User not found');
+    this.assertActiveAccount(user);
+
+    if (!user.twoFactorEnabled) {
+      throw new ConflictException('Two-factor authentication is not enabled.');
+    }
+
+    return {
+      message:
+        'Verify your password and authenticator code to disable two-factor authentication.',
+    };
+  }
+
+  async disable2FA(
+    userId: string,
+    disable2FADto: Disable2FADto,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ message: string }> {
+    const { otp, password } = disable2FADto;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
 
     this.assertActiveAccount(user);
 
@@ -1123,36 +1227,48 @@ export class AuthService {
       throw new ConflictException('Two-factor authentication is not enabled.');
     }
 
-    const { redisKey } = await this.verifyAccountEmailCode(
-      'disable-2fa',
-      userId,
-      otp
-    );
+    await this.assertValidPassword(user, password);
+
+    const isValidSecondFactor = await this.verifySecondFactor(user, otp, {
+      consumeRecoveryCode: true,
+    });
+
+    if (!isValidSecondFactor) {
+      throw new BadRequestException('Invalid authenticator or recovery code');
+    }
 
     await this.prisma.$transaction([
       this.prisma.user.update({
-        where: {
-          id: userId,
-        },
+        where: { id: userId },
         data: {
           twoFactorEnabled: false,
           twoFactorMethod: null,
           twoFactorEnabledAt: null,
-          twoFactorSecret: null
-        }
+          twoFactorSecret: null,
+        },
+      }),
+      this.prisma.recoveryCode.deleteMany({
+        where: { userId },
+      }),
+      this.prisma.appPassword.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
       }),
       this.prisma.auditLog.create({
         data: this.createAuditLogData({
           userId,
-          action: 'DISABLE_TWO_FACTOR',
+          action: 'MFA_DISABLED',
           userAgent,
           ipAddress,
-        })
-      })
+          metadata: {
+            method: user.twoFactorMethod ?? 'UNKNOWN',
+            appPasswordsRevoked: true,
+          },
+        }),
+      }),
     ]);
 
-    await this.redisService.del(redisKey);
-    return { message: 'Two-factor authentication disabled successfully' }
+    return { message: 'Two-factor authentication disabled successfully' };
   }
 
   async requestUpdateEmail(
@@ -1412,14 +1528,11 @@ export class AuthService {
     ipAddress?: string,
   ): Promise<Login2FAChallengeResponse> {
     const challengeId = crypto.randomUUID();
-    const rawCode = generateResetCode();
-    const otpHash = await HashUtil.hash(rawCode);
 
     await this.redisService.set(
       this.getLogin2FAChallengeKey(challengeId),
       JSON.stringify({
         userId: user.id,
-        otpHash,
         attempts: 0,
         createdIp: ipAddress,
         createdUa: userAgent,
@@ -1427,16 +1540,10 @@ export class AuthService {
       LOGIN_2FA_TTL_SECONDS,
     );
 
-    await this.mailService.sendAccountCodeEmail({
-      to: user.email,
-      code: rawCode,
-      username: user.username,
-      purpose: 'login-2fa',
-    });
-
     return {
       requires2FA: true,
       challengeId,
+      methods: ['totp', 'recovery_code'],
       maskedEmail: this.maskEmail(user.email),
     };
   }
@@ -1598,5 +1705,206 @@ export class AuthService {
     return tld
       ? `${maskedName}@${maskedDomain}.${tld}`
       : `${maskedName}@${domain}`;
+  }
+
+  private getTotpSetupKey(userId: string): string {
+    return `2fa:totp:setup:${userId}`;
+  }
+
+  private createTotp(label?: string, secret?: string): TOTP {
+    return new TOTP({
+      issuer: TOTP_ISSUER,
+      label,
+      secret,
+      period: 30,
+      digits: 6,
+      algorithm: 'sha1',
+      crypto: new NobleCryptoPlugin(),
+      base32: new ScureBase32Plugin(),
+    });
+  }
+
+  private normalizeTotpCode(code?: string): string {
+    return (code ?? '').trim().replace(/\s/g, '');
+  }
+
+  private async verifyTotpCode(secret: string, code: string): Promise<boolean> {
+    const normalizedCode = this.normalizeTotpCode(code);
+
+    if (!/^\d{6}$/.test(normalizedCode)) return false;
+
+    const result = await this.createTotp(undefined, secret).verify(
+      normalizedCode,
+      {
+        epochTolerance: 30,
+      },
+    );
+
+    return result.valid;
+  }
+
+  private async verifyTotpForUser(
+    user: Pick<
+      User,
+      'twoFactorEnabled' | 'twoFactorMethod' | 'twoFactorSecret'
+    >,
+    code: string,
+  ): Promise<boolean> {
+    if (
+      !user.twoFactorEnabled ||
+      user.twoFactorMethod !== TwoFactorMethod.TOTP ||
+      !user.twoFactorSecret
+    ) {
+      return false;
+    }
+
+    return this.verifyTotpCode(
+      this.decryptSecuritySecret(user.twoFactorSecret),
+      code,
+    );
+  }
+
+  private generateRecoveryCodes(count = RECOVERY_CODE_COUNT): string[] {
+    return Array.from({ length: count }, () => {
+      const characters = Array.from({ length: 12 }, () => {
+        const index = crypto.randomInt(0, RECOVERY_CODE_ALPHABET.length);
+        return RECOVERY_CODE_ALPHABET[index];
+      }).join('');
+
+      return `KNT-${characters.slice(0, 4)}-${characters.slice(4, 8)}-${characters.slice(8)}`;
+    });
+  }
+
+  private normalizeRecoveryCode(code?: string): string {
+    return (code ?? '').trim().toUpperCase().replace(/[\s-]/g, '');
+  }
+
+  private async verifyRecoveryCode(
+    userId: string,
+    code: string,
+    consume: boolean,
+  ): Promise<boolean> {
+    const normalizedCode = this.normalizeRecoveryCode(code);
+
+    if (!normalizedCode) return false;
+
+    const candidates = await this.prisma.recoveryCode.findMany({
+      where: {
+        userId,
+        usedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    for (const candidate of candidates) {
+      if (await HashUtil.compare(normalizedCode, candidate.codeHash)) {
+        if (consume) {
+          await this.prisma.recoveryCode.updateMany({
+            where: {
+              id: candidate.id,
+              usedAt: null,
+            },
+            data: { usedAt: new Date() },
+          });
+        }
+
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private async verifySecondFactor(
+    user: Pick<
+      User,
+      'id' | 'twoFactorEnabled' | 'twoFactorMethod' | 'twoFactorSecret'
+    >,
+    code: string,
+    options: { consumeRecoveryCode: boolean },
+  ): Promise<boolean> {
+    if (await this.verifyTotpForUser(user, code)) {
+      return true;
+    }
+
+    return this.verifyRecoveryCode(user.id, code, options.consumeRecoveryCode);
+  }
+
+  private async assertValidPassword(
+    user: Pick<User, 'passwordHash'>,
+    password: string,
+  ): Promise<void> {
+    if (!user.passwordHash) {
+      throw new BadRequestException(
+        'Password verification is required for this action.',
+      );
+    }
+
+    const isPasswordValid = await HashUtil.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+  }
+
+  private getSecurityEncryptionKey(): Buffer {
+    const keyMaterial =
+      process.env.TWO_FACTOR_SECRET_KEY ||
+      this.configService.get<string>('config.jwt.secret') ||
+      this.configService.get<string>('config.jwt.refreshSecret');
+
+    if (!keyMaterial) {
+      throw new Error('Missing secret key for two-factor encryption');
+    }
+
+    return crypto.createHash('sha256').update(keyMaterial).digest();
+  }
+
+  private encryptSecuritySecret(secret: string): string {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv(
+      'aes-256-gcm',
+      this.getSecurityEncryptionKey(),
+      iv,
+    );
+    const encrypted = Buffer.concat([
+      cipher.update(secret, 'utf8'),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    return [
+      'v1',
+      iv.toString('base64url'),
+      authTag.toString('base64url'),
+      encrypted.toString('base64url'),
+    ].join(':');
+  }
+
+  private decryptSecuritySecret(value: string): string {
+    if (!value.startsWith('v1:')) return value;
+
+    const [, ivValue, authTagValue, encryptedValue] = value.split(':');
+
+    if (!ivValue || !authTagValue || !encryptedValue) {
+      throw new Error('Invalid encrypted two-factor secret');
+    }
+
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      this.getSecurityEncryptionKey(),
+      Buffer.from(ivValue, 'base64url'),
+    );
+
+    decipher.setAuthTag(Buffer.from(authTagValue, 'base64url'));
+
+    return Buffer.concat([
+      decipher.update(Buffer.from(encryptedValue, 'base64url')),
+      decipher.final(),
+    ]).toString('utf8');
+  }
+
+  async generateQrCodeDataURL(otpAuthUrl: string): Promise<string> {
+    return QRCode.toDataURL(otpAuthUrl);
   }
 }
