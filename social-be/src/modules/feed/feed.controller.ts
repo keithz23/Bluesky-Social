@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FeedService } from './feed.service';
 import { FeedQueryDto } from './dto/feed-query.dto';
@@ -13,7 +8,7 @@ import { OptionalJwtAuthGuard } from 'src/common/guards/optional-jwt-auth.guard'
 
 @Controller('feed')
 export class FeedController {
-  constructor(private readonly feedService: FeedService) { }
+  constructor(private readonly feedService: FeedService) {}
 
   @Public()
   @UseGuards(OptionalJwtAuthGuard)

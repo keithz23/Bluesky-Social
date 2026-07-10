@@ -184,7 +184,8 @@ export class ChatService {
     const nextCursor =
       hasMore && lastConversation
         ? encodeCursor({
-            lastMessageAt: lastConversation.lastMessageAt?.toISOString() ?? null,
+            lastMessageAt:
+              lastConversation.lastMessageAt?.toISOString() ?? null,
             createdAt: lastConversation.createdAt.toISOString(),
             id: lastConversation.id,
           })
@@ -231,8 +232,7 @@ export class ChatService {
       },
     });
 
-    if (!conversation)
-      throw new NotFoundException('Conversation not found');
+    if (!conversation) throw new NotFoundException('Conversation not found');
 
     return conversation;
   }
@@ -261,7 +261,9 @@ export class ChatService {
       const targetUserId = participantIds[0];
 
       if (targetUserId === userId) {
-        throw new BadRequestException('Cannot start a conversation with yourself');
+        throw new BadRequestException(
+          'Cannot start a conversation with yourself',
+        );
       }
 
       const existing = await this.prisma.conversation.findFirst({
