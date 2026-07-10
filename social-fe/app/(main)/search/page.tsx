@@ -89,37 +89,22 @@ function SearchPageContent() {
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
       <div className="sticky top-14 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-md lg:top-14">
-        <div className="flex items-center gap-3 p-4">
+        <div className="flex border-t border-gray-100 gap-3">
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-full p-2 transition hover:bg-gray-100"
+            className="rounded-full p-2 transition hover:bg-gray-100 cursor-pointer"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5 text-gray-900" />
           </button>
-
-          <div className="group relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search people, posts, or hashtags"
-              className="w-full rounded-xl border-none bg-gray-100 py-3 pl-10 pr-4 text-sm outline-none transition focus:bg-white focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
-          </div>
-        </div>
-
-        <div className="flex border-t border-gray-100">
           {TABS.map((tab) => (
             <button
               key={tab.value}
               type="button"
               onClick={() => setActiveTab(tab.value)}
-              className={`relative flex-1 py-3 text-[15px] font-bold transition hover:bg-gray-50 ${
-                activeTab === tab.value ? "text-gray-900" : "text-gray-500"
-              }`}
+              className={`relative flex-1 py-3 text-[15px] font-bold transition hover:bg-gray-50 cursor-pointer ${activeTab === tab.value ? "text-gray-900" : "text-gray-500"
+                }`}
             >
               {tab.label}
               {activeTab === tab.value && (

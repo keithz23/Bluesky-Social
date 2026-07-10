@@ -12,8 +12,10 @@ import {
   ChangeUsernameData,
   ChangeBirthDayData,
   DeactivateAccountData,
+  Enable2FAData,
+  Disable2FAData,
 } from "../interfaces/auth.interface";
-import { AuthResponse } from "../interfaces/user.interface";
+import { AuthResponse, LoginResponse } from "../interfaces/user.interface";
 import type { User } from "../interfaces/user.interface";
 
 export const AuthService = {
@@ -21,7 +23,7 @@ export const AuthService = {
     return axiosInstance.post(API_ENDPOINT.AUTH.REGISTER, registerData);
   },
 
-  login: async (crendentials: LoginCredentials): Promise<AuthResponse> => {
+  login: async (crendentials: LoginCredentials): Promise<LoginResponse> => {
     const response = await axiosInstance.post(
       API_ENDPOINT.AUTH.LOGIN,
       crendentials,
@@ -120,5 +122,32 @@ export const AuthService = {
       API_ENDPOINT.AUTH.DEACTIVATE_ACCOUNT,
       deactivateAccountData,
     );
+  },
+
+  requestEnable2FA: () => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_ENABLE_2FA);
+  },
+
+  enable2FA: (enable2FAData: Enable2FAData) => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.ENABLE_2FA, enable2FAData);
+  },
+
+  requestDisable2FA: () => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_DISABLE_2FA);
+  },
+
+  disable2FA: (disable2FAData: Disable2FAData) => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.DISABLE_2FA, disable2FAData);
+  },
+
+  verifyLogin2FA: async (payload: {
+    challengeId: string;
+    otp: string;
+  }): Promise<AuthResponse> => {
+    const response = await axiosInstance.post(
+      API_ENDPOINT.AUTH.VERIFY_LOGIN_2FA,
+      payload,
+    );
+    return response.data;
   },
 };
