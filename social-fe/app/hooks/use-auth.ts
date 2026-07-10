@@ -8,6 +8,7 @@ import {
   ResetPasswordData,
   UpdateProfileData,
 } from "../interfaces/auth.interface";
+import type { AuthResponse } from "../interfaces/user.interface";
 import { AxiosError } from "axios";
 import { useState } from "react";
 import { useAuthStore } from "../store/use-auth.store";
@@ -27,6 +28,13 @@ export function useAuth() {
   >(null);
   const setAuth = useAuthStore((s) => s.setAuth);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+
+  const applyAuthenticatedSession = async (data: AuthResponse) => {
+    clearAuthLogoutLock();
+    setAuth(data.accessToken, data.user.username, data.user.email || "");
+    qc.setQueryData(["me"], data.user);
+    await qc.invalidateQueries({ queryKey: ["me"] });
+  };
 
   const meQuery = useQuery({
     queryKey: ["me"],
@@ -59,10 +67,25 @@ export function useAuth() {
       return await AuthService.login(loginDto);
     },
     onSuccess: async (data) => {
-      clearAuthLogoutLock();
-      setAuth(data.accessToken, data.user.username, data.user.email || "");
-      qc.setQueryData(["me"], data.user);
-      await qc.invalidateQueries({ queryKey: ["me"] });
+      if ("requires2FA" in data) {
+        toast.success("Verification code sent.");
+        return;
+      }
+
+      await applyAuthenticatedSession(data);
+      toast.success("Glad to have you back.");
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
+  const verifyLogin2FA = useMutation({
+    mutationFn: async (payload: { challengeId: string; otp: string }) => {
+      return await AuthService.verifyLogin2FA(payload);
+    },
+    onSuccess: async (data) => {
+      await applyAuthenticatedSession(data);
       toast.success("Glad to have you back.");
     },
     onError: (err) => {
@@ -187,6 +210,7 @@ export function useAuth() {
     refetchMe: meQuery.refetch,
 
     loginMutation: login,
+    verifyLogin2FAMutation: verifyLogin2FA,
     signupMutation: signup,
     logoutMutation: logout,
     updateProfileMutation: updateProfile,
@@ -195,6 +219,7 @@ export function useAuth() {
     resetPasswordMutation: resetPassword,
 
     isLoggingIn: login.isPending,
+    isVerifyingLogin2FA: verifyLogin2FA.isPending,
     isRegistering: signup.isPending,
     isLoggingOut: logout.isPending,
     isUpdating: updateProfile.isPending,
@@ -202,6 +227,7 @@ export function useAuth() {
     isForgotPassword: forgotPassword.isPending,
 
     loginError: login.error,
+    verifyLogin2FAError: verifyLogin2FA.error,
     registerError: signup.error,
     logoutError: logout.error,
     updateProfileErorr: updateProfile.error,

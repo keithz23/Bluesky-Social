@@ -51,6 +51,9 @@ import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
 import { DeactivateAccountDto } from './dto/deactivate-account-dto';
 import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
+import { Enable2FADto } from './dto/enable-2fa.dto';
+import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
+import { Disable2FADto } from './dto/disable-2fa.dto';
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
 
@@ -86,7 +89,7 @@ export class AuthController {
     private jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   // ============= PUBLIC ROUTES =============
 
@@ -117,6 +120,10 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.authService.login(loginDto, ipAddress, userAgent);
+
+    if ('requires2FA' in result) {
+      return result;
+    }
 
     this.setAuthCookies(response, result);
 
@@ -213,8 +220,7 @@ export class AuthController {
     if (refreshToken) {
       void this.authService.logout(userId, refreshToken).catch((error) => {
         this.logger.warn(
-          `Failed to revoke refresh token during logout: ${
-            error instanceof Error ? error.message : String(error)
+          `Failed to revoke refresh token during logout: ${error instanceof Error ? error.message : String(error)
           }`,
         );
       });
@@ -524,7 +530,7 @@ export class AuthController {
   @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   @ApiResponse({ status: 302, description: 'Redirects to Google login page' })
-  async googleAuth() {}
+  async googleAuth() { }
 
   @Public()
   @Get('google/callback')
@@ -572,6 +578,81 @@ export class AuthController {
         `${frontendUrl}/login?error=google_login_failed&message=${errorMessage}`,
       );
     }
+  }
+
+  // ============= Two Factor =============
+
+  @Post('request-enable-2fa')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestEnable2FA(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestEnable2FA(userId, userAgent, ipAddress);
+
+    return { message: 'Code has been sent to your email.' };
+  }
+
+  @Post('enable-2fa')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async enable2FA(
+    @CurrentUser('id') userId: string,
+    @Body() enable2FADto: Enable2FADto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.enable2FA(
+      userId,
+      enable2FADto,
+      userAgent,
+      ipAddress,
+    );
+  }
+
+  @Public()
+  @Post('verify-login-2fa')
+  @HttpCode(200)
+  async verifyLogin2FA(
+    @Body() dto: VerifyLogin2FADto,
+    @Headers('user-agent') userAgent: string,
+    @Ip() ipAddress: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.verifyLogin2FA(
+      dto,
+      userAgent,
+      ipAddress,
+    );
+
+    this.setAuthCookies(response, result);
+
+    return result;
+  }
+
+  @Post('request-disable-2fa')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestDisable2FA(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.requestDisable2FA(
+      userId,
+      userAgent,
+      ipAddress,
+    );
+  }
+
+
+  @Post('disable-2fa')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async disable2FA(@CurrentUser('id') userId: string, @Body() disable2FADto: Disable2FADto, @Ip() ipAddress: string, @Headers('user-agent') userAgent: string) {
+    return this.authService.disable2FA(userId, disable2FADto, userAgent, ipAddress)
   }
 
   // ============= ACCOUNT DEACTIVATION ROUTES =============
