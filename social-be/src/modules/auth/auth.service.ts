@@ -36,19 +36,24 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeUsernameDto } from './dto/change-username.dto';
 import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
 import { DeactivateAccountDto } from './dto/deactivate-account-dto';
-import { Enabled2FADto } from './dto/enabled-2fa.dto';
+import { Enable2FADto } from './dto/enable-2fa.dto';
+import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
+import { Disable2FADto } from './dto/disable-2fa.dto';
 
 const RESET_TTL_MINUTES = 15;
 const MAX_ACTIVE_EMAIL_CODES = 3;
 const EMAIL_UPDATE_CODE_PREFIX = 'email_update';
 const PASSWORD_UPDATE_CODE_PREFIX = 'password_update';
+const LOGIN_2FA_TTL_SECONDS = 5 * 60;
+const MAX_LOGIN_2FA_ATTEMPTS = 5;
 
 type AccountEmailCodePurpose =
   | 'password-reset'
   | 'email-update'
   | 'password-update'
   | 'deactivate-account'
-  | 'enabled-2fa'
+  | 'enable-2fa'
+  | 'disable-2fa'
 
 type AccountEmailCodePayload = {
   user: Pick<User, 'id' | 'email' | 'username'>;
@@ -66,6 +71,22 @@ type AuditContext = {
 type AccountEmailCodeData = {
   otpHash?: string;
   otp?: string;
+};
+
+type Login2FAChallengeResponse = {
+  requires2FA: true;
+  challengeId: string;
+  maskedEmail: string;
+};
+
+type LoginResponse = AuthResponseDto | Login2FAChallengeResponse;
+
+type Login2FAChallengeData = {
+  userId: string;
+  otpHash: string;
+  attempts: number;
+  createdIp?: string;
+  createdUa?: string;
 };
 
 @Injectable()
@@ -142,7 +163,7 @@ export class AuthService {
     loginDto: LoginDto,
     ipAddress?: string,
     userAgent?: string,
-  ): Promise<AuthResponseDto> {
+  ): Promise<LoginResponse> {
     const { account, password } = loginDto;
 
     // Find user by email or username
@@ -168,6 +189,9 @@ export class AuthService {
 
     this.assertActiveAccount(user);
 
+    if (user.twoFactorEnabled) {
+      return this.createAndSendLogin2FAChallenge(user, userAgent, ipAddress);
+    }
     // Generate tokens with device info
     const tokens = await this.generateTokens(
       user.id,
@@ -181,6 +205,66 @@ export class AuthService {
       where: { id: user.id },
       data: { updatedAt: new Date() },
     });
+
+    return {
+      ...tokens,
+      user: this.transformUser(user),
+    };
+  }
+
+  async verifyLogin2FA(
+    dto: VerifyLogin2FADto,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<AuthResponseDto> {
+    const redisKey = this.getLogin2FAChallengeKey(dto.challengeId);
+    const rawData = await this.redisService.get(redisKey);
+
+    if (!rawData) {
+      throw new BadRequestException('2FA challenge is invalid or expired');
+    }
+
+    const data = JSON.parse(rawData) as Login2FAChallengeData;
+
+    if (data.attempts >= MAX_LOGIN_2FA_ATTEMPTS) {
+      await this.redisService.del(redisKey);
+      throw new BadRequestException('Too many invalid attempts');
+    }
+
+    const isValidOtp = await HashUtil.compare(
+      this.normalizeEmailCode(dto.otp),
+      data.otpHash,
+    );
+
+    if (!isValidOtp) {
+      await this.redisService.set(
+        redisKey,
+        JSON.stringify({
+          ...data,
+          attempts: data.attempts + 1,
+        }),
+        LOGIN_2FA_TTL_SECONDS,
+      );
+
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    this.assertActiveAccount(user);
+
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      userAgent,
+      ipAddress,
+    );
+
+    await this.redisService.del(redisKey);
 
     return {
       ...tokens,
@@ -868,9 +952,7 @@ export class AuthService {
         throw new Error(`Google avatar download failed: ${response.status}`);
       }
 
-      const contentType = (
-        response.headers.get('content-type') ?? 'image/jpeg'
-      )
+      const contentType = (response.headers.get('content-type') ?? 'image/jpeg')
         .split(';')[0]
         .trim();
       if (!contentType.startsWith('image/')) {
@@ -884,7 +966,9 @@ export class AuthService {
       };
       const extension = extensionByContentType[contentType];
       if (!extension) {
-        throw new Error(`Unsupported Google avatar content type: ${contentType}`);
+        throw new Error(
+          `Unsupported Google avatar content type: ${contentType}`,
+        );
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
@@ -921,19 +1005,154 @@ export class AuthService {
     }
   }
 
-  async requestEnable2FA(userId: string, userAgent?: string, ipAddress?: string): Promise<void> {
+  async requestEnable2FA(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    this.assertActiveAccount(user);
+
+    if (user.twoFactorEnabled) {
+      throw new ConflictException(
+        'Two-factor authentication is already enabled.',
+      );
+    }
+
+    await this.createAndSendAccountEmailCode({
+      user,
+      purpose: 'enable-2fa',
+      userAgent,
+      ipAddress,
+    });
+  }
+
+  async enable2FA(
+    userId: string,
+    enabled2FADto: Enable2FADto,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ message: string }> {
+    const { otp } = enabled2FADto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    this.assertActiveAccount(user);
+
+    if (user.twoFactorEnabled) {
+      throw new ConflictException(
+        'Two-factor authentication is already enabled.',
+      );
+    }
+
+    const { redisKey } = await this.verifyAccountEmailCode(
+      'enable-2fa',
+      userId,
+      otp,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          twoFactorEnabled: true,
+          twoFactorEnabledAt: new Date(),
+          twoFactorMethod: 'EMAIL',
+        },
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'ENABLE_TWO_FACTOR',
+          userAgent,
+          ipAddress,
+          metadata: {
+            method: 'EMAIL',
+          },
+        }),
+      }),
+    ]);
+
+    await this.redisService.del(redisKey);
+
+    return { message: 'Two-factor authentication enabled successfully.' };
+  }
+
+  async requestDisable2FA(userId: string, userAgent?: string, ipAddress?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
     if (!user) throw new NotFoundException("User not found");
+    this.assertActiveAccount(user)
+
+    if (!user.twoFactorEnabled) {
+      throw new ConflictException("Two-factor authentication not enabled.");
+    }
 
     await this.createAndSendAccountEmailCode({
       user,
-      purpose: 'enabled-2fa',
+      purpose: 'disable-2fa',
       userAgent,
       ipAddress
     })
+
+    return { message: 'Verification code has been sent to your email.' };
+  }
+
+  async disable2FA(userId: string, disable2FADto: Disable2FADto, userAgent?: string, ipAddress?: string): Promise<{ message: string }> {
+    const { otp } = disable2FADto;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!user) throw new NotFoundException("User not found");
+
+    this.assertActiveAccount(user);
+
+    if (!user.twoFactorEnabled) {
+      throw new ConflictException('Two-factor authentication is not enabled.');
+    }
+
+    const { redisKey } = await this.verifyAccountEmailCode(
+      'disable-2fa',
+      userId,
+      otp
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          twoFactorEnabled: false,
+          twoFactorMethod: null,
+          twoFactorEnabledAt: null,
+          twoFactorSecret: null
+        }
+      }),
+      this.prisma.auditLog.create({
+        data: this.createAuditLogData({
+          userId,
+          action: 'DISABLE_TWO_FACTOR',
+          userAgent,
+          ipAddress,
+        })
+      })
+    ]);
+
+    await this.redisService.del(redisKey);
+    return { message: 'Two-factor authentication disabled successfully' }
   }
 
   async requestUpdateEmail(
@@ -1187,6 +1406,45 @@ export class AuthService {
     });
   }
 
+  private async createAndSendLogin2FAChallenge(
+    user: Pick<User, 'id' | 'email' | 'username'>,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<Login2FAChallengeResponse> {
+    const challengeId = crypto.randomUUID();
+    const rawCode = generateResetCode();
+    const otpHash = await HashUtil.hash(rawCode);
+
+    await this.redisService.set(
+      this.getLogin2FAChallengeKey(challengeId),
+      JSON.stringify({
+        userId: user.id,
+        otpHash,
+        attempts: 0,
+        createdIp: ipAddress,
+        createdUa: userAgent,
+      } satisfies Login2FAChallengeData),
+      LOGIN_2FA_TTL_SECONDS,
+    );
+
+    await this.mailService.sendAccountCodeEmail({
+      to: user.email,
+      code: rawCode,
+      username: user.username,
+      purpose: 'login-2fa',
+    });
+
+    return {
+      requires2FA: true,
+      challengeId,
+      maskedEmail: this.maskEmail(user.email),
+    };
+  }
+
+  private getLogin2FAChallengeKey(challengeId: string): string {
+    return `login-2fa:${challengeId}`;
+  }
+
   private getAccountEmailCodeKey(
     purpose: AccountEmailCodePurpose,
     userId: string,
@@ -1295,6 +1553,9 @@ export class AuthService {
       createdAt: user.createdAt,
       dateOfBirth: user.dateOfBirth,
       hasPassword: Boolean(user.passwordHash),
+      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorMethod: user.twoFactorMethod,
+      twoFactorEnabledAt: user.twoFactorEnabledAt,
     };
   }
 
@@ -1314,5 +1575,28 @@ export class AuthService {
         delay: 1000, // Delay 1s before cleanup
       },
     );
+  }
+
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split('@');
+
+    if (!name || !domain) return email;
+
+    const maskedName =
+      name.length <= 2
+        ? `${name[0]}***`
+        : `${name[0]}***${name[name.length - 1]}`;
+
+    const [domainName, ...tldParts] = domain.split('.');
+    const tld = tldParts.join('.');
+
+    const maskedDomain =
+      domainName.length <= 2
+        ? `${domainName[0]}***`
+        : `${domainName[0]}***${domainName[domainName.length - 1]}`;
+
+    return tld
+      ? `${maskedName}@${maskedDomain}.${tld}`
+      : `${maskedName}@${domain}`;
   }
 }

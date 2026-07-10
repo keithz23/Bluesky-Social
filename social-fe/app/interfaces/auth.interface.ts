@@ -49,3 +49,11 @@ export interface ChangeBirthDayData {
 export interface DeactivateAccountData {
   otp: string;
 }
+
+export interface Enable2FAData {
+  otp: string;
+}
+
+export interface Disable2FAData {
+  otp: string;
+}
