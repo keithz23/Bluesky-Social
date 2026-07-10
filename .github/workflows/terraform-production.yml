@@ -51,7 +51,7 @@ jobs:
       TF_VAR_rds_password: ${{ secrets.PROD_RDS_PASSWORD }}
       TF_VAR_s3_media_bucket_name: ${{ vars.PROD_S3_MEDIA_BUCKET_NAME }}
       TF_VAR_redis_serverless_cache_name: ${{ vars.PROD_REDIS_SERVERLESS_CACHE_NAME }}
-      TF_VAR_dev_post_bots_enabled: ${{vars.DEV_POST_BOTS_ENABLEDDEV_POST_BOTS_ENABLED}}
+      TF_VAR_dev_post_bots_enabled: ${{vars.DEV_POST_BOTS_ENABLED}}
       TF_VAR_dev_post_bots_interval_ms: ${{vars.DEV_POST_BOTS_INTERVAL_MS}}
 
     steps:
