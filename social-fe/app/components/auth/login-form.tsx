@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { clearAuthLogoutLock } from "@/app/utils/auth-cache.util";
 
-const otpPattern = /^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/;
+const otpPattern = /^(\d{6}|KNT-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})$/i;
 
 const loginSchema = z.object({
   account: z.string().min(1, "Username or email is required"),
@@ -71,7 +71,7 @@ export default function LoginForm() {
       if (!otpPattern.test(otp)) {
         setError("otp", {
           type: "validate",
-          message: "Verification code should look like XXXXX-XXXXX.",
+          message: "Enter a 6-digit authenticator code or recovery code.",
         });
         return;
       }
@@ -131,28 +131,29 @@ export default function LoginForm() {
     clearErrors("otp");
   };
 
-  const isSubmitting =
-    loginStep === "2fa" ? isVerifyingLogin2FA : isLoggingIn;
+  const isSubmitting = loginStep === "2fa" ? isVerifyingLogin2FA : isLoggingIn;
   const isSubmitDisabled =
     isSubmitting || (loginStep === "2fa" ? !otpValue?.trim() : !isValid);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-4">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className={`w-full ${loginStep === "2fa" ? "space-y-4" : "space-y-4"}`}
+    >
       {loginStep === "2fa" && (
-        <div className="space-y-2 rounded-[18px] bg-blue-50 px-4 py-3 text-sm text-slate-700">
+        <div className="space-y-2 rounded-[16px] bg-[#eef4ff] px-4 py-3 text-sm text-slate-700">
           <button
             type="button"
             onClick={goBackToPasswordStep}
-            className="mb-1 inline-flex items-center gap-2 font-medium text-blue-600 hover:underline"
+            className="mb-0.5 inline-flex cursor-pointer items-center gap-2 font-medium text-blue-600 hover:underline"
           >
             <ArrowLeft className="size-4" />
             Back
           </button>
-          <p className="font-medium text-slate-900">Enter verification code</p>
-          <p>
-            We sent a sign-in code to{" "}
-            <span className="font-semibold">{twoFAChallenge?.maskedEmail}</span>
-            .
+          <p className="font-normal text-slate-950">Enter authenticator code</p>
+          <p className="leading-5 text-slate-700">
+            Open your authenticator app and enter the 6-digit code. You can also
+            use a recovery code.
           </p>
         </div>
       )}
@@ -249,21 +250,21 @@ export default function LoginForm() {
       )}
 
       {loginStep === "2fa" && (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 pt-2">
           <Label htmlFor="verificationCode" className="sr-only">
-            Verification Code
+            Authenticator or recovery code
           </Label>
           <div className="relative">
             <Input
               id="verificationCode"
               type="text"
               autoComplete="one-time-code"
-              placeholder="Verification code"
+              placeholder="000000 or recovery code"
               aria-invalid={Boolean(errors.otp)}
               {...register("otp", {
                 onChange: () => clearErrors("otp"),
               })}
-              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+              className={`h-14 rounded-[16px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
                 ${errors.otp ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
               `}
             />
@@ -300,7 +301,7 @@ export default function LoginForm() {
 
       <Button
         type="submit"
-        className="mt-2 h-12 w-full rounded-full bg-blue-600 font-bold text-white shadow-none hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
+        className={`${loginStep === "2fa" ? "mt-6 h-12" : "mt-2 h-12"} w-full rounded-full bg-blue-600 font-bold text-white shadow-none hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400`}
         disabled={isSubmitDisabled}
       >
         {isSubmitting ? (
