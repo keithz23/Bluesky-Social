@@ -170,7 +170,13 @@ jobs:
               "REDIS_HOST",
               "GOOGLE_CLIENT_ID",
               "GOOGLE_CLIENT_SECRET",
-              "GOOGLE_CALLBACK_URL"
+              "GOOGLE_CALLBACK_URL",
+              "MAIL_HOST",
+              "MAIL_PORT",
+              "MAIL_SECURE",
+              "MAIL_USER",
+              "MAIL_PASSWORD",
+              "MAIL_FROM"
             ] as $required
             | (.containerDefinitions[] | select(.name == $container) | .environment // []) as $env
             | $required
@@ -203,7 +209,13 @@ jobs:
                   "REDIS_HOST",
                   "GOOGLE_CLIENT_ID",
                   "GOOGLE_CLIENT_SECRET",
-                  "GOOGLE_CALLBACK_URL"
+                  "GOOGLE_CALLBACK_URL",
+                  "MAIL_HOST",
+                  "MAIL_PORT",
+                  "MAIL_SECURE",
+                  "MAIL_USER",
+                  "MAIL_PASSWORD",
+                  "MAIL_FROM"
                 ] as $required
                 | (.containerDefinitions[] | select(.name == $container) | .environment // []) as $env
                 | $required
