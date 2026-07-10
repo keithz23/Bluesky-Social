@@ -28,17 +28,17 @@ export class S3Service {
       region: this.region,
       ...(accessKeyId && secretAccessKey
         ? {
-          credentials: {
-            accessKeyId,
-            secretAccessKey,
-          },
-        }
+            credentials: {
+              accessKeyId,
+              secretAccessKey,
+            },
+          }
         : {}),
       ...(process.env.AWS_ENDPOINT
         ? {
-          endpoint: process.env.AWS_ENDPOINT,
-          forcePathStyle: true,
-        }
+            endpoint: process.env.AWS_ENDPOINT,
+            forcePathStyle: true,
+          }
         : {}),
     });
   }

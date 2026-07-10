@@ -34,4 +34,4 @@ import { UploadModule } from 'src/uploads/upload.module';
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RefreshJwtStrategy, GoogleStrategy],
 })
-export class AuthModule { }
+export class AuthModule {}

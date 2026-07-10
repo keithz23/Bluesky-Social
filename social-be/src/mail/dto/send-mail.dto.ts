@@ -9,7 +9,7 @@ export type MailType =
   | 'request-deactivate-account-otp'
   | 'request-enable-2fa'
   | 'login-2fa'
-  | 'request-disable-2fa'
+  | 'request-disable-2fa';
 
 export type AccountCodeMailPurpose =
   | 'password-reset'
@@ -18,7 +18,7 @@ export type AccountCodeMailPurpose =
   | 'deactivate-account'
   | 'enable-2fa'
   | 'login-2fa'
-  | 'disable-2fa'
+  | 'disable-2fa';
 
 export interface SendMailDto {
   to: string;

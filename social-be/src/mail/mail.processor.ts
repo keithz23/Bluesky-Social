@@ -126,10 +126,11 @@ export class MailProcessor extends WorkerHost {
           subject ||= 'Code to reset your password';
           html = this.renderTemplate('forgot', {
             ...context,
-            resetUrl: `${this.appUrl}/auth/reset-password${context.redirect
-              ? `?redirect=${encodeURIComponent(context.redirect)}`
-              : ''
-              }`,
+            resetUrl: `${this.appUrl}/auth/reset-password${
+              context.redirect
+                ? `?redirect=${encodeURIComponent(context.redirect)}`
+                : ''
+            }`,
           });
           break;
         }
@@ -155,24 +156,24 @@ export class MailProcessor extends WorkerHost {
           break;
         }
         case 'request-enable-2fa': {
-          ((subject ||= 'Your two-factor authentication code'),
-            (html = this.renderTemplate('request-enable-2fa', {
-              ...context,
-            })));
+          subject ||= 'Your two-factor authentication code';
+          html = this.renderTemplate('request-enable-2fa', {
+            ...context,
+          });
           break;
         }
         case 'request-disable-2fa': {
-          ((subject ||= 'Your two-factor authentication code'),
-            (html = this.renderTemplate('request-disable-2fa', {
-              ...context,
-            })));
+          subject ||= 'Your two-factor authentication code';
+          html = this.renderTemplate('request-disable-2fa', {
+            ...context,
+          });
           break;
         }
         case 'login-2fa': {
-          ((subject ||= 'Your Sign-In Verification Code'),
-            (html = this.renderTemplate('login-2fa', {
-              ...context,
-            })));
+          subject ||= 'Your Sign-In Verification Code';
+          html = this.renderTemplate('login-2fa', {
+            ...context,
+          });
           break;
         }
         case 'welcome':

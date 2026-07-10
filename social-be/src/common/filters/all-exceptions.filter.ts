@@ -72,7 +72,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } catch (sendErr) {
       this.logger.error(
         'Failed to send error response from exception filter',
-        sendErr as any,
+        sendErr,
       );
     }
   }

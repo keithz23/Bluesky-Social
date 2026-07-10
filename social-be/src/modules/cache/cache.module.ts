@@ -14,7 +14,7 @@ import { REDIS_CLIENT } from './redis-client.token';
       useFactory: (cfg: ConfigService) => {
         return new Redis(
           createRedisOptions(cfg, {
-          maxRetriesPerRequest: 3,
+            maxRetriesPerRequest: 3,
           }),
         );
       },
@@ -23,4 +23,4 @@ import { REDIS_CLIENT } from './redis-client.token';
   ],
   exports: [REDIS_CLIENT, CacheService],
 })
-export class CacheModule { }
+export class CacheModule {}

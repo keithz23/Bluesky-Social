@@ -15,7 +15,7 @@ export class FollowsService {
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
     private readonly feedFanoutQueue: Queue,
-  ) { }
+  ) {}
 
   async follow(followerId: string, followingId: string) {
     if (followerId == followingId) {
