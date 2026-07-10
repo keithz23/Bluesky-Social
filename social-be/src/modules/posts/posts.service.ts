@@ -43,7 +43,7 @@ export class PostsService {
     private imageProcessingQueue: Queue,
     @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
     private feedFanoutQueue: Queue,
-  ) { }
+  ) {}
 
   async create(
     userId: string,
@@ -477,14 +477,14 @@ export class PostsService {
         isReposted: repostedSet.has(post.id),
         user: userInfo
           ? {
-            ...userInfo,
-            followStatus:
-              userInfo.id === currentUserId
-                ? null
-                : followingSet.has(userInfo.id)
-                  ? 'following'
-                  : 'none',
-          }
+              ...userInfo,
+              followStatus:
+                userInfo.id === currentUserId
+                  ? null
+                  : followingSet.has(userInfo.id)
+                    ? 'following'
+                    : 'none',
+            }
           : null,
       })),
       nextCursor,
@@ -793,21 +793,21 @@ export class PostsService {
       }),
       parentIds.length > 0
         ? this.prisma.like.findMany({
-          where: { userId, postId: { in: parentIds } },
-          select: { postId: true },
-        })
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
         : [],
       parentIds.length > 0
         ? this.prisma.bookmark.findMany({
-          where: { userId, postId: { in: parentIds } },
-          select: { postId: true },
-        })
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
         : [],
       parentIds.length > 0
         ? this.prisma.repost.findMany({
-          where: { userId, postId: { in: parentIds } },
-          select: { postId: true },
-        })
+            where: { userId, postId: { in: parentIds } },
+            select: { postId: true },
+          })
         : [],
       this.prisma.follow.findMany({
         where: {
@@ -895,7 +895,9 @@ export class PostsService {
     if (!post) throw new NotFoundException('Post not found');
 
     if (post.userId !== userId)
-      throw new ForbiddenException('You are not authorized to update this post');
+      throw new ForbiddenException(
+        'You are not authorized to update this post',
+      );
 
     const keepMediaIds =
       updatePostDto.keepMediaIds === undefined
@@ -916,7 +918,9 @@ export class PostsService {
     const keptMedia = post.media.filter((media) =>
       keepMediaIds.includes(media.id),
     );
-    const hasKeptGif = keptMedia.some((media) => media.mediaType === MediaType.GIF);
+    const hasKeptGif = keptMedia.some(
+      (media) => media.mediaType === MediaType.GIF,
+    );
     const hasKeptImage = keptMedia.some(
       (media) => media.mediaType === MediaType.IMAGE,
     );
@@ -1161,7 +1165,10 @@ export class PostsService {
 
       if (mediaToDelete.length > 0) {
         const keys = mediaToDelete
-          .map((media) => media.storageKey ?? this.extractKeyFromUrl(media.mediaUrl))
+          .map(
+            (media) =>
+              media.storageKey ?? this.extractKeyFromUrl(media.mediaUrl),
+          )
           .filter(Boolean);
         if (keys.length > 0) {
           await this.scheduleCleanup(keys, 'post_deleted');
@@ -1580,9 +1587,7 @@ export class PostsService {
     const hasMore = replies.length > pageSize;
     if (hasMore) replies.pop();
 
-    const nextCursor = hasMore
-      ? replies[replies.length - 1].id
-      : null;
+    const nextCursor = hasMore ? replies[replies.length - 1].id : null;
 
     const replyIds = replies.map((r) => r.id);
     const authorIds = [...new Set(replies.map((r) => r.user.id))];

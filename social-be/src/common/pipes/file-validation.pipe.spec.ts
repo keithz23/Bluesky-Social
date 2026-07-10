@@ -44,10 +44,7 @@ describe('ImageValidationPipe', () => {
   });
 
   it('rejects uploads over the configured file limit', () => {
-    const pipe = new ImageValidationPipe(
-      IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
-      1,
-    );
+    const pipe = new ImageValidationPipe(IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES, 1);
 
     expect(() => pipe.transform([makeFile(), makeFile()])).toThrow(
       BadRequestException,
@@ -58,9 +55,7 @@ describe('ImageValidationPipe', () => {
     const pipe = new ImageValidationPipe();
 
     expect(() =>
-      pipe.transform(
-        makeFile({ size: IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES + 1 }),
-      ),
+      pipe.transform(makeFile({ size: IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES + 1 })),
     ).toThrow(BadRequestException);
   });
 

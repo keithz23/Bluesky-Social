@@ -31,7 +31,7 @@ import { ModerationModule } from './modules/moderation/moderation.module';
 import { createRedisOptions } from './config/redis-options';
 import { DevDataModule } from './modules/dev-data/dev-data.module';
 
-@Module({ 
+@Module({
   imports: [
     // Configuration
     ConfigModule.forRoot({
@@ -120,4 +120,4 @@ import { DevDataModule } from './modules/dev-data/dev-data.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -1,4 +1,4 @@
-export type ReplyType = "anyone" | "nobody" | "custom";
+export type ReplyType = 'anyone' | 'nobody' | 'custom';
 
 export interface ReplyPrivacy {
   type: ReplyType;
