@@ -51,7 +51,9 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('request-email-otp');
     this.loadTemplate('request-pwd-otp');
     this.loadTemplate('request-deactivate-account-otp');
-    this.loadTemplate('request-enabled-2fa')
+    this.loadTemplate('request-enable-2fa');
+    this.loadTemplate('request-disable-2fa');
+    this.loadTemplate('login-2fa');
   }
 
   private loadTemplate(name: string): void {
@@ -152,11 +154,25 @@ export class MailProcessor extends WorkerHost {
           });
           break;
         }
-        case 'request-enabled-2fa': {
-          subject ||= 'Your two-factor authentication code',
-            html = this.renderTemplate('request-enabled-2fa', {
-              ...context
-            })
+        case 'request-enable-2fa': {
+          ((subject ||= 'Your two-factor authentication code'),
+            (html = this.renderTemplate('request-enable-2fa', {
+              ...context,
+            })));
+          break;
+        }
+        case 'request-disable-2fa': {
+          ((subject ||= 'Your two-factor authentication code'),
+            (html = this.renderTemplate('request-disable-2fa', {
+              ...context,
+            })));
+          break;
+        }
+        case 'login-2fa': {
+          ((subject ||= 'Your Sign-In Verification Code'),
+            (html = this.renderTemplate('login-2fa', {
+              ...context,
+            })));
           break;
         }
         case 'welcome':

@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,11 +14,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { clearAuthLogoutLock } from "@/app/utils/auth-cache.util";
 
+const otpPattern = /^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/;
+
 const loginSchema = z.object({
   account: z.string().min(1, "Username or email is required"),
-  password: z
-    .string()
-    .min(1, "Password is required")
+  password: z.string().min(1, "Password is required"),
+  otp: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -26,12 +27,22 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [loginStep, setLoginStep] = useState<"password" | "2fa">("password");
+  const [twoFAChallenge, setTwoFAChallenge] = useState<{
+    challengeId: string;
+    maskedEmail: string;
+  } | null>(null);
+
   const googleAuthUrl = process.env.NEXT_PUBLIC_API_URL
     ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
     : "";
   const {
     register,
     handleSubmit,
+    watch,
+    setError,
+    clearErrors,
+    resetField,
     formState: { errors, isValid },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -39,15 +50,70 @@ export default function LoginForm() {
     defaultValues: {
       account: "",
       password: "",
+      otp: "",
     },
   });
-  const { loginMutation, isLoggingIn } = useAuth();
+  const {
+    loginMutation,
+    verifyLogin2FAMutation,
+    isLoggingIn,
+    isVerifyingLogin2FA,
+  } = useAuth();
+
+  const otpValue = watch("otp");
 
   const onSubmit = (data: LoginFormValues) => {
+    if (loginStep === "2fa") {
+      if (!twoFAChallenge) return;
+
+      const otp = data.otp?.trim() ?? "";
+
+      if (!otpPattern.test(otp)) {
+        setError("otp", {
+          type: "validate",
+          message: "Verification code should look like XXXXX-XXXXX.",
+        });
+        return;
+      }
+
+      verifyLogin2FAMutation.mutate(
+        {
+          challengeId: twoFAChallenge.challengeId,
+          otp,
+        },
+        {
+          onSuccess: () => {
+            router.replace("/");
+            router.refresh();
+          },
+          onError: (error) => {
+            console.error("2FA verification error:", error);
+          },
+        },
+      );
+      return;
+    }
+
     loginMutation.mutate(
-      { loginDto: data },
       {
-        onSuccess: () => {
+        loginDto: {
+          account: data.account,
+          password: data.password,
+        },
+      },
+      {
+        onSuccess: (result) => {
+          if ("requires2FA" in result) {
+            setTwoFAChallenge({
+              challengeId: result.challengeId,
+              maskedEmail: result.maskedEmail,
+            });
+            resetField("otp");
+            clearErrors("otp");
+            setLoginStep("2fa");
+            return;
+          }
+
           router.replace("/");
           router.refresh();
         },
@@ -58,9 +124,40 @@ export default function LoginForm() {
     );
   };
 
+  const goBackToPasswordStep = () => {
+    setLoginStep("password");
+    setTwoFAChallenge(null);
+    resetField("otp");
+    clearErrors("otp");
+  };
+
+  const isSubmitting =
+    loginStep === "2fa" ? isVerifyingLogin2FA : isLoggingIn;
+  const isSubmitDisabled =
+    isSubmitting || (loginStep === "2fa" ? !otpValue?.trim() : !isValid);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-4">
-      {googleAuthUrl && (
+      {loginStep === "2fa" && (
+        <div className="space-y-2 rounded-[18px] bg-blue-50 px-4 py-3 text-sm text-slate-700">
+          <button
+            type="button"
+            onClick={goBackToPasswordStep}
+            className="mb-1 inline-flex items-center gap-2 font-medium text-blue-600 hover:underline"
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </button>
+          <p className="font-medium text-slate-900">Enter verification code</p>
+          <p>
+            We sent a sign-in code to{" "}
+            <span className="font-semibold">{twoFAChallenge?.maskedEmail}</span>
+            .
+          </p>
+        </div>
+      )}
+
+      {loginStep === "password" && googleAuthUrl && (
         <Button
           type="button"
           variant="outline"
@@ -75,7 +172,7 @@ export default function LoginForm() {
         </Button>
       )}
 
-      {googleAuthUrl && (
+      {loginStep === "password" && googleAuthUrl && (
         <div className="flex items-center gap-4 py-2">
           <div className="h-px flex-1 bg-slate-200" />
           <span className="text-xs font-medium uppercase text-slate-500">
@@ -85,89 +182,133 @@ export default function LoginForm() {
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="account" className="sr-only">
-          Email or username
-        </Label>
-        <div className="relative">
-          <Input
-            id="account"
-            type="text"
-            autoComplete="username"
-            placeholder="Email or username *"
-            aria-invalid={Boolean(errors.account)}
-            {...register("account")}
-            className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
-              ${errors.account ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
-            `}
-          />
+      {loginStep === "password" && (
+        <>
+          <div className="space-y-1.5">
+            <Label htmlFor="account" className="sr-only">
+              Email or username
+            </Label>
+            <div className="relative">
+              <Input
+                id="account"
+                type="text"
+                autoComplete="username"
+                placeholder="Email or username *"
+                aria-invalid={Boolean(errors.account)}
+                {...register("account")}
+                className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+                  ${errors.account ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
+                `}
+              />
+            </div>
+            {errors.account && (
+              <p className="ml-1 text-xs font-medium text-red-500">
+                {errors.account.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="sr-only">
+              Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Password *"
+                aria-invalid={Boolean(errors.password)}
+                {...register("password")}
+                className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 pr-12 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+                  ${errors.password ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
+                `}
+              />
+
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((current) => !current)}
+                className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-200"
+                tabIndex={1}
+              >
+                {showPassword ? (
+                  <EyeOff className="size-5" />
+                ) : (
+                  <Eye className="size-5" />
+                )}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="ml-1 text-xs font-medium text-red-500">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {loginStep === "2fa" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="verificationCode" className="sr-only">
+            Verification Code
+          </Label>
+          <div className="relative">
+            <Input
+              id="verificationCode"
+              type="text"
+              autoComplete="one-time-code"
+              placeholder="Verification code"
+              aria-invalid={Boolean(errors.otp)}
+              {...register("otp", {
+                onChange: () => clearErrors("otp"),
+              })}
+              className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+                ${errors.otp ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
+              `}
+            />
+          </div>
+          {errors.otp && (
+            <p className="ml-1 text-xs font-medium text-red-500">
+              {errors.otp.message}
+            </p>
+          )}
         </div>
-        {errors.account && (
-          <p className="ml-1 text-xs font-medium text-red-500">
-            {errors.account.message}
-          </p>
-        )}
-      </div>
+      )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="password" className="sr-only">
-          Password
-        </Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="Password *"
-            aria-invalid={Boolean(errors.password)}
-            {...register("password")}
-            className={`h-14 rounded-[18px] border-none bg-[#eef3f6] px-4 pr-12 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
-              ${errors.password ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
-            `}
-          />
-
-          <button
-            type="button"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-200"
+      {loginStep === "password" && (
+        <div className="space-y-3 pt-2 text-sm">
+          <Link
+            href="/forgot"
+            className="font-medium text-blue-600 hover:underline"
             tabIndex={1}
           >
-            {showPassword ? (
-              <EyeOff className="size-5" />
-            ) : (
-              <Eye className="size-5" />
-            )}
-          </button>
-        </div>
-        {errors.password && (
-          <p className="ml-1 text-xs font-medium text-red-500">
-            {errors.password.message}
-          </p>
-        )}
-      </div>
-
-      <div className="space-y-3 pt-2 text-sm">
-        <Link href="/forgot" className="font-medium text-blue-600 hover:underline" tabIndex={1}>
-          Forgot password?
-        </Link>
-        <p className="text-slate-700">
-          New to Konekt?{" "}
-          <Link href="/signup" className="font-medium text-blue-600 hover:underline" tabIndex={1}>
-            Sign Up
+            Forgot password?
           </Link>
-        </p>
-      </div>
+          <p className="text-slate-700">
+            New to Konekt?{" "}
+            <Link
+              href="/signup"
+              className="font-medium text-blue-600 hover:underline"
+              tabIndex={1}
+            >
+              Sign Up
+            </Link>
+          </p>
+        </div>
+      )}
 
       <Button
         type="submit"
         className="mt-2 h-12 w-full rounded-full bg-blue-600 font-bold text-white shadow-none hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
-        disabled={isLoggingIn || !isValid}
+        disabled={isSubmitDisabled}
       >
-        {isLoggingIn ? (
+        {isSubmitting ? (
           <>
             <Spinner /> Processing
           </>
+        ) : loginStep === "2fa" ? (
+          "Verify Code"
         ) : (
           "Log In"
         )}

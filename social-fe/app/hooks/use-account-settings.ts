@@ -13,6 +13,8 @@ type useAccountSettingsOptions = {
   onRequestEmailCodeSuccess?: () => void;
   onRequestPasswordCodeSuccess?: () => void;
   onRequestDeactivateCodeSuccess?: () => void;
+  onRequestEnable2FACodeSuccess?: () => void;
+  onRequestDisable2FACodeSuccess?: () => void;
 };
 
 export const useAccountSettings = (options?: useAccountSettingsOptions) => {
@@ -116,6 +118,45 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     onError: (err) => toast.error(extractErrMsg(err)),
   });
 
+  const requestEnable2FAMutation = useMutation({
+    mutationFn: () => AuthService.requestEnable2FA(),
+    onSuccess: () => {
+      toast.success("Verification code sent.");
+      options?.onRequestEnable2FACodeSuccess?.();
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
+  const enable2FAMutation = useMutation({
+    mutationFn: (payload: { otp: string }) => AuthService.enable2FA(payload),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      toast.success("Two-factor authentication enabled.");
+      options?.onSuccess?.();
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
+
+  const requestDisable2FAMutation = useMutation({
+    mutationFn: () => AuthService.requestDisable2FA(),
+    onSuccess: () => {
+      toast.success("Verification code sent.");
+      options?.onRequestDisable2FACodeSuccess?.();
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
+  const disable2FAMutation = useMutation({
+    mutationFn: (payload: { otp: string }) => AuthService.disable2FA(payload),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      toast.success("Two-factor authentication disabled.");
+      options?.onSuccess?.();
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
   return {
     requestUpdateEmailMutation,
     updateEmailMutation,
@@ -125,6 +166,10 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     changeBirthDayMutation,
     requestDeactivateAccountMutation,
     deactivateAccountMutation,
+    requestEnable2FAMutation,
+    enable2FAMutation,
+    requestDisable2FAMutation,
+    disable2FAMutation,
 
     isRequestingEmailCode: requestUpdateEmailMutation.isPending,
     isUpdatingEmail: updateEmailMutation.isPending,
@@ -134,5 +179,9 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     isChangingBirthday: changeBirthDayMutation.isPending,
     isRequestingDeactivateCode: requestDeactivateAccountMutation.isPending,
     isDeactivatingAccount: deactivateAccountMutation.isPending,
+    isRequestingEnable2FA: requestEnable2FAMutation.isPending,
+    isEnable2FA: enable2FAMutation.isPending,
+    isRequestingDisable2FA: requestDisable2FAMutation.isPending,
+    isDisabling2FA: disable2FAMutation.isPending
   };
 };
