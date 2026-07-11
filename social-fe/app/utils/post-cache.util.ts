@@ -24,7 +24,8 @@ export const snapshotPostCaches = (qc: QueryClient) => ({
   bookmarks: qc.getQueryData(["bookmarks"]),
   reposts: qc.getQueryData(["reposts"]),
   userPosts: qc.getQueriesData({ queryKey: ["userPosts"] }),
-  postDetails: qc.getQueriesData({ queryKey: ["post-detail"] })
+  postDetails: qc.getQueriesData({ queryKey: ["post-detail"] }),
+  replies: qc.getQueriesData({ queryKey: ["replies"] }),
 })
 
 export const rollbackPostCaches = (qc: QueryClient, snapshot: ReturnType<typeof snapshotPostCaches>) => {
@@ -34,6 +35,7 @@ export const rollbackPostCaches = (qc: QueryClient, snapshot: ReturnType<typeof 
 
   snapshot.userPosts.forEach(([key, data]) => qc.setQueryData(key, data));
   snapshot.postDetails.forEach(([key, data]) => qc.setQueryData(key, data));
+  snapshot.replies.forEach(([key, data]) => qc.setQueryData(key, data));
 }
 
 export const updatePostEverywhere = (
@@ -43,6 +45,7 @@ export const updatePostEverywhere = (
 ) => {
   const postDetailKeys = qc.getQueriesData({ queryKey: ["post-detail"] });
   const userPostKeys = qc.getQueriesData({ queryKey: ["userPosts"] });
+  const replyKeys = qc.getQueriesData({ queryKey: ["replies"] });
 
   updatePostInCaches(
     qc,
@@ -51,6 +54,7 @@ export const updatePostEverywhere = (
       ["reposts"],
       ...postDetailKeys.map(([key]) => key as any[]),
       ...userPostKeys.map(([key]) => key as any[]),
+      ...replyKeys.map(([key]) => key as any[]),
     ],
     postId,
     updater,

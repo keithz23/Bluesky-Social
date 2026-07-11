@@ -39,14 +39,16 @@ interface ImagePreview {
 
 interface ReplyPostModalProps {
   post: Feed;
-  type?: "avatar-with-input" | "icon";
+  type?: "avatar-with-input" | "icon" | "text";
   disabled?: boolean;
+  initialText?: string;
 }
 
 export default function ReplyPostModal({
   post,
   type,
   disabled,
+  initialText = "",
 }: ReplyPostModalProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
@@ -151,6 +153,9 @@ export default function ReplyPostModal({
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       if (!requireAuth()) return;
+      if (initialText) {
+        setPostText((current) => current || initialText);
+      }
       setIsOpen(true);
       return;
     }
@@ -246,6 +251,16 @@ export default function ReplyPostModal({
               <span className="text-[15px] text-gray-500">
                 Write your reply
               </span>
+            </button>
+          ) : type === "text" ? (
+            <button
+              disabled={disabled}
+              className={`text-[12px] font-semibold text-gray-500 transition-colors ${disabled
+                ? "cursor-not-allowed opacity-50"
+                : "cursor-pointer hover:text-gray-900"
+                }`}
+            >
+              Reply
             </button>
           ) : (
             <button

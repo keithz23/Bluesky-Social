@@ -1308,6 +1308,7 @@ export class PostsService {
       select: {
         id: true,
         content: true,
+        parentPostId: true,
         rootPostId: true,
         userId: true,
         replyPolicy: true,
@@ -1328,6 +1329,14 @@ export class PostsService {
     }
 
     const rootPostId = parentPost.rootPostId ?? postId;
+    const isSecondLevelReply =
+      !!parentPost.rootPostId &&
+      !!parentPost.parentPostId &&
+      parentPost.parentPostId !== parentPost.rootPostId;
+    const replyParentPostId: string =
+      isSecondLevelReply && parentPost.parentPostId
+        ? parentPost.parentPostId
+        : postId;
 
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
@@ -1372,14 +1381,14 @@ export class PostsService {
         const created = await tx.post.create({
           data: {
             content: trimmedContent,
-            parentPostId: postId,
+            parentPostId: replyParentPostId,
             rootPostId,
             userId,
           },
         });
 
         await tx.post.update({
-          where: { id: postId },
+          where: { id: replyParentPostId },
           data: { replyCount: { increment: 1 } },
         });
 
@@ -1485,7 +1494,10 @@ export class PostsService {
       const reply = fullReply.reply;
       if (!reply) throw new Error('Failed to create reply');
 
-      this.socketGateway.emitToPost(postId, 'new-reply', reply);
+      this.socketGateway.emitToPost(replyParentPostId, 'new-reply', reply);
+      if (replyParentPostId !== postId) {
+        this.socketGateway.emitToPost(postId, 'new-reply', reply);
+      }
 
       if (parentPost.userId !== userId) {
         this.notificationService.sendNotification({
