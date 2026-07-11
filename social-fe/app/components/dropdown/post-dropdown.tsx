@@ -30,9 +30,16 @@ import { Pencil } from "lucide-react";
 interface PostDropDownProps {
   post: Feed;
   items: DropdownItem[];
+  triggerIcon?: React.ReactNode;
+  triggerClassName?: string;
 }
 
-export default function PostDropDown({ post, items }: PostDropDownProps) {
+export default function PostDropDown({
+  post,
+  items,
+  triggerIcon,
+  triggerClassName,
+}: PostDropDownProps) {
   const router = useRouter();
   const qc = useQueryClient();
   const { deletePost, isDeletingPost } = usePost();
@@ -193,8 +200,10 @@ export default function PostDropDown({ post, items }: PostDropDownProps) {
       onClick={(event) => event.stopPropagation()}
     >
       <DropdownMenu>
-        <DropdownMenuTrigger className="focus:outline-none cursor-pointer p-2 rounded-full hover:bg-slate-100 transition-colors">
-          <MoreHorizontal size={18} strokeWidth={2.2} />
+        <DropdownMenuTrigger
+          className={`focus:outline-none cursor-pointer p-2 rounded-full hover:bg-slate-100 transition-colors ${triggerClassName ?? ""}`}
+        >
+          {triggerIcon ?? <MoreHorizontal size={18} strokeWidth={2.2} />}
         </DropdownMenuTrigger>
 
         <DropdownMenuContent className="w-60 p-1 text-[#111827]" onClick={(e) => e.stopPropagation()}>

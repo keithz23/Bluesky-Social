@@ -1,42 +1,49 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Share } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ChevronLeft, ChevronRight, Heart, MoreHorizontal } from "lucide-react";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { PostMedia } from "@/app/interfaces/post.interface";
 import AvatarHoverCard from "./avatar-hover-card";
-import UserHoverCard from "./user-hover-card";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import ReplyPostModal from "../dialog/reply-post-dialog";
-import { REPLY_POLICY_CONFIG } from "@/app/constants/reply-policy.constant";
 import PostDropDown from "../dropdown/post-dropdown";
 import { dropdownItems } from "@/app/constants/dropdown.constant";
 import { PostContent } from "../post-content";
-import RepostButton from "../button/repost-button";
-import LikeButton from "../button/like-button";
-import BookMarkButton from "../button/bookmark-button";
-import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
-import { PhotoProvider, PhotoView } from "react-photo-view";
+import { useLike } from "@/app/hooks/use-like";
+import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 
 interface PostDetailCardProps {
   post: Feed;
   role?: "parent" | "main" | "reply";
   disabled?: boolean;
 }
+
+const formatCount = (count: number, label: string) => {
+  if (count <= 0) return null;
+  return `${count.toLocaleString()} ${label}${count === 1 ? "" : "s"}`;
+};
+
+const VerifiedBadge = () => (
+  <svg
+    viewBox="0 0 24 24"
+    aria-label="Verified account"
+    className="size-3.5 shrink-0 text-[#0066FF]"
+    fill="currentColor"
+  >
+    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.792-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.827 2.74 2.043 3.39-.11.457-.167.936-.167 1.41 0 2.21 1.71 4 3.918 4 .537 0 1.058-.11 1.536-.31.587 1.25 1.854 2.11 3.337 2.11 1.48 0 2.75-.86 3.336-2.11.478.2.998.31 1.536.31 2.21 0 3.918-1.79 3.918-4 0-.474-.057-.953-.167-1.41 1.216-.65 2.043-1.93 2.043-3.39zM10.25 16.5l-3.5-3.5 1.41-1.41L10.25 13.67l7.09-7.09 1.41 1.41L10.25 16.5z" />
+  </svg>
+);
 
 export default function PostDetailCard({
   post,
@@ -45,7 +52,14 @@ export default function PostDetailCard({
 }: PostDetailCardProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const requireAuth = useRequireAuthAction();
+  const [zoomData, setZoomData] = useState<{
+    media: PostMedia[];
+    currentIndex: number;
+  } | null>(null);
+
   const replyDisabled = disabled || (!!user && !checkCanReply(post, user));
+  const { mutate: toggleLike } = useLike(post.id, post.isLiked);
 
   const handlePostClick = () => {
     if (role === "parent") {
@@ -58,21 +72,41 @@ export default function PostDetailCard({
     router.push(`/profile/${post.user.username}`);
   };
 
-  const handleShare = useCallback(
-    async (e?: React.MouseEvent) => {
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!requireAuth()) return;
+    toggleLike();
+  };
+
+  const handleNextImage = useCallback(
+    (e?: React.MouseEvent) => {
       e?.stopPropagation();
-      const url = `${window.location.origin}/profile/${post.user.username}/post/${post.id}`;
-
-      if (navigator.share) {
-        await navigator.share({ text: post.content, url });
-        return;
+      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
+        setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex + 1 });
       }
-
-      await navigator.clipboard.writeText(url);
-      toast.success("Post link copied");
     },
-    [post.content, post.id, post.user.username],
+    [zoomData],
   );
+
+  const handlePrevImage = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (zoomData && zoomData.currentIndex > 0) {
+        setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex - 1 });
+      }
+    },
+    [zoomData],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!zoomData) return;
+      if (e.key === "ArrowRight") handleNextImage();
+      if (e.key === "ArrowLeft") handlePrevImage();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomData, handleNextImage, handlePrevImage]);
 
   const formattedDate = useMemo(() => {
     if (!post.createdAt) return "";
@@ -90,232 +124,188 @@ export default function PostDetailCard({
       .replace(/\s?years?/, "y");
   }, [post.createdAt]);
 
-  const fullDate = useMemo(() => {
-    if (!post.createdAt) return "";
-    return new Date(post.createdAt).toLocaleString("en-US", {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, [post.createdAt]);
-
-  const policyConfig =
-    REPLY_POLICY_CONFIG[post.replyPolicy as keyof typeof REPLY_POLICY_CONFIG] ||
-    REPLY_POLICY_CONFIG.ANYONE;
-
-  const PolicyIcon = policyConfig.icon;
+  const likeLabel = formatCount(post.likeCount, "like");
+  const repostLabel = formatCount(post.repostCount, "repost");
+  const saveLabel = formatCount(post.bookmarkCount, "save");
+  const isMain = role === "main";
 
   return (
     <>
       <div
-        className={`relative px-4 py-3 cursor-pointer transition ${role === "parent"
-          ? "hover:bg-gray-50/30 z-0"
-          : "border-b border-gray-100 hover:bg-gray-50/30 z-10"
-          }`}
+        className={`transition hover:bg-gray-50/40 ${
+          isMain ? "border-b border-gray-100 px-4 py-3" : "px-4 py-2.5"
+        }`}
         onClick={handlePostClick}
       >
-        <div className="flex gap-3">
-          {/* Avatar Section */}
-          <div className="flex flex-col items-center shrink-0 relative">
+        <div className="group/post flex cursor-pointer gap-3">
+          <div className="relative flex shrink-0 flex-col items-center">
             <div className="z-10" onClick={(e) => e.stopPropagation()}>
               <AvatarHoverCard
                 data={post}
                 handleProfileClick={handleProfileClick}
               />
             </div>
-
             {role === "parent" && (
-              <div className="absolute top-10 bottom-3 w-0.5 bg-gray-200 z-0" />
+              <div className="absolute top-10 bottom-[-18px] w-px bg-gray-200" />
             )}
           </div>
 
-          {/* Main Content Section */}
-          <div className="flex-1 min-w-0">
-            {/* Header: Name, Handle, Time, More */}
-            <div className="flex items-center justify-between mb-0.5">
-              <div className="flex items-center gap-1 overflow-hidden">
-                <div
-                  className="font-bold text-[15px] hover:underline truncate"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <UserHoverCard
-                    data={post}
-                    handleProfileClick={handleProfileClick}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-baseline gap-1">
+                  <button
+                    type="button"
+                    className="max-w-[45%] truncate text-left text-[14px] font-bold text-gray-900 hover:underline"
+                    onClick={handleProfileClick}
+                  >
+                    {post.user.displayName || post.user.username}
+                  </button>
+                  {post.user.verified && <VerifiedBadge />}
+                  <PostContent
+                    content={post.content}
+                    className={`min-w-0 flex-1 leading-snug text-gray-900 wrap-break-words ${
+                      isMain ? "text-[15px]" : "text-[14px]"
+                    }`}
                   />
                 </div>
-                <span className="text-gray-500 text-[15px] truncate">
-                  @{post.user.username}
-                </span>
-                <span className="text-gray-500 text-[15px]">·</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span
-                      className="text-gray-500 text-[15px] hover:underline"
-                      suppressHydrationWarning
-                    >
-                      {formattedDate}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p suppressHydrationWarning>{fullDate}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <div
-                className="p-1.5 hover:bg-blue-50 rounded-full transition-colors group"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <PostDropDown post={post} items={dropdownItems} />
-              </div>
-            </div>
 
-            {/* Post Text */}
-
-            <PostContent
-              content={post.content}
-              className={`leading-snug text-gray-900 wrap-break-words mb-3 ${role === "main" ? "text-[17px]" : "text-[15px]"
-                }`}
-            />
-
-            {post.media?.length > 0 && (
-              <Carousel opts={{ align: "start" }} className="mb-2 w-full sm:mb-3">
-                <CarouselContent onClick={(e) => e.stopPropagation()}>
-                  <PhotoProvider>
-                    {post.media.map((m: PostMedia) => (
-                      <PhotoView src={m.mediaUrl} key={m.id}>
+                {post.media?.length > 0 && (
+                  <Carousel opts={{ align: "start" }} className="mt-2 w-full">
+                    <CarouselContent onClick={(e) => e.stopPropagation()}>
+                      {post.media.map((m: PostMedia, i: number) => (
                         <CarouselItem
+                          key={m.id}
                           className={
                             post.media.length === 1
                               ? "basis-full"
-                              : "basis-[88%] sm:basis-[85%]"
+                              : "basis-[82%] sm:basis-[70%]"
                           }
                         >
                           <div
-                            className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${post.media.length === 1
-                              ? "aspect-video"
-                              : "h-56 sm:h-64"
-                              }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomData({
+                                media: post.media,
+                                currentIndex: i,
+                              });
+                            }}
+                            className={`w-full overflow-hidden rounded-lg border border-gray-100 bg-gray-100 ${
+                              post.media.length === 1
+                                ? "max-h-96 min-h-40"
+                                : "h-52"
+                            }`}
                           >
                             <img
                               src={m.mediaUrl}
                               alt={m.altText ?? ""}
                               loading="lazy"
-                              className="w-full h-full object-cover"
+                              className="h-full w-full object-cover"
                             />
                           </div>
                         </CarouselItem>
-                      </PhotoView>
-                    ))}
-                  </PhotoProvider>
-                </CarouselContent>
-              </Carousel>
-            )}
+                      ))}
+                    </CarouselContent>
+                  </Carousel>
+                )}
 
-            {role === "main" && (
-              <div className="flex items-center flex-wrap gap-1.5 text-[14px] text-gray-500 mb-3 mt-1">
-                <span>
-                  {new Date(post.createdAt || "").toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
-                </span>
-
-                <span>·</span>
-
-                <span>
-                  {new Date(post.createdAt || "").toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-
-                {/* Reply Policy */}
-                <div className="flex items-center gap-1 ml-1">
-                  <PolicyIcon size={14} />
-                  <span>
-                    <span>{policyConfig.text}</span>
+                <div
+                  className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-semibold text-gray-500"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="font-normal" suppressHydrationWarning>
+                    {formattedDate}
                   </span>
-                </div>
-              </div>
-            )}
-
-            {role === "main" && (
-              <div className="flex items-center gap-4 py-3 border-y border-gray-100 text-[14px]">
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-gray-900">
-                    {post.repostCount}
-                  </span>
-                  <span className="text-gray-500">reposts</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-gray-900">
-                    {post.likeCount}
-                  </span>
-                  <span className="text-gray-500">likes</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-gray-900">
-                    {post.bookmarkCount}
-                  </span>
-                  <span className="text-gray-500">saves</span>
-                </div>
-              </div>
-            )}
-
-            {/* Reaction Icons */}
-            <div
-              className="flex items-center justify-between mt-2 px-1 text-gray-500"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-10">
-                {/* Reply */}
-                <div className="flex items-center gap-1.5 group cursor-pointer">
+                  {repostLabel && <span>{repostLabel}</span>}
+                  {likeLabel && <span>{likeLabel}</span>}
+                  {saveLabel && <span>{saveLabel}</span>}
                   <ReplyPostModal
                     post={post}
-                    type="icon"
+                    type="text"
                     disabled={replyDisabled}
                   />
-                  <span className="text-[13px] group-hover:text-blue-500">
-                    {post.replyCount}
-                  </span>
                 </div>
-                {/* Repost */}
-                <RepostButton
-                  postId={post.id}
-                  isReposted={post.isReposted}
-                  repostCount={post.repostCount}
-                />
-                {/* Like */}
-                <LikeButton
-                  postId={post.id}
-                  isLiked={post.isLiked}
-                  likeCount={post.likeCount}
-                />
               </div>
 
-              <div className="flex items-center gap-1">
-                <BookMarkButton
-                  postId={post.id}
-                  isBookmarked={post.isBookmarked}
-                  bookmarkCount={post.bookmarkCount}
-                />
+              <div
+                className="flex shrink-0 items-start gap-1 text-gray-500"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   type="button"
-                  onClick={handleShare}
-                  className="p-2 rounded-full hover:bg-blue-50 transition-colors group cursor-pointer"
+                  onClick={handleLike}
+                  className="rounded-full p-1.5 transition-colors hover:bg-pink-50"
+                  aria-label={post.isLiked ? "Unlike post" : "Like post"}
                 >
-                  <Share size={19} className="group-hover:text-blue-500" />
+                  <Heart
+                    size={16}
+                    strokeWidth={2}
+                    className={`transition-colors ${
+                      post.isLiked
+                        ? "fill-pink-500 text-pink-500"
+                        : "hover:text-pink-500"
+                    }`}
+                  />
                 </button>
+                <div className="pointer-events-none opacity-0 transition-opacity group-hover/post:pointer-events-auto group-hover/post:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+                  <PostDropDown
+                    post={post}
+                    items={dropdownItems}
+                    triggerIcon={<MoreHorizontal size={16} />}
+                    triggerClassName="p-1.5"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={!!zoomData}
+        onOpenChange={(open) => !open && setZoomData(null)}
+      >
+        <DialogContent className="flex h-[90vh] w-[95vw] max-w-7xl items-center justify-center overflow-hidden border-none bg-black/95 p-0">
+          <DialogTitle className="sr-only">Zoom Image</DialogTitle>
+
+          {zoomData && (
+            <div className="group relative flex h-full w-full items-center justify-center">
+              {zoomData.currentIndex > 0 && (
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-4 z-50 rounded-full bg-black/50 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+                >
+                  <ChevronLeft size={28} />
+                </button>
+              )}
+
+              <img
+                src={zoomData.media[zoomData.currentIndex].mediaUrl}
+                alt={
+                  zoomData.media[zoomData.currentIndex].altText ??
+                  "Zoomed image"
+                }
+                className="max-h-full max-w-full object-contain"
+              />
+
+              {zoomData.currentIndex < zoomData.media.length - 1 && (
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-4 z-50 rounded-full bg-black/50 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+                >
+                  <ChevronRight size={28} />
+                </button>
+              )}
+
+              {zoomData.media.length > 1 && (
+                <div className="absolute left-4 top-4 z-50 rounded-full bg-black/50 px-3 py-1 text-sm text-white backdrop-blur-sm">
+                  {zoomData.currentIndex + 1} / {zoomData.media.length}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

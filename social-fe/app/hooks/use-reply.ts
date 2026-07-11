@@ -117,14 +117,14 @@ export const useCreateReply = (postId: string) => {
   };
 };
 
-export const useReplies = (postId: string) => {
+export const useReplies = (postId: string, enabled = true) => {
   return useInfiniteQuery({
     queryKey: ["replies", postId],
     queryFn: ({ pageParam }) => ReplyService.getReplies(postId, pageParam),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!postId,
+    enabled: enabled && !!postId,
     ...infiniteQueryOptions,
   });
 };
