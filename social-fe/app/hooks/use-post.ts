@@ -228,11 +228,11 @@ export const useUserPosts = (username: string, filter: string) => {
   });
 };
 
-export const useGetPostById = (postId: string) => {
+export const useGetPostById = (postId: string, enabled = true) => {
   return useQuery({
     queryKey: ["post-detail", postId],
     queryFn: () => PostService.getPostById(postId),
-    enabled: !!postId,
+    enabled: enabled && !!postId,
   });
 };
 

@@ -14,13 +14,13 @@ import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
 import Avatar from "../avatar";
 import { PostMedia } from "@/app/interfaces/post.interface";
-import ReplyPostModal from "../dialog/reply-post-dialog";
 import { PostContent } from "../post-content";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
 import { useReplies } from "@/app/hooks/use-reply";
 import { useLike } from "@/app/hooks/use-like";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
+import CommentComposer from "../dialog/comment-composer";
 
 interface ReplyCardProps {
   reply: Feed;
@@ -57,6 +57,7 @@ export default function ReplyCard({
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
   const [showReplies, setShowReplies] = useState(false);
+  const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
     currentIndex: number;
@@ -139,7 +140,7 @@ export default function ReplyCard({
   }, [reply.createdAt]);
 
   const likeLabel = formatCount(reply.likeCount, "like");
-  const replyPrefix = `@${reply.user.username} `;
+  const replyPrefix = `${reply.user.displayName || reply.user.username} `;
 
   return (
     <>
@@ -221,12 +222,18 @@ export default function ReplyCard({
                     {formattedDate}
                   </span>
                   {likeLabel && <span>{likeLabel}</span>}
-                  <ReplyPostModal
-                    post={replyTarget}
-                    type="text"
+                  <button
+                    type="button"
                     disabled={replyDisabled}
-                    initialText={replyPrefix}
-                  />
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!requireAuth()) return;
+                      setShowReplyComposer((current) => !current);
+                    }}
+                    className="cursor-pointer text-[12px] font-semibold text-gray-500 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Reply
+                  </button>
                 </div>
               </div>
 
@@ -249,6 +256,19 @@ export default function ReplyCard({
             </div>
           </div>
         </div>
+
+        {showReplyComposer && (
+          <div className="ml-12 mt-1.5 sm:ml-[52px]">
+            <CommentComposer
+              post={replyTarget}
+              disabled={replyDisabled}
+              initialText={replyPrefix}
+              autoFocus
+              className="px-0 py-0"
+              onSubmitted={() => setShowReplyComposer(false)}
+            />
+          </div>
+        )}
 
         {!isNested && reply.replyCount > 0 && (
           <div className="ml-12 mt-1.5 sm:ml-[52px]">
