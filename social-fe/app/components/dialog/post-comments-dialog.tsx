@@ -54,12 +54,6 @@ function ModalPostPreview({ post }: { post: Feed }) {
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="relative shrink-0">
             <Avatar data={post.user} className="size-10 text-base sm:size-10" />
-            {post.user.avatarUrl && (
-              <Avatar
-                data={post.user}
-                className="absolute -bottom-1 -right-1 size-6 border-2 border-white text-[10px] sm:size-6"
-              />
-            )}
           </div>
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-gray-900">
@@ -126,7 +120,7 @@ function ModalPostPreview({ post }: { post: Feed }) {
           </div>
         </>
       ) : (
-        <div className="flex min-h-[380px] items-center justify-center bg-[radial-gradient(circle_at_35%_65%,#d9bd6c_0,#d6b974_18%,transparent_36%),linear-gradient(135deg,#6ab8c8_0%,#8fb3c9_28%,#b988b2_58%,#8d94c9_100%)] px-12 text-center">
+        <div className="flex min-h-95 items-center justify-center bg-[radial-gradient(circle_at_35%_65%,#d9bd6c_0,#d6b974_18%,transparent_36%),linear-gradient(135deg,#6ab8c8_0%,#8fb3c9_28%,#b988b2_58%,#8d94c9_100%)] px-12 text-center">
           <PostContent
             content={post.content}
             className="max-w-xl text-[28px] font-bold leading-tight text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.55)]"
@@ -229,14 +223,6 @@ export default function PostCommentsDialog({
                 <span>{displayPost.repostCount} shares</span>
               </div>
             </div>
-
-            <button
-              type="button"
-              className="text-[15px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-            >
-              All comments
-              <ChevronDown className="ml-1 inline size-4 align-[-2px]" />
-            </button>
           </div>
 
           <div className="flex flex-col">
