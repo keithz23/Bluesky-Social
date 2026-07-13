@@ -24,7 +24,7 @@ import RepostButton from "../button/repost-button";
 import PostDropDown from "../dropdown/post-dropdown";
 import { formatDistanceToNow } from "date-fns";
 import { enUS } from "date-fns/locale";
-import ReplyPostModal from "../dialog/reply-post-dialog";
+import PostCommentsDialog from "../dialog/post-comments-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
 import { ZoomData } from "../dialog/image-zoom-dialog";
@@ -175,10 +175,7 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
           >
             <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:justify-start sm:gap-8">
               <div className="flex items-center gap-1 group cursor-pointer">
-                <ReplyPostModal post={post} disabled={replyDisabled} />
-                <span className="group-hover:text-blue-500 transition-colors">
-                  {post.replyCount}
-                </span>
+                <PostCommentsDialog post={post} replyDisabled={replyDisabled} />
               </div>
 
               <RepostButton
