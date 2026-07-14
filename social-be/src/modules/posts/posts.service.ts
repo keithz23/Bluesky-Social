@@ -50,7 +50,7 @@ export class PostsService {
     createPostDto: CreatePostDto,
     images?: Express.Multer.File[],
   ) {
-    const { content, replyPrivacy, gifUrl } = createPostDto;
+    const { content, replyPrivacy, gifUrl, postTheme } = createPostDto;
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
     const mentionedUsernames = extractMentions(content ?? '');
@@ -110,8 +110,13 @@ export class PostsService {
             replyMentioned:
               replyPrivacy?.type === 'custom' &&
               replyPrivacy?.custom?.mentioned === true,
-
             userId,
+            postTheme: postTheme
+              ? {
+                  type: postTheme.type,
+                  background: postTheme.background,
+                }
+              : undefined,
           },
           include: {
             user: {
@@ -205,6 +210,7 @@ export class PostsService {
             replyCount: true,
             repostCount: true,
             bookmarkCount: true,
+            postTheme: true,
             user: {
               select: {
                 id: true,
@@ -311,6 +317,7 @@ export class PostsService {
               replyFollowers: true,
               replyFollowing: true,
               replyMentioned: true,
+              postTheme: true,
               user: {
                 select: {
                   id: true,
@@ -403,6 +410,7 @@ export class PostsService {
         replyFollowers: true,
         replyFollowing: true,
         replyMentioned: true,
+        postTheme: true,
         user: {
           select: {
             id: true,

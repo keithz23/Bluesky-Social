@@ -14,7 +14,6 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { PostMedia } from "../../interfaces/post.interface";
-import { useMemo } from "react";
 import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
 import UserHoverCard from "./user-hover-card";
@@ -31,13 +30,12 @@ import {
 } from "lucide-react";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
-import { enUS } from "date-fns/locale";
-import { formatDistanceToNow } from "date-fns";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import PostCommentsDialog from "../dialog/post-comments-dialog";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
+import { formatCompactDate, formatFullDate } from "@/app/utils/format.util";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
@@ -64,39 +62,8 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
     { id: 8, title: "Report post", icon: <TriangleAlert size={18} /> },
   ];
 
-  const formattedDate = useMemo(() => {
-    const distance = formatDistanceToNow(
-      new Date(post.createdAt || new Date()),
-      {
-        addSuffix: false,
-        locale: enUS,
-      },
-    );
-
-    return distance
-      .replace(/^about\s/, "")
-      .replace(/^almost\s/, "")
-      .replace(/^over\s/, "")
-      .replace("less than a minute", "now")
-      .replace(/\s?minutes?/, "m")
-      .replace(/\s?hours?/, "h")
-      .replace(/\s?days?/, "d")
-      .replace(/\s?months?/, "mo")
-      .replace(/\s?years?/, "y");
-  }, [post.createdAt]);
-
-  const fullDate = useMemo(
-    () =>
-      new Date(post.createdAt || new Date()).toLocaleString("en-US", {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    [post.createdAt],
-  );
+  const formattedDate = formatCompactDate(post.createdAt);
+  const fullDate = formatFullDate(post.createdAt);
 
   return (
     <>

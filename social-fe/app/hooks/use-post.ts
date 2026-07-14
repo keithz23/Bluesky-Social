@@ -36,6 +36,8 @@ export function usePost() {
       const hasUpload = Boolean(payload.images?.length);
       const formData = new FormData();
       if (payload.content) formData.append("content", payload.content);
+      if (payload.postTheme)
+        formData.append("postTheme", JSON.stringify(payload.postTheme));
       if (payload.replyPrivacy) {
         formData.append("replyPrivacy", JSON.stringify(payload.replyPrivacy));
       }
@@ -45,12 +47,15 @@ export function usePost() {
       if (payload.gifUrl) formData.append("gifUrl", payload.gifUrl);
 
       setCreateUploadProgress(hasUpload ? 0 : null);
-      const response = await PostService.createPost(formData as any, (event) => {
-        if (!event.total) return;
-        setCreateUploadProgress(
-          Math.min(99, Math.round((event.loaded / event.total) * 100)),
-        );
-      });
+      const response = await PostService.createPost(
+        formData as any,
+        (event) => {
+          if (!event.total) return;
+          setCreateUploadProgress(
+            Math.min(99, Math.round((event.loaded / event.total) * 100)),
+          );
+        },
+      );
       setCreateUploadProgress(hasUpload ? 100 : null);
       return response.data;
     },
@@ -137,7 +142,8 @@ export function usePost() {
       const hasUpload = Boolean(payload.images?.length);
       const formData = new FormData();
 
-      if (payload.content !== undefined) formData.append("content", payload.content);
+      if (payload.content !== undefined)
+        formData.append("content", payload.content);
       if (payload.replyPrivacy) {
         formData.append("replyPrivacy", JSON.stringify(payload.replyPrivacy));
       }

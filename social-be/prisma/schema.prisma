@@ -155,6 +155,7 @@ model Post {
   // Flags
   isDeleted Boolean @default(false) @map("is_deleted")
   isPinned  Boolean @default(false) @map("is_pinned")
+  postTheme Json?   @map("post_theme")
 
   // Reply settings
   replyPolicy ReplyPolicy @default(ANYONE) @map("reply_policy")

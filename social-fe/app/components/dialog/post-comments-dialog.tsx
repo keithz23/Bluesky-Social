@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Globe2, MessageSquare, ThumbsUp, X } from "lucide-react";
+import { Globe2, MessageSquare, ThumbsUp, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -15,35 +15,17 @@ import { useGetPostById } from "@/app/hooks/use-post";
 import { usePostRoom } from "@/app/hooks/use-post-room";
 import { useReplies } from "@/app/hooks/use-reply";
 import { checkCanReply } from "@/app/utils/check.util";
-import { formatDistanceToNow } from "date-fns";
-import { enUS } from "date-fns/locale";
 import ReplyCard from "../card/reply-card";
 import { InfiniteScrollFooter, PostSkeleton } from "../skeletons";
 import Avatar from "../avatar";
 import { PostContent } from "../post-content";
 import CommentComposer from "./comment-composer";
+import { formatCompactDate } from "@/app/utils/format.util";
 
 interface PostCommentsDialogProps {
   post: Feed;
   replyDisabled?: boolean;
 }
-
-const formatCompactDate = (date?: Date) => {
-  if (!date) return "";
-  return formatDistanceToNow(new Date(date), {
-    addSuffix: false,
-    locale: enUS,
-  })
-    .replace(/^about\s/, "")
-    .replace(/^almost\s/, "")
-    .replace(/^over\s/, "")
-    .replace("less than a minute", "now")
-    .replace(/\s?minutes?/, "m")
-    .replace(/\s?hours?/, "h")
-    .replace(/\s?days?/, "d")
-    .replace(/\s?months?/, "mo")
-    .replace(/\s?years?/, "y");
-};
 
 function ModalPostPreview({ post }: { post: Feed }) {
   const hasMedia = post.media?.length > 0;
