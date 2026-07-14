@@ -1,4 +1,4 @@
-import { PostMedia } from "./post.interface";
+import { PostMedia, PostTheme } from "./post.interface";
 import { User } from "./user.interface";
 
 export interface Feed {
@@ -19,6 +19,7 @@ export interface Feed {
   userId: string;
   user: User;
   media: PostMedia[];
+  postTheme?: PostTheme | null;
   createdAt?: Date;
   updatedAt?: Date;
   parentPostId?: string;

@@ -17,15 +17,11 @@ import {
   validateImageFile,
 } from "@/app/utils/upload-rules.util";
 import { toast } from "sonner";
+import { ImagePreview } from "@/app/interfaces/dialog/dialog.interface";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_COMMENT_LENGTH = 300;
 const MAX_IMAGE_COUNT = IMAGE_UPLOAD_RULES.maxPostImages;
-
-interface ImagePreview {
-  file: File;
-  preview: string;
-}
 
 interface CommentComposerProps {
   post: Feed;

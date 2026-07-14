@@ -11,13 +11,7 @@ import {
 import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Branch as DismissableLayerBranch } from "@radix-ui/react-dismissable-layer";
-
-type FloatingPosition = {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
+import { FloatingPosition } from "@/app/interfaces/dialog/dialog.interface";
 
 const subscribeToClient = () => () => {};
 const getClientSnapshot = () => true;
@@ -60,8 +54,12 @@ export default function ComposerFloatingPicker({
       const viewportHeight = window.innerHeight;
       const margin = 12;
       const gap = 10;
+      const measuredHeight = panelRef.current?.offsetHeight;
       const panelWidth = Math.min(width, viewportWidth - margin * 2);
-      const panelHeight = Math.min(maxHeight, viewportHeight - margin * 2);
+      const panelHeight = Math.min(
+        measuredHeight && measuredHeight > 0 ? measuredHeight : maxHeight,
+        viewportHeight - margin * 2,
+      );
 
       let left = rect.left;
       if (left + panelWidth > viewportWidth - margin) {
@@ -93,6 +91,63 @@ export default function ComposerFloatingPicker({
       window.removeEventListener("scroll", updatePosition, true);
     };
   }, [anchorRef, maxHeight, open, width]);
+
+  useLayoutEffect(() => {
+    if (!open || !position) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      const anchor = anchorRef.current;
+      if (!panel || !anchor) return;
+
+      const rect = anchor.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 12;
+      const gap = 10;
+      const panelWidth = Math.min(width, viewportWidth - margin * 2);
+      const panelHeight = Math.min(
+        panel.offsetHeight,
+        viewportHeight - margin * 2,
+      );
+
+      let left = rect.left;
+      if (left + panelWidth > viewportWidth - margin) {
+        left = viewportWidth - margin - panelWidth;
+      }
+      left = Math.max(margin, left);
+
+      let top = rect.top - panelHeight - gap;
+      if (top < margin) {
+        top = rect.bottom + gap;
+      }
+      top = Math.min(top, viewportHeight - margin - panelHeight);
+      top = Math.max(margin, top);
+
+      setPosition((current) => {
+        const nextPosition = {
+          top,
+          left,
+          width: panelWidth,
+          maxHeight: panelHeight,
+        };
+
+        if (
+          current &&
+          current.top === nextPosition.top &&
+          current.left === nextPosition.left &&
+          current.width === nextPosition.width &&
+          current.maxHeight === nextPosition.maxHeight
+        ) {
+          return current;
+        }
+
+        return nextPosition;
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [anchorRef, maxHeight, open, position, width]);
 
   const isPickerEvent = useCallback(
     (event: Event) => {
@@ -229,7 +284,6 @@ export default function ComposerFloatingPicker({
           top: position.top,
           left: position.left,
           width: position.width,
-          height: position.maxHeight,
           maxHeight: position.maxHeight,
           zIndex: 1000,
         }}

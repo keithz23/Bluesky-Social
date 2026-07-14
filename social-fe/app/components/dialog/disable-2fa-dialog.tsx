@@ -19,11 +19,11 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-type Disable2FADialogProps = {
+interface Disable2FADialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   email?: string;
-};
+}
 
 const disable2FASchema = z.object({
   password: z.string().min(1, "Password is required."),

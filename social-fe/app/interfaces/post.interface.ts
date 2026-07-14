@@ -1,3 +1,7 @@
+export interface PostTheme {
+  type: string;
+  background: string;
+}
 export type ReplyType = "anyone" | "nobody" | "custom";
 
 export interface ReplyPrivacyState {
@@ -16,6 +20,7 @@ export interface CreatePostPayload {
   replyPrivacy: ReplyPrivacyState;
   images?: File[];
   gifUrl?: string;
+  postTheme?: PostTheme;
 }
 
 export interface CreateReplyDto {

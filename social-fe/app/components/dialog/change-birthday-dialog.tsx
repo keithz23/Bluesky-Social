@@ -13,11 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Calendar, CircleAlert } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
-type ChangeBirthdayDialogProps = {
+interface ChangeBirthdayDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   dateOfBirth?: string | Date | null;
-};
+}
 
 const MIN_AGE = 13;
 
