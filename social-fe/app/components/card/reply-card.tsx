@@ -21,6 +21,11 @@ import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import CommentComposer from "../dialog/comment-composer";
 import { formatCompactDate, formatCount } from "@/app/utils/format.util";
 import { VerifiedBadge } from "../verified-badge";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+import {
+  getMediaGridClass,
+  getMediaItemClass,
+} from "@/app/interfaces/card/card.interface";
 
 interface ReplyCardProps {
   reply: Feed;
@@ -149,41 +154,30 @@ export default function ReplyCard({
                 </div>
 
                 {reply?.media?.length > 0 && (
-                  <Carousel opts={{ align: "start" }} className="mt-2 w-full">
-                    <CarouselContent>
-                      {reply.media.map((m: PostMedia, i: number) => (
-                        <CarouselItem
-                          key={m.id}
-                          className={
-                            reply.media.length === 1
-                              ? "basis-full"
-                              : "basis-[82%] sm:basis-[70%]"
-                          }
-                        >
+                  <PhotoProvider>
+                    <div
+                      className={getMediaGridClass(reply.media.length)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {reply?.media.map((m: PostMedia, index) => (
+                        <PhotoView src={m.mediaUrl} key={m.id}>
                           <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setZoomData({
-                                media: reply.media,
-                                currentIndex: i,
-                              });
-                            }}
-                            className={`w-full overflow-hidden rounded-lg border border-gray-100 bg-gray-100 ${
-                              reply.media.length === 1
-                                ? "max-h-80 min-h-36"
-                                : "h-48"
-                            }`}
+                            className={`overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${getMediaItemClass(
+                              reply?.media.length,
+                              index,
+                            )}`}
                           >
                             <img
                               src={m.mediaUrl}
                               alt={m.altText ?? ""}
+                              loading="lazy"
                               className="h-full w-full object-cover"
                             />
                           </div>
-                        </CarouselItem>
+                        </PhotoView>
                       ))}
-                    </CarouselContent>
-                  </Carousel>
+                    </div>
+                  </PhotoProvider>
                 )}
 
                 <div
@@ -295,52 +289,6 @@ export default function ReplyCard({
           </div>
         )}
       </div>
-
-      <Dialog
-        open={!!zoomData}
-        onOpenChange={(open) => !open && setZoomData(null)}
-      >
-        <DialogContent className="flex h-[90vh] w-[95vw] max-w-7xl items-center justify-center overflow-hidden border-none bg-black/95 p-0">
-          <DialogTitle className="sr-only">Zoom Image</DialogTitle>
-
-          {zoomData && (
-            <div className="group relative flex h-full w-full items-center justify-center">
-              {zoomData.currentIndex > 0 && (
-                <button
-                  onClick={handlePrevImage}
-                  className="absolute left-4 z-50 rounded-full bg-black/50 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20"
-                >
-                  <ChevronLeft size={28} />
-                </button>
-              )}
-
-              <img
-                src={zoomData.media[zoomData.currentIndex].mediaUrl}
-                alt={
-                  zoomData.media[zoomData.currentIndex].altText ??
-                  "Zoomed image"
-                }
-                className="max-h-full max-w-full object-contain"
-              />
-
-              {zoomData.currentIndex < zoomData.media.length - 1 && (
-                <button
-                  onClick={handleNextImage}
-                  className="absolute right-4 z-50 rounded-full bg-black/50 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20"
-                >
-                  <ChevronRight size={28} />
-                </button>
-              )}
-
-              {zoomData.media.length > 1 && (
-                <div className="absolute left-4 top-4 z-50 rounded-full bg-black/50 px-3 py-1 text-sm text-white backdrop-blur-sm">
-                  {zoomData.currentIndex + 1} / {zoomData.media.length}
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

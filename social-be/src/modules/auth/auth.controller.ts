@@ -37,7 +37,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CookieOptions, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
@@ -55,31 +55,11 @@ import { Enable2FADto } from './dto/enable-2fa.dto';
 import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
 import { Disable2FADto } from './dto/disable-2fa.dto';
 import { Setup2FADto } from './dto/setup-2fa.dto';
-
-// ─── Cookie Options ───────────────────────────────────────────────────────────
-
-const isProduction = process.env.NODE_ENV === 'production';
-
-const cookieOptions: CookieOptions = {
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? 'strict' : 'lax',
-  path: '/',
-  ...(isProduction ? { domain: '.th-red.app' } : {}),
-};
-
-const accessTokenCookieOptions = {
-  ...cookieOptions,
-  maxAge: 15 * 60 * 1000, // 15 mins
-};
-
-const refreshTokenCookieOptions = {
-  ...cookieOptions,
-  path: '/api/v1/auth',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
+import {
+  accessTokenCookieOptions,
+  cookieOptions,
+  refreshTokenCookieOptions,
+} from 'src/common/utils/cookie-option.util';
 
 @ApiTags('Authentication')
 @Controller('auth')

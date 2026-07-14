@@ -684,6 +684,7 @@ export class PostsService {
         allowQuote: true,
         parentPostId: true,
         rootPostId: true,
+        postTheme: true,
         user: {
           select: {
             id: true,
@@ -734,6 +735,7 @@ export class PostsService {
             replyFollowers: true,
             replyFollowing: true,
             replyMentioned: true,
+            postTheme: true,
             user: {
               select: {
                 id: true,
