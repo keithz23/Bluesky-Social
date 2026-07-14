@@ -48,65 +48,29 @@ import { Disable2FADto } from './dto/disable-2fa.dto';
 import { Setup2FADto } from './dto/setup-2fa.dto';
 import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
 import * as QRCode from 'qrcode';
+import {
+  AccountEmailCodeData,
+  AccountEmailCodePayload,
+  AccountEmailCodePurpose,
+  AuditContext,
+  Login2FAChallengeData,
+  Login2FAChallengeResponse,
+  LoginResponse,
+  TotpSetupData,
+} from 'src/common/interfaces/auth.interface';
 
-const RESET_TTL_MINUTES = 15;
-const MAX_ACTIVE_EMAIL_CODES = 3;
-const EMAIL_UPDATE_CODE_PREFIX = 'email_update';
-const PASSWORD_UPDATE_CODE_PREFIX = 'password_update';
-const LOGIN_2FA_TTL_SECONDS = 5 * 60;
-const MAX_LOGIN_2FA_ATTEMPTS = 5;
-const TOTP_SETUP_TTL_SECONDS = 10 * 60;
-const TOTP_ISSUER = 'Konekt';
-const RECOVERY_CODE_COUNT = 10;
-const RECOVERY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-type AccountEmailCodePurpose =
-  | 'password-reset'
-  | 'email-update'
-  | 'password-update'
-  | 'deactivate-account'
-  | 'enable-2fa'
-  | 'disable-2fa';
-
-type AccountEmailCodePayload = {
-  user: Pick<User, 'id' | 'email' | 'username'>;
-  purpose: AccountEmailCodePurpose;
-  metadata?: Record<string, unknown>;
-  userAgent?: string;
-  ipAddress?: string;
-};
-
-type AuditContext = {
-  userAgent?: string;
-  ipAddress?: string;
-};
-
-type AccountEmailCodeData = {
-  otpHash?: string;
-  otp?: string;
-};
-
-type Login2FAChallengeResponse = {
-  requires2FA: true;
-  challengeId: string;
-  methods: Array<'totp' | 'recovery_code'>;
-  maskedEmail: string;
-};
-
-type LoginResponse = AuthResponseDto | Login2FAChallengeResponse;
-
-type Login2FAChallengeData = {
-  userId: string;
-  attempts: number;
-  createdIp?: string;
-  createdUa?: string;
-};
-
-type TotpSetupData = {
-  secret: string;
-  createdIp?: string;
-  createdUa?: string;
-};
+import {
+  EMAIL_UPDATE_CODE_PREFIX,
+  LOGIN_2FA_TTL_SECONDS,
+  MAX_ACTIVE_EMAIL_CODES,
+  MAX_LOGIN_2FA_ATTEMPTS,
+  PASSWORD_UPDATE_CODE_PREFIX,
+  RECOVERY_CODE_ALPHABET,
+  RECOVERY_CODE_COUNT,
+  RESET_TTL_MINUTES,
+  TOTP_ISSUER,
+  TOTP_SETUP_TTL_SECONDS,
+} from 'src/common/constants/auth-config.constant';
 
 @Injectable()
 export class AuthService {
