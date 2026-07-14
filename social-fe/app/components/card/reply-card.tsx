@@ -10,17 +10,17 @@ import {
 } from "@/components/ui/carousel";
 import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { Feed } from "@/app/interfaces/feed.interface";
-import { formatDistanceToNow } from "date-fns";
-import { enUS } from "date-fns/locale";
 import Avatar from "../avatar";
 import { PostMedia } from "@/app/interfaces/post.interface";
-import ReplyPostModal from "../dialog/reply-post-dialog";
 import { PostContent } from "../post-content";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
 import { useReplies } from "@/app/hooks/use-reply";
 import { useLike } from "@/app/hooks/use-like";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
+import CommentComposer from "../dialog/comment-composer";
+import { formatCompactDate, formatCount } from "@/app/utils/format.util";
+import { VerifiedBadge } from "../verified-badge";
 
 interface ReplyCardProps {
   reply: Feed;
@@ -29,22 +29,6 @@ interface ReplyCardProps {
   depth?: 0 | 1;
   parentReply?: Feed;
 }
-
-const formatCount = (count: number, label: string) => {
-  if (count <= 0) return null;
-  return `${count.toLocaleString()} ${label}${count === 1 ? "" : "s"}`;
-};
-
-const VerifiedBadge = () => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-label="Verified account"
-    className="size-3.5 shrink-0 text-[#0066FF]"
-    fill="currentColor"
-  >
-    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.792-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.827 2.74 2.043 3.39-.11.457-.167.936-.167 1.41 0 2.21 1.71 4 3.918 4 .537 0 1.058-.11 1.536-.31.587 1.25 1.854 2.11 3.337 2.11 1.48 0 2.75-.86 3.336-2.11.478.2.998.31 1.536.31 2.21 0 3.918-1.79 3.918-4 0-.474-.057-.953-.167-1.41 1.216-.65 2.043-1.93 2.043-3.39zM10.25 16.5l-3.5-3.5 1.41-1.41L10.25 13.67l7.09-7.09 1.41 1.41L10.25 16.5z" />
-  </svg>
-);
 
 export default function ReplyCard({
   reply,
@@ -57,6 +41,7 @@ export default function ReplyCard({
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
   const [showReplies, setShowReplies] = useState(false);
+  const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [zoomData, setZoomData] = useState<{
     media: PostMedia[];
     currentIndex: number;
@@ -122,24 +107,10 @@ export default function ReplyCard({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [zoomData, handleNextImage, handlePrevImage]);
 
-  const formattedDate = useMemo(() => {
-    if (!reply.createdAt) return "";
-    const distance = formatDistanceToNow(new Date(reply.createdAt), {
-      addSuffix: false,
-      locale: enUS,
-    });
-    return distance
-      .replace(/^about\s|almost\s|over\s/g, "")
-      .replace("less than a minute", "now")
-      .replace(/\s?minutes?/, "m")
-      .replace(/\s?hours?/, "h")
-      .replace(/\s?days?/, "d")
-      .replace(/\s?months?/, "mo")
-      .replace(/\s?years?/, "y");
-  }, [reply.createdAt]);
+  const formattedDate = formatCompactDate(reply.createdAt);
 
   const likeLabel = formatCount(reply.likeCount, "like");
-  const replyPrefix = `@${reply.user.username} `;
+  const replyPrefix = `${reply.user.displayName || reply.user.username} `;
 
   return (
     <>
@@ -153,7 +124,9 @@ export default function ReplyCard({
             data={reply.user}
             onClick={handleProfileClick}
             className={
-              isNested ? "size-8 text-sm sm:size-8" : "size-9 text-base sm:size-10"
+              isNested
+                ? "size-8 text-sm sm:size-8"
+                : "size-9 text-base sm:size-10"
             }
           />
 
@@ -221,12 +194,18 @@ export default function ReplyCard({
                     {formattedDate}
                   </span>
                   {likeLabel && <span>{likeLabel}</span>}
-                  <ReplyPostModal
-                    post={replyTarget}
-                    type="text"
+                  <button
+                    type="button"
                     disabled={replyDisabled}
-                    initialText={replyPrefix}
-                  />
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!requireAuth()) return;
+                      setShowReplyComposer((current) => !current);
+                    }}
+                    className="cursor-pointer text-[12px] font-semibold text-gray-500 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Reply
+                  </button>
                 </div>
               </div>
 
@@ -250,6 +229,19 @@ export default function ReplyCard({
           </div>
         </div>
 
+        {showReplyComposer && (
+          <div className="ml-12 mt-1.5 sm:ml-[52px]">
+            <CommentComposer
+              post={replyTarget}
+              disabled={replyDisabled}
+              initialText={replyPrefix}
+              autoFocus
+              className="px-0 py-0"
+              onSubmitted={() => setShowReplyComposer(false)}
+            />
+          </div>
+        )}
+
         {!isNested && reply.replyCount > 0 && (
           <div className="ml-12 mt-1.5 sm:ml-[52px]">
             <button
@@ -261,7 +253,9 @@ export default function ReplyCard({
               className="flex items-center gap-3 text-[12px] font-semibold text-gray-500 transition-colors hover:text-gray-900"
             >
               <span className="h-px w-6 bg-gray-300" />
-              {showReplies ? "Hide replies" : `View replies (${reply.replyCount})`}
+              {showReplies
+                ? "Hide replies"
+                : `View replies (${reply.replyCount})`}
             </button>
 
             {showReplies && (

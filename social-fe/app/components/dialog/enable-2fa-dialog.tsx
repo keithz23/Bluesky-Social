@@ -26,25 +26,17 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAccountSettings } from "@/app/hooks/use-account-settings";
+import {
+  Enable2FAStep,
+  TOTPSetupData,
+  TwoFactorMethod,
+} from "@/app/interfaces/dialog/dialog.interface";
 
-type Enable2FADialogProps = {
+interface Enable2FADialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   email?: string;
-};
-
-type TwoFactorMethod = "totp";
-
-type Enable2FAStep =
-  | "select-method"
-  | "email-verification"
-  | "totp-setup"
-  | "recovery-codes";
-
-type TOTPSetupData = {
-  secret: string;
-  qrCodeDataUrl: string;
-};
+}
 
 const emailOtpSchema = z.object({
   otp: z
