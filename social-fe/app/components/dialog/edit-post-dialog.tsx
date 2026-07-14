@@ -30,21 +30,17 @@ import {
   validateImageFile,
 } from "@/app/utils/upload-rules.util";
 import { toast } from "sonner";
+import { ImagePreview } from "@/app/interfaces/dialog/dialog.interface";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_POST_LENGTH = 300;
 const MAX_IMAGE_COUNT = IMAGE_UPLOAD_RULES.maxPostImages;
 
-type ImagePreview = {
-  file: File;
-  preview: string;
-};
-
-type EditPostDialogProps = {
+interface EditPostDialogProps {
   post: Feed;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
+}
 
 const toReplyType = (replyPolicy?: string): ReplyType => {
   if (replyPolicy === "NOBODY") return "nobody";

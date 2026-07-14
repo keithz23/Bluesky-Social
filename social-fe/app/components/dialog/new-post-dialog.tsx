@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
+  Palette,
   Smile,
   X,
   Check,
@@ -27,19 +28,22 @@ import {
   IMAGE_UPLOAD_RULES,
   validateImageFile,
 } from "@/app/utils/upload-rules.util";
+import { Sketch } from "@uiw/react-color";
+import { ImagePreview } from "@/app/interfaces/dialog/dialog.interface";
+import {
+  DEFAULT_POST_THEME,
+  POST_COLOR_THEMES,
+} from "@/app/constants/dialog.constant";
+import { getReadableTextColor } from "@/app/utils/colors.util";
 
 const gf = new GiphyFetch("ts3VubO74DkZgh3cQw6IoEdRnAMVjfK6");
 const MAX_POST_LENGTH = 300;
 const MAX_IMAGE_COUNT = IMAGE_UPLOAD_RULES.maxPostImages;
-interface ImagePreview {
-  file: File;
-  preview: string;
-}
 
-type NewPostModalProps = {
+interface NewPostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
+}
 
 export default function NewPostModal({
   open,
@@ -47,6 +51,8 @@ export default function NewPostModal({
 }: NewPostModalProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
+  const [customHex, setCustomHex] = useState("#1877f2");
+  const [selectedThemeId, setSelectedThemeId] = useState(DEFAULT_POST_THEME.id);
 
   const {
     query,
@@ -97,6 +103,7 @@ export default function NewPostModal({
 
   const [postText, setPostText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -118,19 +125,38 @@ export default function NewPostModal({
   // Derived flags
   const hasImages = selectedImages.length > 0;
   const hasGif = !!selectedGif;
+  const hasPosterBackground = selectedThemeId !== DEFAULT_POST_THEME.id;
   const imageCount = selectedImages.length;
-  const gifDisabled = hasImages;
-  const imageDisabled = hasGif || imageCount >= MAX_IMAGE_COUNT;
+  const gifDisabled = hasPosterBackground || hasImages;
+  const imageDisabled =
+    hasPosterBackground || hasGif || imageCount >= MAX_IMAGE_COUNT;
 
   const hasChanges = postText.trim().length > 0 || hasImages || hasGif;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const gifButtonRef = useRef<HTMLButtonElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
 
   const { createPost, createUploadProgress } = usePost();
 
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
+  const customTextColor = getReadableTextColor(customHex);
+  const selectedColorTheme =
+    selectedThemeId === "custom"
+      ? {
+          id: "custom",
+          label: "Custom color",
+          background: customHex,
+          textColor: customTextColor,
+          placeholderColor:
+            customTextColor === "#ffffff"
+              ? "rgba(255,255,255,0.78)"
+              : "#64748b",
+          swatch: customHex,
+        }
+      : (POST_COLOR_THEMES.find((theme) => theme.id === selectedThemeId) ??
+        DEFAULT_POST_THEME);
 
   const handleSelectRadio = (type: ReplyType) => {
     setReplyType(type);
@@ -161,7 +187,10 @@ export default function NewPostModal({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (hasGif) return;
+    if (hasPosterBackground || hasGif) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -219,11 +248,14 @@ export default function NewPostModal({
     setSelectedImages([]);
     setSelectedGif(null);
     setShowEmojiPicker(false);
+    setShowColorPicker(false);
     setShowGifPicker(false);
     setIsPrivacyModalOpen(false);
     setShowExitConfirm(false);
     setIsListsExpanded(false);
     setSaveForNextTime(false);
+    setSelectedThemeId(DEFAULT_POST_THEME.id);
+    setCustomHex("#1877f2");
     setReplyType("anyone");
     setCustomSettings({ followers: false, following: false, mentioned: false });
     setAllowQuote(true);
@@ -301,18 +333,26 @@ export default function NewPostModal({
       allowQuote,
       custom: replyType === "custom" ? customSettings : undefined,
     };
+    const postTheme = hasPosterBackground
+      ? {
+          type: selectedThemeId,
+          background: selectedColorTheme.background,
+        }
+      : undefined;
 
     const payload = hasImages
       ? {
-        content: postText,
-        replyPrivacy: privacyData,
-        images: selectedImages.map((img) => img.file), // File[]
-      }
+          content: postText,
+          replyPrivacy: privacyData,
+          images: selectedImages.map((img) => img.file), // File[]
+          postTheme,
+        }
       : {
-        content: postText,
-        replyPrivacy: privacyData,
-        gifUrl: selectedGif ?? undefined, // string | undefined
-      };
+          content: postText,
+          replyPrivacy: privacyData,
+          gifUrl: selectedGif ?? undefined, // string | undefined
+          postTheme,
+        };
 
     createPost.mutate(payload, {
       onSuccess: () => {
@@ -401,10 +441,11 @@ export default function NewPostModal({
               <Button
                 onClick={handleCreatePost}
                 disabled={isSubmitDisabled}
-                className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${!isSubmitDisabled
-                  ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
-                  : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
-                  }`}
+                className={`hidden h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:inline-flex ${
+                  !isSubmitDisabled
+                    ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
+                    : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
+                }`}
               >
                 {createPost.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -415,7 +456,7 @@ export default function NewPostModal({
             </div>
           </DialogTitle>
 
-          <div className="flex min-w-0 gap-3 px-4 py-4">
+          <div className="flex gap-2 p-3">
             {user ? (
               <Avatar data={user} className="h-11 w-11 sm:h-11 sm:w-11" />
             ) : (
@@ -423,8 +464,38 @@ export default function NewPostModal({
                 @
               </div>
             )}
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-slate-950">
+                {user?.displayName || user?.username}
+              </span>
+              <div className="mt-1">
+                <button
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={openPrivacySettings}
+                  className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                >
+                  <Globe className="h-4 w-4" strokeWidth={2} />
+                  {replyType === "anyone"
+                    ? "Anyone can interact"
+                    : replyType === "nobody"
+                      ? "Nobody can reply"
+                      : "Custom interactions"}
+                  <ChevronDown className="h-4 w-4" strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex min-w-0">
             <div className="relative min-w-0 flex-1 pt-1">
-              <div className="relative min-h-32 min-w-0">
+              <div
+                className={`relative min-h-52 min-w-0 overflow-hidden transition-colors ${
+                  !hasPosterBackground ? "" : "shadow-inner"
+                }`}
+                style={{
+                  background: selectedColorTheme.background,
+                  color: selectedColorTheme.textColor,
+                }}
+              >
                 <textarea
                   ref={textareaRef}
                   value={postText}
@@ -435,9 +506,16 @@ export default function NewPostModal({
                     );
                   }}
                   onKeyDown={handleKeyDown}
-                  className="max-h-56 min-h-32 w-full resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap wrap-break-words border-none bg-transparent text-[17px] leading-6 text-slate-950 caret-slate-950 outline-none wrap-anywhere placeholder:text-slate-400 focus:ring-0"
+                  className="max-h-96 min-h-52 w-full resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap wrap-break-words border-none bg-transparent px-4 py-4 text-[20px] leading-7 caret-current outline-none wrap-anywhere placeholder:text-(--composer-placeholder-color) focus:ring-0 sm:min-h-64 sm:px-5 sm:py-5 sm:text-[22px] sm:leading-8"
                   placeholder="What's happening?"
                   spellCheck={false}
+                  style={
+                    {
+                      color: selectedColorTheme.textColor,
+                      "--composer-placeholder-color":
+                        selectedColorTheme.placeholderColor,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
 
@@ -456,10 +534,11 @@ export default function NewPostModal({
                           key={user.id}
                           onClick={() => insertMention(user.username)}
                           onMouseEnter={() => setActiveIndex(i)}
-                          className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${i === activeIndex
-                            ? "bg-blue-50 text-blue-700"
-                            : "hover:bg-slate-50"
-                            }`}
+                          className={`relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                            i === activeIndex
+                              ? "bg-blue-50 text-blue-700"
+                              : "hover:bg-slate-50"
+                          }`}
                         >
                           <Avatar
                             data={user}
@@ -535,23 +614,58 @@ export default function NewPostModal({
             </div>
           )}
 
-          <div className="mt-1 px-4 pb-4 pl-18">
-            <button
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={openPrivacySettings}
-              className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
-            >
-              <Globe className="h-4 w-4" strokeWidth={2} />
-              {replyType === "anyone"
-                ? "Anyone can interact"
-                : replyType === "nobody"
-                  ? "Nobody can reply"
-                  : "Custom interactions"}
-              <ChevronDown className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
-
           <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
+            <ComposerFloatingPicker
+              open={showColorPicker}
+              anchorRef={colorButtonRef}
+              width={348}
+              maxHeight={460}
+              onClose={() => setShowColorPicker(false)}
+            >
+              <div className="grid grid-cols-8 gap-2 p-3">
+                {POST_COLOR_THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    title={theme.label}
+                    aria-label={theme.label}
+                    onClick={() => setSelectedThemeId(theme.id)}
+                    className={`h-8 w-8 cursor-pointer rounded-full border transition ${
+                      selectedThemeId === theme.id
+                        ? "border-[#0066FF] ring-2 ring-[#0066FF]/25"
+                        : "border-slate-200 hover:border-slate-400"
+                    }`}
+                    style={{ background: theme.swatch }}
+                  >
+                    {theme.id === DEFAULT_POST_THEME.id && (
+                      <span className="block h-full w-full rounded-full bg-white" />
+                    )}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  title="Custom color"
+                  aria-label="Custom color"
+                  onClick={() => setSelectedThemeId("custom")}
+                  className={`h-8 w-8 cursor-pointer rounded-full border transition ${
+                    selectedThemeId === "custom"
+                      ? "border-[#0066FF] ring-2 ring-[#0066FF]/25"
+                      : "border-slate-200 hover:border-slate-400"
+                  }`}
+                  style={{ background: customHex }}
+                />
+              </div>
+              <div className="border-t border-slate-100 p-3">
+                <Sketch
+                  style={{ width: "100%", boxShadow: "none" }}
+                  color={customHex}
+                  onChange={(color) => {
+                    setCustomHex(color.hex);
+                    setSelectedThemeId("custom");
+                  }}
+                />
+              </div>
+            </ComposerFloatingPicker>
             <ComposerFloatingPicker
               open={showEmojiPicker}
               anchorRef={emojiButtonRef}
@@ -606,16 +720,19 @@ export default function NewPostModal({
                 onClick={() => !imageDisabled && fileInputRef.current?.click()}
                 disabled={imageDisabled}
                 title={
-                  hasGif
-                    ? "Remove the GIF before adding images"
-                    : imageCount >= MAX_IMAGE_COUNT
-                      ? `Maximum of ${MAX_IMAGE_COUNT} images reached`
-                      : "Add images"
+                  hasPosterBackground
+                    ? "Remove poster background before adding images"
+                    : hasGif
+                      ? "Remove the GIF before adding images"
+                      : imageCount >= MAX_IMAGE_COUNT
+                        ? `Maximum of ${MAX_IMAGE_COUNT} images reached`
+                        : "Add images"
                 }
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${imageDisabled
-                  ? "cursor-not-allowed text-slate-300 opacity-50"
-                  : "cursor-pointer text-[#0066FF] hover:bg-white"
-                  }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  imageDisabled
+                    ? "cursor-not-allowed text-slate-300 opacity-50"
+                    : "cursor-pointer text-[#0066FF] hover:bg-white"
+                }`}
               >
                 <ImageIcon className="h-6 w-6" />
               </button>
@@ -625,24 +742,29 @@ export default function NewPostModal({
                 onClick={() => {
                   if (gifDisabled) return;
                   setShowEmojiPicker(false);
+                  setShowColorPicker(false);
                   setShowGifPicker((current) => !current);
                 }}
                 disabled={gifDisabled}
                 title={
-                  gifDisabled
-                    ? "Remove images before adding a GIF"
-                    : "Add a GIF"
+                  hasPosterBackground
+                    ? "Remove poster background before adding a GIF"
+                    : gifDisabled
+                      ? "Remove images before adding a GIF"
+                      : "Add a GIF"
                 }
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${gifDisabled
-                  ? "cursor-not-allowed opacity-50"
-                  : "cursor-pointer hover:bg-white"
-                  }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  gifDisabled
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer hover:bg-white"
+                }`}
               >
                 <div
-                  className={`flex h-5.5 w-5.5 items-center justify-center rounded-lg border-2 text-[10px] font-bold ${gifDisabled
-                    ? "border-slate-300 text-slate-300"
-                    : "border-[#0066FF] text-[#0066FF]"
-                    }`}
+                  className={`flex h-5.5 w-5.5 items-center justify-center rounded-lg border-2 text-[10px] font-bold ${
+                    gifDisabled
+                      ? "border-slate-300 text-slate-300"
+                      : "border-[#0066FF] text-[#0066FF]"
+                  }`}
                 >
                   GIF
                 </div>
@@ -652,11 +774,29 @@ export default function NewPostModal({
                 ref={emojiButtonRef}
                 onClick={() => {
                   setShowGifPicker(false);
+                  setShowColorPicker(false);
                   setShowEmojiPicker((current) => !current);
                 }}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white"
               >
                 <Smile className="h-6 w-6" />
+              </button>
+
+              <button
+                ref={colorButtonRef}
+                onClick={() => {
+                  setShowEmojiPicker(false);
+                  setShowGifPicker(false);
+                  setShowColorPicker((current) => !current);
+                }}
+                title="Pick a color"
+                className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white"
+              >
+                <Palette className="h-5.5 w-5.5" />
+                <span
+                  className="absolute right-1 bottom-1 h-2.5 w-2.5 rounded-full border border-white shadow-sm"
+                  style={{ background: selectedColorTheme.swatch }}
+                />
               </button>
             </div>
 
@@ -675,20 +815,22 @@ export default function NewPostModal({
                 </div>
               )}
               <span
-                className={`text-sm font-medium ${MAX_POST_LENGTH - postText.length < 30
-                  ? "text-amber-600"
-                  : "text-slate-500"
-                  }`}
+                className={`text-sm font-medium ${
+                  MAX_POST_LENGTH - postText.length < 30
+                    ? "text-amber-600"
+                    : "text-slate-500"
+                }`}
               >
                 {MAX_POST_LENGTH - postText.length}
               </span>
               <Button
                 onClick={handleCreatePost}
                 disabled={isSubmitDisabled}
-                className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${!isSubmitDisabled
-                  ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
-                  : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
-                  }`}
+                className={`h-9 rounded-full px-5 text-sm font-bold shadow-none transition-colors sm:hidden ${
+                  !isSubmitDisabled
+                    ? "cursor-pointer bg-[#0066FF] text-white hover:bg-blue-700"
+                    : "cursor-not-allowed bg-[#A2C7FF] text-white hover:bg-[#A2C7FF]"
+                }`}
               >
                 {createPost.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

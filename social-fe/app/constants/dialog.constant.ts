@@ -1,0 +1,278 @@
+import { PostColorTheme } from "../interfaces/dialog/dialog.interface";
+
+export const DEFAULT_POST_THEME: PostColorTheme = {
+  id: "default",
+  label: "Default",
+  background: "transparent",
+  textColor: "#0f172a",
+  placeholderColor: "#94a3b8",
+  swatch: "#ffffff",
+};
+
+export const POST_COLOR_THEMES: PostColorTheme[] = [
+  DEFAULT_POST_THEME,
+  {
+    id: "fb-blue",
+    label: "Blue gradient",
+    background: "linear-gradient(135deg, #1877f2 0%, #9b5cff 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #1877f2, #9b5cff)",
+  },
+  {
+    id: "sunset",
+    label: "Sunset gradient",
+    background: "linear-gradient(135deg, #ff7a18 0%, #e52e71 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #ff7a18, #e52e71)",
+  },
+  {
+    id: "aqua",
+    label: "Aqua gradient",
+    background: "linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #00c6ff, #0072ff)",
+  },
+  {
+    id: "lime",
+    label: "Lime gradient",
+    background: "linear-gradient(135deg, #00b09b 0%, #96c93d 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #00b09b, #96c93d)",
+  },
+  {
+    id: "violet",
+    label: "Violet gradient",
+    background: "linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #8e2de2, #4a00e0)",
+  },
+  {
+    id: "berry",
+    label: "Berry gradient",
+    background: "linear-gradient(135deg, #f953c6 0%, #b91d73 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #f953c6, #b91d73)",
+  },
+  {
+    id: "night",
+    label: "Night gradient",
+    background: "linear-gradient(135deg, #141e30 0%, #243b55 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.72)",
+    swatch: "linear-gradient(135deg, #141e30, #243b55)",
+  },
+
+  // Red and orange
+  {
+    id: "fire",
+    label: "Fire gradient",
+    background: "linear-gradient(135deg, #f12711 0%, #f5af19 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #f12711, #f5af19)",
+  },
+  {
+    id: "coral",
+    label: "Coral gradient",
+    background: "linear-gradient(135deg, #ff512f 0%, #dd2476 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #ff512f, #dd2476)",
+  },
+  {
+    id: "peach",
+    label: "Peach gradient",
+    background: "linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)",
+    textColor: "#5f2930",
+    placeholderColor: "rgba(95,41,48,0.65)",
+    swatch: "linear-gradient(135deg, #ff9a9e, #fad0c4)",
+  },
+  {
+    id: "mango",
+    label: "Mango gradient",
+    background: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
+    textColor: "#4b3500",
+    placeholderColor: "rgba(75,53,0,0.65)",
+    swatch: "linear-gradient(135deg, #f7971e, #ffd200)",
+  },
+
+  // Pink and purple
+  {
+    id: "candy",
+    label: "Candy gradient",
+    background: "linear-gradient(135deg, #ff6a88 0%, #ff99ac 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #ff6a88, #ff99ac)",
+  },
+  {
+    id: "lavender",
+    label: "Lavender gradient",
+    background: "linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #c471f5, #fa71cd)",
+  },
+  {
+    id: "grape",
+    label: "Grape gradient",
+    background: "linear-gradient(135deg, #654ea3 0%, #eaafc8 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #654ea3, #eaafc8)",
+  },
+  {
+    id: "neon-purple",
+    label: "Neon purple",
+    background: "linear-gradient(135deg, #7f00ff 0%, #e100ff 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #7f00ff, #e100ff)",
+  },
+
+  // Blue
+  {
+    id: "ocean",
+    label: "Ocean gradient",
+    background: "linear-gradient(135deg, #2e3192 0%, #1bffff 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #2e3192, #1bffff)",
+  },
+  {
+    id: "sky",
+    label: "Sky gradient",
+    background: "linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.8)",
+    swatch: "linear-gradient(135deg, #56ccf2, #2f80ed)",
+  },
+  {
+    id: "ice",
+    label: "Ice gradient",
+    background: "linear-gradient(135deg, #74ebd5 0%, #acb6e5 100%)",
+    textColor: "#17324d",
+    placeholderColor: "rgba(23,50,77,0.62)",
+    swatch: "linear-gradient(135deg, #74ebd5, #acb6e5)",
+  },
+  {
+    id: "deep-sea",
+    label: "Deep sea gradient",
+    background: "linear-gradient(135deg, #005c97 0%, #363795 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.75)",
+    swatch: "linear-gradient(135deg, #005c97, #363795)",
+  },
+
+  // Green
+  {
+    id: "forest",
+    label: "Forest gradient",
+    background: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #134e5e, #71b280)",
+  },
+  {
+    id: "emerald",
+    label: "Emerald gradient",
+    background: "linear-gradient(135deg, #348f50 0%, #56b4d3 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.78)",
+    swatch: "linear-gradient(135deg, #348f50, #56b4d3)",
+  },
+  {
+    id: "mint",
+    label: "Mint gradient",
+    background: "linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%)",
+    textColor: "#164638",
+    placeholderColor: "rgba(22,70,56,0.62)",
+    swatch: "linear-gradient(135deg, #a8ff78, #78ffd6)",
+  },
+
+  // Yellow
+  {
+    id: "sunny",
+    label: "Sunny gradient",
+    background: "linear-gradient(135deg, #fceabb 0%, #f8b500 100%)",
+    textColor: "#4d3500",
+    placeholderColor: "rgba(77,53,0,0.62)",
+    swatch: "linear-gradient(135deg, #fceabb, #f8b500)",
+  },
+  {
+    id: "lemon",
+    label: "Lemon gradient",
+    background: "linear-gradient(135deg, #fff200 0%, #f6d365 100%)",
+    textColor: "#4a3d00",
+    placeholderColor: "rgba(74,61,0,0.62)",
+    swatch: "linear-gradient(135deg, #fff200, #f6d365)",
+  },
+
+  // Pastel
+  {
+    id: "pastel-dream",
+    label: "Pastel dream",
+    background:
+      "linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 50%, #fbc2eb 100%)",
+    textColor: "#30445c",
+    placeholderColor: "rgba(48,68,92,0.6)",
+    swatch: "linear-gradient(135deg, #a1c4fd, #fbc2eb)",
+  },
+  {
+    id: "cotton-candy",
+    label: "Cotton candy",
+    background: "linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)",
+    textColor: "#493854",
+    placeholderColor: "rgba(73,56,84,0.6)",
+    swatch: "linear-gradient(135deg, #fbc2eb, #a6c1ee)",
+  },
+  {
+    id: "cream",
+    label: "Cream gradient",
+    background: "linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%)",
+    textColor: "#374151",
+    placeholderColor: "rgba(55,65,81,0.58)",
+    swatch: "linear-gradient(135deg, #fff1eb, #ace0f9)",
+  },
+
+  // Dark
+  {
+    id: "midnight",
+    label: "Midnight gradient",
+    background:
+      "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.7)",
+    swatch: "linear-gradient(135deg, #0f2027, #2c5364)",
+  },
+  {
+    id: "black-purple",
+    label: "Black purple",
+    background: "linear-gradient(135deg, #232526 0%, #6a3093 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.72)",
+    swatch: "linear-gradient(135deg, #232526, #6a3093)",
+  },
+  {
+    id: "charcoal",
+    label: "Charcoal gradient",
+    background: "linear-gradient(135deg, #232526 0%, #414345 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.68)",
+    swatch: "linear-gradient(135deg, #232526, #414345)",
+  },
+  {
+    id: "dark-red",
+    label: "Dark red gradient",
+    background: "linear-gradient(135deg, #200122 0%, #6f0000 100%)",
+    textColor: "#ffffff",
+    placeholderColor: "rgba(255,255,255,0.7)",
+    swatch: "linear-gradient(135deg, #200122, #6f0000)",
+  },
+];

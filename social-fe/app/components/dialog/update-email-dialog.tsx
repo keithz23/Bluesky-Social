@@ -20,11 +20,11 @@ import * as z from "zod";
 import { type SubmitHandler, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-type UpdateEmailDialogProps = {
+interface UpdateEmailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentEmail?: string;
-};
+}
 
 const updateEmailSchema = z.object({
   email: z
@@ -145,10 +145,11 @@ export default function UpdateEmailDialog({
                 aria-invalid={Boolean(errors.email)}
                 {...register("email")}
                 disabled={codeSent || isRequestingEmailCode || isUpdatingEmail}
-                className={`rounded-xl border bg-[#F1F5F9] py-6 text-[15px] transition-all focus-visible:bg-white focus-visible:ring-0 ${errors.email
+                className={`rounded-xl border bg-[#F1F5F9] py-6 text-[15px] transition-all focus-visible:bg-white focus-visible:ring-0 ${
+                  errors.email
                     ? "border-red-500 focus-visible:border-red-500"
                     : "border-transparent focus-visible:border-[#1185fe]"
-                  }`}
+                }`}
               />
               {errors.email && (
                 <p className="ml-1 text-xs font-medium text-red-500">
@@ -168,10 +169,11 @@ export default function UpdateEmailDialog({
                   aria-invalid={Boolean(errors.otp)}
                   {...register("otp")}
                   disabled={isUpdatingEmail}
-                  className={`rounded-xl border bg-[#F1F5F9] py-6 text-[15px] transition-all focus-visible:bg-white focus-visible:ring-0 ${errors.otp
+                  className={`rounded-xl border bg-[#F1F5F9] py-6 text-[15px] transition-all focus-visible:bg-white focus-visible:ring-0 ${
+                    errors.otp
                       ? "border-red-500 focus-visible:border-red-500"
                       : "border-transparent focus-visible:border-[#1185fe]"
-                    }`}
+                  }`}
                 />
                 {errors.otp && (
                   <p className="ml-1 text-xs font-medium text-red-500">
@@ -215,7 +217,11 @@ export default function UpdateEmailDialog({
               </Button>
             </DialogClose>
             {codeSent ? (
-              <Button type="submit" disabled={isUpdatingEmail} className="cursor-pointer">
+              <Button
+                type="submit"
+                disabled={isUpdatingEmail}
+                className="cursor-pointer"
+              >
                 {isUpdatingEmail ? "Updating..." : "Verify and update"}
               </Button>
             ) : (

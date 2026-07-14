@@ -24,22 +24,15 @@ import {
   IMAGE_UPLOAD_RULES,
   validateImageFile,
 } from "@/app/utils/upload-rules.util";
+import { EditableProfile } from "@/app/interfaces/dialog/dialog.interface";
 
-interface EditableProfile {
-  displayName?: string | null;
-  bio?: string | null;
-  avatarUrl?: string | null;
-  coverUrl?: string | null;
-}
-
+const DISPLAY_NAME_MAX_LENGTH = 50;
+const BIO_MAX_LENGTH = 100;
 interface EditProfileModalProps {
   profile?: EditableProfile | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const DISPLAY_NAME_MAX_LENGTH = 50;
-const BIO_MAX_LENGTH = 100;
 
 const editProfileSchema = z.object({
   displayName: z
@@ -216,8 +209,7 @@ export default function EditProfileModal({
     );
   };
 
-  const isSaveDisabled =
-    !hasChanges || !validationResult.success || isUpdating;
+  const isSaveDisabled = !hasChanges || !validationResult.success || isUpdating;
 
   return (
     <>
@@ -262,10 +254,11 @@ export default function EditProfileModal({
               variant="ghost"
               onClick={handleSave}
               disabled={isSaveDisabled}
-              className={`justify-self-end text-base font-normal px-2 hover:bg-transparent ${isSaveDisabled
-                ? "text-muted-foreground"
-                : "text-blue-600 hover:text-blue-700 cursor-pointer"
-                }`}
+              className={`justify-self-end text-base font-normal px-2 hover:bg-transparent ${
+                isSaveDisabled
+                  ? "text-muted-foreground"
+                  : "text-blue-600 hover:text-blue-700 cursor-pointer"
+              }`}
             >
               {isUpdating ? (
                 <div className="flex items-center gap-x-1">
