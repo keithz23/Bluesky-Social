@@ -519,9 +519,8 @@ export default function NewPostModal({
                 />
               </div>
 
-              {/* Mention Dropdown */}
               {isMentionOpen && (isLoading || mentionResults.length > 0) && (
-                <div className="absolute top-full left-0 z-60 mt-2 w-76 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute top-14 left-4 z-60 w-76 max-w-[calc(100%-2rem)] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-xl animate-in fade-in zoom-in-95 duration-100 sm:top-16 sm:left-5">
                   <div className="max-h-72 overflow-y-auto p-1.5">
                     {isLoading ? (
                       <div className="flex items-center justify-center gap-2 p-4 text-sm text-slate-500">
@@ -565,7 +564,7 @@ export default function NewPostModal({
           </div>
 
           {hasImages && (
-            <div className="ml-18 min-w-0 px-4 pb-3">
+            <div className="min-w-0 px-4 pb-3">
               <div className={`grid ${getGridClass(imageCount)} gap-2`}>
                 {selectedImages.map((img, i) => {
                   const isThreeFirst = imageCount === 3 && i === 0;
@@ -599,7 +598,7 @@ export default function NewPostModal({
           )}
 
           {hasGif && (
-            <div className="relative ml-18 inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
+            <div className="relative inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
               <img
                 src={selectedGif!}
                 alt="Selected GIF"

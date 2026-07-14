@@ -24,25 +24,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
 import { formatCompactDate, formatFullDate } from "@/app/utils/format.util";
+import {
+  getMediaGridClass,
+  getMediaItemClass,
+} from "@/app/interfaces/card/card.interface";
 
 interface PostCardProps {
   post: Feed;
   dropdownItems: DropdownItem[];
 }
-
-const getMediaGridClass = (count: number) => {
-  if (count === 1) return "mt-2 mb-2 w-full sm:mb-3";
-  if (count === 3) {
-    return "mt-2 mb-2 grid h-72 w-full grid-cols-2 grid-rows-2 gap-1 sm:mb-3 sm:h-80";
-  }
-  return "mt-2 mb-2 grid w-full grid-cols-2 gap-1 sm:mb-3";
-};
-
-const getMediaItemClass = (count: number, index: number) => {
-  if (count === 1) return "aspect-video";
-  if (count === 3 && index === 0) return "row-span-2 h-full";
-  return "aspect-square";
-};
 
 function PostCardComponent({ post, dropdownItems }: PostCardProps) {
   const router = useRouter();
@@ -71,7 +61,6 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
 
   const formattedDate = formatCompactDate(post.createdAt);
   const fullDate = formatFullDate(post.createdAt);
-  const hasContent = post.content.trim().length > 0;
   const shouldShowContentFrame = Boolean(post.postTheme);
 
   return (
@@ -104,7 +93,7 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
 
           {shouldShowContentFrame ? (
             <div
-              className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-gray-100"
+              className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-gray-100 text-white"
               style={{
                 background: post.postTheme?.background ?? "#f3f4f6",
               }}
@@ -124,7 +113,7 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
                 {post.media.map((m: PostMedia, index) => (
                   <PhotoView src={m.mediaUrl} key={m.id}>
                     <div
-                      className={`cursor-zoom-in overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${getMediaItemClass(
+                      className={`overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${getMediaItemClass(
                         post.media.length,
                         index,
                       )}`}
