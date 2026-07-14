@@ -21,6 +21,11 @@ import Avatar from "../avatar";
 import { PostContent } from "../post-content";
 import CommentComposer from "./comment-composer";
 import { formatCompactDate } from "@/app/utils/format.util";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+import {
+  getMediaGridClass,
+  getMediaItemClass,
+} from "@/app/interfaces/card/card.interface";
 
 interface PostCommentsDialogProps {
   post: Feed;
@@ -80,29 +85,50 @@ function ModalPostPreview({ post }: { post: Feed }) {
               className="px-4 pb-3 text-[15px] leading-5 text-gray-900"
             />
           )}
+
           <div className="w-full bg-gray-100">
             {post.media.length === 1 ? (
-              <img
-                src={post.media[0].mediaUrl}
-                alt={post.media[0].altText ?? ""}
-                className="max-h-[58vh] min-h-80 w-full object-cover"
-              />
-            ) : (
-              <div className="grid max-h-[58vh] min-h-80 grid-cols-2 gap-px overflow-hidden">
-                {post.media.slice(0, 4).map((media, index) => (
+              <PhotoProvider>
+                <PhotoView src={post.media[0].mediaUrl}>
                   <img
-                    key={media.id || index}
-                    src={media.mediaUrl}
-                    alt={media.altText ?? ""}
-                    className="h-full min-h-40 w-full object-cover"
+                    src={post.media[0].mediaUrl}
+                    alt={post.media[0].altText ?? ""}
+                    className="max-h-[58vh] min-h-80 w-full object-cover"
                   />
-                ))}
+                </PhotoView>
+              </PhotoProvider>
+            ) : (
+              <div className={getMediaGridClass(post.media.length)}>
+                <PhotoProvider>
+                  {post.media.slice(0, 4).map((media, index) => (
+                    <PhotoView src={media.mediaUrl} key={index}>
+                      <div
+                        className={`overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${getMediaItemClass(
+                          post.media.length,
+                          index,
+                        )}`}
+                      >
+                        <img
+                          key={media.id || index}
+                          src={media.mediaUrl}
+                          alt={media.altText ?? ""}
+                          className="h-full min-h-40 w-full object-cover"
+                        />
+                      </div>
+                    </PhotoView>
+                  ))}
+                </PhotoProvider>
               </div>
             )}
           </div>
         </>
       ) : (
-        <div className="flex min-h-95 items-center justify-center bg-[radial-gradient(circle_at_35%_65%,#d9bd6c_0,#d6b974_18%,transparent_36%),linear-gradient(135deg,#6ab8c8_0%,#8fb3c9_28%,#b988b2_58%,#8d94c9_100%)] px-12 text-center">
+        <div
+          className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-gray-100"
+          style={{
+            background: post.postTheme?.background ?? "#f3f4f6",
+          }}
+        >
           <PostContent
             content={post.content}
             className="max-w-xl text-[28px] font-bold leading-tight text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.55)]"

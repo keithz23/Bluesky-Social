@@ -1,0 +1,10 @@
+export const RESET_TTL_MINUTES = 15;
+export const MAX_ACTIVE_EMAIL_CODES = 3;
+export const EMAIL_UPDATE_CODE_PREFIX = 'email_update';
+export const PASSWORD_UPDATE_CODE_PREFIX = 'password_update';
+export const LOGIN_2FA_TTL_SECONDS = 5 * 60;
+export const MAX_LOGIN_2FA_ATTEMPTS = 5;
+export const TOTP_SETUP_TTL_SECONDS = 10 * 60;
+export const TOTP_ISSUER = 'Konekt';
+export const RECOVERY_CODE_COUNT = 10;
+export const RECOVERY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
