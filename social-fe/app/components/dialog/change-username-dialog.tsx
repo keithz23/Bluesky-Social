@@ -15,10 +15,10 @@ import { AtSign } from "lucide-react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 import * as z from "zod";
 
-type ChangeUsernameDialogProps = {
+interface ChangeUsernameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
+}
 
 const changeUsernameSchema = z.object({
   username: z

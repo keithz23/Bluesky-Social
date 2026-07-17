@@ -1,14 +1,9 @@
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Share } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
 import {
   Tooltip,
   TooltipContent,
@@ -22,23 +17,24 @@ import LikeButton from "../button/like-button";
 import BookMarkButton from "../button/bookmark-button";
 import RepostButton from "../button/repost-button";
 import PostDropDown from "../dropdown/post-dropdown";
-import { formatDistanceToNow } from "date-fns";
-import { enUS } from "date-fns/locale";
-import ReplyPostModal from "../dialog/reply-post-dialog";
+import PostCommentsDialog from "../dialog/post-comments-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
-import { ZoomData } from "../dialog/image-zoom-dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
+import { formatCompactDate, formatFullDate } from "@/app/utils/format.util";
+import {
+  getMediaGridClass,
+  getMediaItemClass,
+} from "@/app/interfaces/card/card.interface";
 
 interface PostCardProps {
   post: Feed;
   dropdownItems: DropdownItem[];
-  onZoom?: (data: ZoomData) => void;
 }
 
-function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
+function PostCardComponent({ post, dropdownItems }: PostCardProps) {
   const router = useRouter();
   const { user } = useAuth();
   const replyDisabled = !!user && !checkCanReply(post, user);
@@ -46,14 +42,6 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
   const handleProfileClick = useCallback(() => {
     router.push(`/profile/${post.user.username}`);
   }, [router, post.user.username]);
-
-  const handlePostDetailClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      router.push(`/profile/${post.user.username}/post/${post.id}`);
-    },
-    [router, post.user.username, post.id],
-  );
 
   const handleShare = useCallback(
     async (e: React.MouseEvent) => {
@@ -71,42 +59,12 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
     [post.content, post.id, post.user.username],
   );
 
-  const formattedDate = useMemo(() => {
-    const distance = formatDistanceToNow(
-      new Date(post.createdAt || new Date()),
-      { addSuffix: false, locale: enUS },
-    );
-
-    return distance
-      .replace(/^about\s/, "")
-      .replace(/^almost\s/, "")
-      .replace(/^over\s/, "")
-      .replace("less than a minute", "now")
-      .replace(/\s?minutes?/, "m")
-      .replace(/\s?hours?/, "h")
-      .replace(/\s?days?/, "d")
-      .replace(/\s?months?/, "mo")
-      .replace(/\s?years?/, "y");
-  }, [post.createdAt]);
-
-  const fullDate = useMemo(
-    () =>
-      new Date(post.createdAt || new Date()).toLocaleString("en-US", {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    [post.createdAt],
-  );
+  const formattedDate = formatCompactDate(post.createdAt);
+  const fullDate = formatFullDate(post.createdAt);
+  const shouldShowContentFrame = Boolean(post.postTheme);
 
   return (
-    <div
-      className="border-b border-gray-100 p-3 transition hover:bg-gray-50 sm:p-4 cursor-pointer"
-      onClick={handlePostDetailClick}
-    >
+    <div className="border-b border-gray-100 p-3 transition sm:p-4 cursor-pointer">
       <div className="flex min-w-0 gap-2.5 sm:gap-3">
         <AvatarHoverCard data={post} handleProfileClick={handleProfileClick} />
 
@@ -133,40 +91,44 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
             </Tooltip>
           </div>
 
-          <PostContent content={post.content} />
+          {shouldShowContentFrame ? (
+            <div
+              className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-gray-100 text-white"
+              style={{
+                background: post.postTheme?.background ?? "#f3f4f6",
+              }}
+            >
+              <PostContent content={post.content} />
+            </div>
+          ) : (
+            <PostContent content={post.content} />
+          )}
 
           {post.media?.length > 0 && (
-            <Carousel opts={{ align: "start" }} className="mb-2 w-full sm:mb-3">
-              <CarouselContent onClick={(e) => e.stopPropagation()}>
-                <PhotoProvider>
-                  {post.media.map((m: PostMedia) => (
-                    <PhotoView src={m.mediaUrl} key={m.id}>
-                      <CarouselItem
-                        className={
-                          post.media.length === 1
-                            ? "basis-full"
-                            : "basis-[88%] sm:basis-[85%]"
-                        }
-                      >
-                        <div
-                          className={`w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${post.media.length === 1
-                            ? "aspect-video"
-                            : "h-56 sm:h-64"
-                            }`}
-                        >
-                          <img
-                            src={m.mediaUrl}
-                            alt={m.altText ?? ""}
-                            loading="lazy"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      </CarouselItem>
-                    </PhotoView>
-                  ))}
-                </PhotoProvider>
-              </CarouselContent>
-            </Carousel>
+            <PhotoProvider>
+              <div
+                className={getMediaGridClass(post.media.length)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {post.media.map((m: PostMedia, index) => (
+                  <PhotoView src={m.mediaUrl} key={m.id}>
+                    <div
+                      className={`overflow-hidden rounded-xl border border-gray-100 bg-gray-100 ${getMediaItemClass(
+                        post.media.length,
+                        index,
+                      )}`}
+                    >
+                      <img
+                        src={m.mediaUrl}
+                        alt={m.altText ?? ""}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  </PhotoView>
+                ))}
+              </div>
+            </PhotoProvider>
           )}
 
           <div
@@ -175,10 +137,7 @@ function PostCardComponent({ post, dropdownItems, onZoom }: PostCardProps) {
           >
             <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:justify-start sm:gap-8">
               <div className="flex items-center gap-1 group cursor-pointer">
-                <ReplyPostModal post={post} disabled={replyDisabled} />
-                <span className="group-hover:text-blue-500 transition-colors">
-                  {post.replyCount}
-                </span>
+                <PostCommentsDialog post={post} replyDisabled={replyDisabled} />
               </div>
 
               <RepostButton
@@ -231,8 +190,7 @@ const PostCard = React.memo(PostCardComponent, (prev, next) => {
     prev.post.isBookmarked === next.post.isBookmarked &&
     prev.post.bookmarkCount === next.post.bookmarkCount &&
     prev.post.replyCount === next.post.replyCount &&
-    prev.dropdownItems === next.dropdownItems &&
-    prev.onZoom === next.onZoom
+    prev.dropdownItems === next.dropdownItems
   );
 });
 

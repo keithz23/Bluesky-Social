@@ -48,7 +48,6 @@ const appendReplyToThread = (old: unknown, reply: Feed) => {
 };
 
 export const useCreateReply = (postId: string) => {
-  const router = useRouter();
   const qc = useQueryClient();
   const [createReplyUploadProgress, setCreateReplyUploadProgress] = useState<
     number | null
@@ -91,15 +90,6 @@ export const useCreateReply = (postId: string) => {
       qc.invalidateQueries({ queryKey: ["post-detail", postId] });
       qc.invalidateQueries({ queryKey: ["replies", postId] });
       qc.invalidateQueries({ queryKey: ["userPosts"] });
-
-      toast.success("Your reply was sent", {
-        action: {
-          label: "View",
-          onClick: () => {
-            router.push(`/profile/${data.user.username}/post/${data.id}`);
-          },
-        },
-      });
     },
     onError: (error) => {
       console.error("Create reply failed:", error);
@@ -117,14 +107,14 @@ export const useCreateReply = (postId: string) => {
   };
 };
 
-export const useReplies = (postId: string) => {
+export const useReplies = (postId: string, enabled = true) => {
   return useInfiniteQuery({
     queryKey: ["replies", postId],
     queryFn: ({ pageParam }) => ReplyService.getReplies(postId, pageParam),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!postId,
+    enabled: enabled && !!postId,
     ...infiniteQueryOptions,
   });
 };

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  MessageSquare,
-  Repeat2,
-  Heart,
-  Bookmark,
-  Share,
-} from "lucide-react";
+import { Repeat2, Heart, Bookmark, Share } from "lucide-react";
 import { useBookmark } from "@/app/hooks/use-bookmark";
 import { useLike } from "@/app/hooks/use-like";
 import {
@@ -20,7 +14,6 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { PostMedia } from "../../interfaces/post.interface";
-import { useMemo } from "react";
 import { useRepost } from "@/app/hooks/use-repost";
 import { useRouter } from "next/navigation";
 import UserHoverCard from "./user-hover-card";
@@ -37,10 +30,12 @@ import {
 } from "lucide-react";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
-import { enUS } from "date-fns/locale";
-import { formatDistanceToNow } from "date-fns";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import { PhotoProvider, PhotoView } from "react-photo-view";
+import PostCommentsDialog from "../dialog/post-comments-dialog";
+import { useAuth } from "@/app/hooks/use-auth";
+import { checkCanReply } from "@/app/utils/check.util";
+import { formatCompactDate, formatFullDate } from "@/app/utils/format.util";
 
 const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const router = useRouter();
@@ -49,6 +44,8 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
   const { mutate: toggleBookmark } = useBookmark(post.id, true);
   const { mutate: toggleRepost } = useRepost(post.id, post.isReposted);
   const requireAuth = useRequireAuthAction();
+  const { user } = useAuth();
+  const replyDisabled = !!user && !checkCanReply(post, user);
 
   const handleProfileClick = () => {
     router.push(`/profile/${post.user.username}`);
@@ -65,39 +62,8 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
     { id: 8, title: "Report post", icon: <TriangleAlert size={18} /> },
   ];
 
-  const formattedDate = useMemo(() => {
-    const distance = formatDistanceToNow(
-      new Date(post.createdAt || new Date()),
-      {
-        addSuffix: false,
-        locale: enUS,
-      },
-    );
-
-    return distance
-      .replace(/^about\s/, "")
-      .replace(/^almost\s/, "")
-      .replace(/^over\s/, "")
-      .replace("less than a minute", "now")
-      .replace(/\s?minutes?/, "m")
-      .replace(/\s?hours?/, "h")
-      .replace(/\s?days?/, "d")
-      .replace(/\s?months?/, "mo")
-      .replace(/\s?years?/, "y");
-  }, [post.createdAt]);
-
-  const fullDate = useMemo(
-    () =>
-      new Date(post.createdAt || new Date()).toLocaleString("en-US", {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    [post.createdAt],
-  );
+  const formattedDate = formatCompactDate(post.createdAt);
+  const fullDate = formatFullDate(post.createdAt);
 
   return (
     <>
@@ -170,12 +136,9 @@ const SavedPostCard = ({ bookmark }: { bookmark: any }) => {
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between mt-3 text-gray-500 max-w-md">
-            <button className="flex items-center gap-1.5 hover:text-blue-500 transition group cursor-pointer">
-              <div className="p-1.5 rounded-full group-hover:bg-blue-50 transition -ml-1.5">
-                <MessageSquare className="w-4 h-4" />
-              </div>
-              <span className="text-[13px]">{post.replyCount}</span>
-            </button>
+            <div className="group -ml-1.5">
+              <PostCommentsDialog post={post} replyDisabled={replyDisabled} />
+            </div>
 
             <button
               className="flex items-center gap-1.5 hover:text-green-500 transition group cursor-pointer"

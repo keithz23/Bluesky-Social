@@ -20,33 +20,34 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-type ChangePasswordDialogProps = {
+interface ChangePasswordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
+}
 
-
-const changePasswordSchema = z.object({
-  otp: z
-    .string()
-    .trim()
-    .regex(
-      /^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/,
-      "Verification code should look like XXXXX-XXXXX.",
-    ),
-  newPassword: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password cannot exceed 128 characters")
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain uppercase, lowercase, number and special character",
-    ),
-  newPasswordConfirm: z.string().min(1, "Please confirm your password"),
-}).refine((data) => data.newPassword === data.newPasswordConfirm, {
-  message: "Passwords do not match.",
-  path: ["newPasswordConfirm"],
-});
+const changePasswordSchema = z
+  .object({
+    otp: z
+      .string()
+      .trim()
+      .regex(
+        /^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/,
+        "Verification code should look like XXXXX-XXXXX.",
+      ),
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128, "Password cannot exceed 128 characters")
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+        "Password must contain uppercase, lowercase, number and special character",
+      ),
+    newPasswordConfirm: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.newPasswordConfirm, {
+    message: "Passwords do not match.",
+    path: ["newPasswordConfirm"],
+  });
 
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
@@ -247,7 +248,12 @@ export default function ChangePasswordDialog({
 
             <DialogFooter className="gap-2 sm:justify-between">
               <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={isBusy} tabIndex={1}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isBusy}
+                  tabIndex={1}
+                >
                   Cancel
                 </Button>
               </DialogClose>
