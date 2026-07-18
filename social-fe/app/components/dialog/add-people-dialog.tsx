@@ -20,8 +20,16 @@ import { useListMember } from "@/app/hooks/use-list-member";
 interface AddPeopleDialogProps {
   children?: React.ReactNode;
   listId: string;
-  currentMembers?: any[];
+  currentMembers?: ListMember[];
 }
+
+type ListMember = {
+  user: User;
+};
+
+type ListCandidateUser = User & {
+  isAdded?: boolean;
+};
 
 export default function AddPeopleDialog({
   children,
@@ -32,6 +40,9 @@ export default function AddPeopleDialog({
   const username = user?.username ?? "";
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [memberOverrides, setMemberOverrides] = useState<
+    Record<string, boolean>
+  >({});
 
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
 
@@ -49,6 +60,15 @@ export default function AddPeopleDialog({
   const following = data?.pages.flatMap((page) => page.following) ?? [];
   const hasQuery = searchQuery.trim().length > 0;
   const displayUsers = hasQuery ? (searchResults ?? []) : following;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSearchQuery("");
+      setMemberOverrides({});
+      setLoadingUserId(null);
+    }
+  };
 
   const { ref } = useInfiniteScroll({
     hasNextPage: !hasQuery && hasNextPage,
@@ -68,18 +88,34 @@ export default function AddPeopleDialog({
     if (isCurrentlyAdded) {
       mutationRemove.mutate(
         { listId, userIdToRemove: targetUserId },
-        { onSettled: () => setLoadingUserId(null) },
+        {
+          onSuccess: () => {
+            setMemberOverrides((prev) => ({
+              ...prev,
+              [targetUserId]: false,
+            }));
+          },
+          onSettled: () => setLoadingUserId(null),
+        },
       );
     } else {
       mutationAdd.mutate(
         { listId, userIdToAdd: targetUserId },
-        { onSettled: () => setLoadingUserId(null) },
+        {
+          onSuccess: () => {
+            setMemberOverrides((prev) => ({
+              ...prev,
+              [targetUserId]: true,
+            }));
+          },
+          onSettled: () => setLoadingUserId(null),
+        },
       );
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children || (
           <Button className="h-11 px-6 rounded-full bg-[#1185fe] hover:bg-[#0a70db] text-white font-bold text-[15px] flex items-center gap-2 shadow-none transition-colors cursor-pointer">
@@ -96,7 +132,8 @@ export default function AddPeopleDialog({
             Add people to list
           </DialogTitle>
           <button
-            onClick={() => setOpen(false)}
+            type="button"
+            onClick={() => handleOpenChange(false)}
             className="p-1.5 -mr-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-500 cursor-pointer"
           >
             <X className="w-6 h-6" />
@@ -125,10 +162,11 @@ export default function AddPeopleDialog({
           ) : null}
 
           <div className="flex flex-col">
-            {displayUsers.map((user: User) => {
-              const isAdded = currentMembers.some(
-                (member) => member.user.id === user.id,
-              );
+            {displayUsers.map((user: ListCandidateUser) => {
+              const isAdded =
+                memberOverrides[user.id] ??
+                user.isAdded ??
+                currentMembers.some((member) => member.user.id === user.id);
 
               const isHandling = loadingUserId === user.id;
 

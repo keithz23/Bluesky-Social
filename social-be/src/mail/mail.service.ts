@@ -31,6 +31,10 @@ const ACCOUNT_CODE_MAIL_CONFIG: Record<
     type: 'request-deactivate-account-otp',
     subject: 'Confirm account deactivation',
   },
+  'delete-account': {
+    type: 'request-delete-account-otp',
+    subject: 'Confirm account deletion',
+  },
   'enable-2fa': {
     type: 'request-enable-2fa',
     subject: 'Enable 2FA',
@@ -70,7 +74,8 @@ export class MailService {
         payload.type === 'forgot' ||
         payload.type === 'request-email-otp' ||
         payload.type === 'request-password-otp' ||
-        payload.type === 'request-deactivate-account-otp'
+        payload.type === 'request-deactivate-account-otp' ||
+        payload.type === 'request-delete-account-otp'
       ) {
         opts.jobId = this.makeJobId(payload);
       }

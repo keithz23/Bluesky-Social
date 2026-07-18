@@ -20,6 +20,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { SearchPostsDto } from './dto/search-posts.dto';
+import { PinPostQueryDto } from './dto/pin-post-query.dto';
 import 'multer';
 
 @Controller('posts')
@@ -123,5 +124,29 @@ export class PostsController {
     @Query('limit') limit?: number,
   ) {
     return this.postsService.getReplies(userId, postId, cursor, limit);
+  }
+
+  @Get('/users/pin-post/:username')
+  async getPinPost(
+    @Param('username') username: string,
+    @CurrentUser('id') userId: string,
+    @Query() query: PinPostQueryDto,
+  ) {
+    return this.postsService.getPinPost(username, userId, query);
+  }
+  @Post(':postId/pin')
+  async pinPost(
+    @CurrentUser('id') userId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.postsService.pinPost(userId, postId);
+  }
+
+  @Delete(':postId/unpin')
+  async unpinPost(
+    @CurrentUser('id') userId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.postsService.unpinPost(userId, postId);
   }
 }

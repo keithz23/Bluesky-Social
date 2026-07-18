@@ -7,6 +7,7 @@ export type MailType =
   | 'request-email-otp'
   | 'request-password-otp'
   | 'request-deactivate-account-otp'
+  | 'request-delete-account-otp'
   | 'request-enable-2fa'
   | 'login-2fa'
   | 'request-disable-2fa';
@@ -16,6 +17,7 @@ export type AccountCodeMailPurpose =
   | 'email-update'
   | 'password-update'
   | 'deactivate-account'
+  | 'delete-account'
   | 'enable-2fa'
   | 'login-2fa'
   | 'disable-2fa';

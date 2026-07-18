@@ -199,6 +199,68 @@ export class ListsService {
     };
   }
 
+  async addPostToList(userId: string, listId: string, postId: string) {
+    const list = await this.prisma.list.findUnique({
+      where: { id: listId, userId },
+      select: { id: true },
+    });
+
+    if (!list) {
+      throw new ForbiddenException('List not found or you are not the owner');
+    }
+
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      select: { id: true },
+    });
+
+    if (!post) {
+      throw new BadRequestException('Post not found');
+    }
+
+    const result = await this.prisma.listItem.createMany({
+      data: {
+        listId,
+        postId,
+      },
+      skipDuplicates: true,
+    });
+
+    return {
+      message:
+        result.count > 0
+          ? 'Post added to list successfully'
+          : 'Post is already in this list',
+      addedCount: result.count,
+    };
+  }
+
+  async removePostFromList(userId: string, listId: string, postId: string) {
+    const list = await this.prisma.list.findUnique({
+      where: { id: listId, userId },
+      select: { id: true },
+    });
+
+    if (!list) {
+      throw new ForbiddenException('List not found or you are not the owner');
+    }
+
+    const result = await this.prisma.listItem.deleteMany({
+      where: {
+        listId,
+        postId,
+      },
+    });
+
+    if (result.count === 0) {
+      throw new BadRequestException('Post is not in this list');
+    }
+
+    return {
+      message: 'Post removed from list successfully',
+    };
+  }
+
   async getLists(userId: string, query: FeedQueryDto) {
     const limit = query.limit ?? 20;
     const cursorId = query.cursor;
@@ -216,7 +278,16 @@ export class ListsService {
 
     const lists = await this.prisma.list.findMany({
       where: {
-        userId: ownerId,
+        OR: [
+          { userId: ownerId },
+          {
+            members: {
+              some: {
+                memberId: ownerId,
+              },
+            },
+          },
+        ],
       },
       take: limit + 1,
 
@@ -367,7 +438,15 @@ export class ListsService {
     const bookmarkedSet = new Set(bookmarkedPosts.map((item) => item.postId));
     const repostedSet = new Set(repostedPosts.map((item) => item.postId));
 
-    const { items, ...listData } = list;
+    const listData = {
+      id: list.id,
+      name: list.name,
+      description: list.description,
+      listPhoto: list.listPhoto,
+      createdAt: list.createdAt,
+      userId: list.userId,
+      user: list.user,
+    };
 
     return {
       ...listData,
