@@ -26,5 +26,6 @@ export interface Feed {
   rootPostId?: string | null;
   rootPost?: Feed;
   parentChain?: Feed[];
+  isPinned: boolean;
   post?: any;
 }

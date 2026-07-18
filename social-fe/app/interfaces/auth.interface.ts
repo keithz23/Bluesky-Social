@@ -50,6 +50,10 @@ export interface DeactivateAccountData {
   otp: string;
 }
 
+export interface DeleteAccountData {
+  otp: string;
+}
+
 export interface Enable2FAData {
   otp: string;
 }

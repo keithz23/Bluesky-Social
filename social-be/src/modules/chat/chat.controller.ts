@@ -18,6 +18,7 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ConversationQueryDto, MessageQueryDto } from './dto/message-query.dto';
 import 'multer';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('conversations')
 export class ChatController {
@@ -27,6 +28,7 @@ export class ChatController {
   ) {}
 
   @Get()
+  @Throttle({ default: { ttl: 60000, limit: 300 } })
   getConversations(
     @CurrentUser('id') userId: string,
     @Query() query: ConversationQueryDto,
@@ -43,6 +45,7 @@ export class ChatController {
   }
 
   @Get(':id')
+  @Throttle({ default: { ttl: 3600, limit: 3 } })
   getConversation(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.chatService.getConversation(userId, id);
   }

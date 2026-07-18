@@ -12,6 +12,7 @@ import {
   ChangeUsernameData,
   ChangeBirthDayData,
   DeactivateAccountData,
+  DeleteAccountData,
   Enable2FAData,
   Disable2FAData,
   Setup2FAData,
@@ -122,6 +123,17 @@ export const AuthService = {
     return axiosInstance.post(
       API_ENDPOINT.AUTH.DEACTIVATE_ACCOUNT,
       deactivateAccountData,
+    );
+  },
+
+  requestDeleteAccount: () => {
+    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_DELETE_ACCOUNT);
+  },
+
+  deleteAccount: (deleteAccountData: DeleteAccountData) => {
+    return axiosInstance.post(
+      API_ENDPOINT.AUTH.DELETE_ACCOUNT,
+      deleteAccountData,
     );
   },
 

@@ -39,9 +39,11 @@ export function VerifyToast() {
       if (error === "email_exists") {
         userMsg =
           "This email is already registered. Please log in with your password.";
-      } else if (error === "google_login_failed") {
+      } else if (error === "account_not_active") {
         userMsg =
-          "This email is already registered. Please log in with your password.";
+          message || "This account is not active. Please contact support.";
+      } else if (error === "google_login_failed") {
+        userMsg = message || "Google login failed. Please try again.";
       }
 
       toast.error("Login Failed", { description: userMsg });

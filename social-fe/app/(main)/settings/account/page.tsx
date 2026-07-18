@@ -13,13 +13,13 @@ import {
   Snowflake,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
 import UpdateEmailDialog from "@/app/components/dialog/update-email-dialog";
 import { useAuth } from "@/app/hooks/use-auth";
 import ChangePasswordDialog from "@/app/components/dialog/change-password-dialog";
 import ChangeUsernameDialog from "@/app/components/dialog/change-username-dialog";
 import ChangeBirthdayDialog from "@/app/components/dialog/change-birthday-dialog";
 import DeactivateAccountDialog from "@/app/components/dialog/deactivate-account-dialog";
+import DeleteAccountDialog from "@/app/components/dialog/delete-account-dialog";
 
 type AccountRowProps = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -32,10 +32,6 @@ type AccountRowProps = {
   onClick?: () => void;
 };
 
-const unavailable = (label: string) => {
-  toast.info(`${label} is not available yet`);
-};
-
 export default function AccountPage() {
   const { user } = useAuth();
   const [isUpdateEmailOpen, setIsUpdateEmailOpen] = useState(false);
@@ -43,6 +39,7 @@ export default function AccountPage() {
   const [isChangeUsernameOpen, setIsChangeUsernameOpen] = useState(false);
   const [isChangeBirthdayOpen, setIsChangeBirthdayOpen] = useState(false);
   const [isDeactivateAccountOpen, setIsDeactivateAccountOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
   const email = user?.email || "No email";
   const handle = user?.username ? `@${user.username}` : "Not set";
   const hasPassword = Boolean(user?.hasPassword);
@@ -104,7 +101,7 @@ export default function AccountPage() {
           label="Delete account"
           danger
           chevron
-          onClick={() => unavailable("Delete account")}
+          onClick={() => setIsDeleteAccountOpen(true)}
         />
       </section>
 
@@ -135,6 +132,11 @@ export default function AccountPage() {
       <DeactivateAccountDialog
         open={isDeactivateAccountOpen}
         onOpenChange={setIsDeactivateAccountOpen}
+      />
+
+      <DeleteAccountDialog
+        open={isDeleteAccountOpen}
+        onOpenChange={setIsDeleteAccountOpen}
       />
     </div>
   );

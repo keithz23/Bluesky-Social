@@ -18,10 +18,14 @@ export const PostService = {
     payload: FormData,
     onUploadProgress?: (event: AxiosProgressEvent) => void,
   ) => {
-    return axiosInstance.patch(`${API_ENDPOINT.POSTS.UPDATE_POST(postId)}`, payload, {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress,
-    });
+    return axiosInstance.patch(
+      `${API_ENDPOINT.POSTS.UPDATE_POST(postId)}`,
+      payload,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress,
+      },
+    );
   },
 
   getPostsByUsername: async (
@@ -40,6 +44,24 @@ export const PostService = {
     return data;
   },
 
+  pinPost: async (postId: string) => {
+    return axiosInstance.post(`${API_ENDPOINT.POSTS.PIN_POST(postId)}`);
+  },
+
+  unpinPost: async (postId: string) => {
+    return axiosInstance.delete(`${API_ENDPOINT.POSTS.UNPIN_POST(postId)}`);
+  },
+
+  getPinPostsByUsername: async (username: string, cursor?: string) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", cursor);
+    const { data } = await axiosInstance.get(
+      `${API_ENDPOINT.POSTS.GET_PIN_POST(username)}?${params}`,
+    );
+
+    return data;
+  },
+
   getPostById: async (postId: string) => {
     const { data } = await axiosInstance.get(
       API_ENDPOINT.POSTS.GET_BY_ID(postId),
@@ -48,9 +70,14 @@ export const PostService = {
     return data;
   },
 
-  searchPosts: async (q: string, cursor?: string, limit?: number) => {
+  searchPosts: async (
+    q: string,
+    cursor?: string,
+    limit?: number,
+    options?: { ownOnly?: boolean },
+  ) => {
     const { data } = await axiosInstance.get(
-      API_ENDPOINT.POSTS.SEARCH({ q, cursor, limit }),
+      API_ENDPOINT.POSTS.SEARCH({ q, cursor, limit, ...options }),
     );
 
     return data;

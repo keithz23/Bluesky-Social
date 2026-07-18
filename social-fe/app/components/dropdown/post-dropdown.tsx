@@ -17,7 +17,7 @@ import { usePost } from "@/app/hooks/use-post";
 import { Feed } from "@/app/interfaces/feed.interface";
 import { useAuth } from "@/app/hooks/use-auth";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
-import { Loader2, MoreHorizontal, Trash } from "lucide-react";
+import { Loader2, MoreHorizontal, Pin, Trash } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ import { ReportReason } from "@/app/services/moderation.service";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import EditPostDialog from "../dialog/edit-post-dialog";
 import { Pencil } from "lucide-react";
+import { usePinPost } from "@/app/hooks/use-pin-post";
 
 interface PostDropDownProps {
   post: Feed;
@@ -52,26 +53,47 @@ export default function PostDropDown({
   const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
   const [reportDetails, setReportDetails] = useState("");
   const pathname = usePathname();
-
   const isOwner = user?.id === post?.user?.id;
+
+  const { mutate: togglePin } = usePinPost(
+    post.id,
+    post.isPinned,
+    post.user.username,
+  );
+  const handlePinPost = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!requireAuth()) return;
+    togglePin();
+  };
+  const ownerItems = items.filter(
+    (item) => item.title !== "Pin to your profile",
+  );
 
   const dropdownItems = isOwner
     ? [
-      {
-        id: 98,
-        title: "Edit post",
-        icon: <Pencil size={18} />,
-        onClick: () => setIsEditOpen(true),
-      },
-      ...items,
-      {
-        id: 99,
-        title: "Delete post",
-        icon: <Trash size={18} />,
-        onClick: () => setIsModalOpen(true),
-        className: "text-red-600 focus:text-red-700 focus:bg-red-50",
-      },
-    ]
+        {
+          id: 98,
+          title: "Edit post",
+          icon: <Pencil size={18} />,
+          onClick: () => setIsEditOpen(true),
+        },
+        ...ownerItems,
+        {
+          id: 99,
+          title: "Delete post",
+          icon: <Trash size={18} />,
+          onClick: () => setIsModalOpen(true),
+          className: "text-red-600 focus:text-red-700 focus:bg-red-50",
+        },
+        {
+          id: 100,
+          title: post.isPinned
+            ? "Unpin from your profile"
+            : "Pin to your profile",
+          icon: <Pin size={18} />,
+          onClick: () => handlePinPost(),
+        },
+      ]
     : items;
 
   const confirmDelete = () => {
@@ -166,7 +188,7 @@ export default function PostDropDown({
       case "Show more like this":
       case "Show less like this":
       case "Mute words & tags":
-      case "Pin to your profile":
+      // case "Pin to your profile":
       case "Edit interaction settings":
         toast.info("This action is not available yet");
         break;
@@ -195,10 +217,7 @@ export default function PostDropDown({
   };
 
   return (
-    <div
-      className="contents"
-      onClick={(event) => event.stopPropagation()}
-    >
+    <div className="contents" onClick={(event) => event.stopPropagation()}>
       <DropdownMenu>
         <DropdownMenuTrigger
           className={`focus:outline-none cursor-pointer p-2 rounded-full hover:bg-slate-100 transition-colors ${triggerClassName ?? ""}`}
@@ -206,7 +225,10 @@ export default function PostDropDown({
           {triggerIcon ?? <MoreHorizontal size={18} strokeWidth={2.2} />}
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent className="w-60 p-1 text-[#111827]" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuContent
+          className="w-60 p-1 text-[#111827]"
+          onClick={(e) => e.stopPropagation()}
+        >
           <DropdownMenuGroup>
             {dropdownItems.map((item, index) => (
               <React.Fragment key={item.id}>
@@ -227,7 +249,7 @@ export default function PostDropDown({
             ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
-      </DropdownMenu >
+      </DropdownMenu>
 
       <Dialog
         open={isModalOpen}
