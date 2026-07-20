@@ -74,7 +74,10 @@ export const useLists = () => {
   };
 };
 
-export const useGetlists = (username?: string) => {
+export const useGetlists = (
+  username?: string,
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery<
     ListsResponse,
     Error,
@@ -88,6 +91,7 @@ export const useGetlists = (username?: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: options?.enabled ?? true,
     ...infiniteQueryOptions,
   });
 };

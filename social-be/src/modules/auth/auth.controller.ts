@@ -61,6 +61,7 @@ import {
   refreshTokenCookieOptions,
 } from 'src/common/utils/cookie-option.util';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UpdateAccountPrivacyDto } from './dto/update-account-privacy.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -269,6 +270,27 @@ export class AuthController {
       updateDto,
       files?.avatar,
       files?.cover,
+    );
+  }
+
+  @Patch('account-privacy')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user account privacy' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account privacy updated successfully',
+  })
+  async updateAccountPrivacy(
+    @CurrentUser('id') userId: string,
+    @Body() updateAccountPrivacyDto: UpdateAccountPrivacyDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.updateAccountPrivacy(
+      userId,
+      updateAccountPrivacyDto,
+      userAgent,
+      ipAddress,
     );
   }
 

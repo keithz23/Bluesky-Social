@@ -8,11 +8,15 @@ import { Queue } from 'bullmq';
 import { JOB_NAMES, QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FollowQueryDto } from './dto/follow-query.dto';
+import { FollowRequestStatus, NotificationType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
+import { FollowRequestQueryDto } from './dto/follow-request-query.dto';
 
 @Injectable()
 export class FollowsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationsService,
     @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
     private readonly feedFanoutQueue: Queue,
   ) {}
@@ -114,6 +118,12 @@ export class FollowsService {
       data: { senderId, receiverId },
     });
 
+    await this.notificationService.sendNotification({
+      userId: receiverId,
+      actorId: senderId,
+      type: NotificationType.FOLLOW_REQUEST,
+    });
+
     return { success: true, status: 'requested' };
   }
 
@@ -155,6 +165,24 @@ export class FollowsService {
       followingId: currentUserId,
     });
 
+    await this.notificationService.sendNotification({
+      userId: senderId,
+      actorId: currentUserId,
+      type: NotificationType.FOLLOW_REQUEST,
+    });
+
+    await this.notificationService.deleteNotificationForActor({
+      userId: currentUserId,
+      actorId: senderId,
+      type: NotificationType.FOLLOW_REQUEST,
+    });
+
+    await this.notificationService.sendNotification({
+      userId: senderId,
+      actorId: currentUserId,
+      type: 'FOLLOW_REQUEST_ACCEPTED' as NotificationType,
+    });
+
     return { success: true };
   }
 
@@ -162,6 +190,12 @@ export class FollowsService {
   async declineFollowRequest(currentUserId: string, senderId: string) {
     await this.prisma.followRequest.deleteMany({
       where: { senderId, receiverId: currentUserId },
+    });
+
+    await this.notificationService.deleteNotificationForActor({
+      userId: currentUserId,
+      actorId: senderId,
+      type: NotificationType.FOLLOW_REQUEST,
     });
 
     return { success: true };
@@ -193,18 +227,22 @@ export class FollowsService {
     return { status: 'none' };
   }
 
-  async getFollowingLists(query: FollowQueryDto) {
+  async getFollowingLists(currentUserId: string, query: FollowQueryDto) {
     const limit = query.limit ?? 20;
     const username = query.username;
     const listId = query.listId;
 
     const user = await this.prisma.user.findFirst({
       where: { username },
-      select: { id: true },
+      select: { id: true, isPrivate: true },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (!(await this.canViewUserConnections(currentUserId, user))) {
+      return { following: [], nextCursor: null, hasMore: false };
     }
 
     const follows = await this.prisma.follow.findMany({
@@ -263,17 +301,25 @@ export class FollowsService {
     };
   }
 
-  async getFollowerLists(query: FollowQueryDto) {
+  async getFollowerLists(currentUserId: string, query: FollowQueryDto) {
     const limit = query.limit ?? 20;
     const username = query.username;
     const user = await this.prisma.user.findFirst({
       where: { username },
-      select: { id: true },
+      select: { id: true, isPrivate: true },
     });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!(await this.canViewUserConnections(currentUserId, user))) {
+      return { follower: [], nextCursor: null, hasMore: false };
+    }
 
     const follows = await this.prisma.follow.findMany({
       where: {
-        followingId: user?.id,
+        followingId: user.id,
       },
       take: limit + 1,
       ...(query.cursor && {
@@ -312,5 +358,82 @@ export class FollowsService {
       nextCursor,
       hasMore,
     };
+  }
+
+  async getReceivedFollowRequests(
+    userId: string,
+    query: FollowRequestQueryDto,
+  ) {
+    const limit = query.limit ?? 20;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const followRequests = await this.prisma.followRequest.findMany({
+      where: {
+        receiverId: userId,
+        status: FollowRequestStatus.PENDING,
+      },
+      take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        createdAt: true,
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            coverUrl: true,
+            bio: true,
+            verified: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = followRequests.length > limit;
+    if (hasMore) followRequests.pop();
+    const nextCursor = hasMore
+      ? followRequests[followRequests.length - 1].id
+      : null;
+
+    return {
+      receivedFollow: followRequests.map((request) => ({
+        requestId: request.id,
+        requestedAt: request.createdAt,
+        ...request.sender,
+      })),
+      nextCursor,
+      hasMore,
+    };
+  }
+
+  private async canViewUserConnections(
+    currentUserId: string,
+    targetUser: { id: string; isPrivate: boolean },
+  ) {
+    if (targetUser.id === currentUserId) return true;
+    if (!targetUser.isPrivate) return true;
+
+    const follow = await this.prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUser.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    return Boolean(follow);
   }
 }

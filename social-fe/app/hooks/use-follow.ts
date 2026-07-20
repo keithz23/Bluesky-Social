@@ -32,6 +32,17 @@ type FollowerResponse = {
   hasMore: boolean;
 };
 
+export type ReceivedFollowRequest = User & {
+  requestId: string;
+  requestedAt: string;
+};
+
+export type ReceivedFollowRequestsResponse = {
+  receivedFollow: ReceivedFollowRequest[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
 export const useFollowStatus = (targetUserId: string) => {
   return useQuery({
     queryKey: ["follow-status", targetUserId],
@@ -62,7 +73,56 @@ export const useFollow = (targetUserId: string) => {
   return { follow, unfollow };
 };
 
-export const useGetFollowingLists = (username: string, listId?: string) => {
+export const useReceivedFollowRequests = (options?: { enabled?: boolean }) => {
+  return useInfiniteQuery<
+    ReceivedFollowRequestsResponse,
+    Error,
+    InfiniteData<ReceivedFollowRequestsResponse>,
+    [string],
+    string | undefined
+  >({
+    queryKey: ["received-follow-requests"],
+    queryFn: ({ pageParam }) =>
+      FollowService.getReceivedFollowRequests(
+        pageParam as string | undefined,
+      ),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: options?.enabled ?? true,
+    ...infiniteQueryOptions,
+  });
+};
+
+export const useFollowRequestActions = () => {
+  const queryClient = useQueryClient();
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["received-follow-requests"],
+    });
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  };
+
+  const accept = useMutation({
+    mutationFn: (senderId: string) => FollowService.acceptRequest(senderId),
+    onSuccess: invalidate,
+  });
+
+  const decline = useMutation({
+    mutationFn: (senderId: string) => FollowService.declineRequest(senderId),
+    onSuccess: invalidate,
+  });
+
+  return { accept, decline };
+};
+
+export const useGetFollowingLists = (
+  username: string,
+  listId?: string,
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery<
     FollowingResponse,
     Error,
@@ -82,12 +142,15 @@ export const useGetFollowingLists = (username: string, listId?: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!username,
+    enabled: !!username && (options?.enabled ?? true),
     ...infiniteQueryOptions,
   });
 };
 
-export const useGetFollowerLists = (username: string) => {
+export const useGetFollowerLists = (
+  username: string,
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery<
     FollowerResponse,
     Error,
@@ -103,7 +166,7 @@ export const useGetFollowerLists = (username: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!username,
+    enabled: !!username && (options?.enabled ?? true),
     ...infiniteQueryOptions,
   });
 };

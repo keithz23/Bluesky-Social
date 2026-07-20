@@ -229,7 +229,11 @@ export function usePost() {
   };
 }
 
-export const useUserPosts = (username: string, filter: string) => {
+export const useUserPosts = (
+  username: string,
+  filter: string,
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery<
     PostsResponse,
     Error,
@@ -247,12 +251,15 @@ export const useUserPosts = (username: string, filter: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!username,
+    enabled: !!username && (options?.enabled ?? true),
     ...infiniteQueryOptions,
   });
 };
 
-export const useUserPinPosts = (username: string) => {
+export const useUserPinPosts = (
+  username: string,
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery<
     PostsResponse,
     Error,
@@ -269,7 +276,7 @@ export const useUserPinPosts = (username: string) => {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!username,
+    enabled: !!username && (options?.enabled ?? true),
     ...infiniteQueryOptions,
   });
 };
