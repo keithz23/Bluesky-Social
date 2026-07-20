@@ -5,9 +5,13 @@ export interface User {
   displayName: string;
   dateOfBirth?: string;
   avatarUrl: string;
+  coverUrl?: string;
   verified: boolean;
+  isPrivate?: boolean;
+  isOwner?: boolean;
   followersCount: number;
   followingCount: number;
+  postsCount?: number;
   bio: string;
   followStatus: string;
   isFollowedByAuthor?: boolean;

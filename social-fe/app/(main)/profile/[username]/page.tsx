@@ -10,6 +10,8 @@ import NewPostModal from "@/app/components/dialog/new-post-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import VirtualPostList from "@/app/components/virtual-post-list";
+import PrivateProfileState from "@/app/components/private-profile-state";
+import { isProfilePrivateLocked } from "@/app/utils/profile-privacy.util";
 import {
   InfiniteScrollFooter,
   PostSkeletonList,
@@ -35,15 +37,17 @@ export default function PostsPage() {
   const { username } = useParams<{ username: string }>();
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
   const { data: profile } = useProfile(username);
+  const privateLocked = isProfilePrivateLocked(profile);
+  const canLoadProfileContent = Boolean(profile) && !privateLocked;
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     isLoading: isPostLoading,
-  } = useUserPosts(username, "posts");
+  } = useUserPosts(username, "posts", { enabled: canLoadProfileContent });
   const { data: pinnedData, isLoading: isPinnedPostLoading } =
-    useUserPinPosts(username);
+    useUserPinPosts(username, { enabled: canLoadProfileContent });
 
   const posts =
     data?.pages.flatMap((page) => page.posts)?.filter(Boolean) ?? [];
@@ -57,6 +61,10 @@ export default function PostsPage() {
     fetchNextPage,
     enabled: posts.length > 0,
   });
+
+  if (privateLocked) {
+    return <PrivateProfileState />;
+  }
 
   if (displayPosts.length === 0 && !isPostLoading && !isPinnedPostLoading) {
     return (

@@ -28,6 +28,7 @@ const STATIC_TITLES: Record<string, string> = {
   "/settings/moderation": "Moderation",
   "/settings/notifications": "Notification settings",
   "/settings/privacy": "Privacy and Security",
+  "/settings/privacy/account-privacy": "Account privacy",
   "/chat": "Chat",
   "/chat/settings": "Chat settings",
 };

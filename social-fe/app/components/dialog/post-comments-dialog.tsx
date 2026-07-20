@@ -34,10 +34,14 @@ interface PostCommentsDialogProps {
   replyDisabled?: boolean;
   onDialogOpenChange?: (open: boolean) => void;
   onOpenPhotoView?: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
   const hasMedia = post.media?.length > 0;
+  const hasTheme = Boolean(post.postTheme);
 
   return (
     <article className="bg-white">
@@ -130,11 +134,11 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
             )}
           </div>
         </>
-      ) : (
+      ) : hasTheme ? (
         <div
           className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-gray-100"
           style={{
-            background: post.postTheme?.background ?? "#f3f4f6",
+            background: post.postTheme?.background,
           }}
         >
           <PostContent
@@ -142,6 +146,13 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
             className="max-w-xl text-[28px] font-bold leading-tight text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.55)]"
           />
         </div>
+      ) : (
+        post.content && (
+          <PostContent
+            content={post.content}
+            className="px-4 pb-3 text-[15px] leading-5 text-gray-900"
+          />
+        )
       )}
     </article>
   );
@@ -150,10 +161,15 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
 export default function PostCommentsDialog({
   post,
   replyDisabled = false,
+  open,
+  onOpenChange,
+  hideTrigger = false,
+  onDialogOpenChange,
 }: PostCommentsDialogProps) {
   const { user } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isPhotoView, setIsPhotoView] = useState(false);
+  const isOpen = open ?? internalOpen;
   const { data: detailPost, isLoading: isLoadingPost } = useGetPostById(
     post.id,
     isOpen,
@@ -179,30 +195,38 @@ export default function PostCommentsDialog({
     if (!open && isPhotoView) {
       return;
     }
-    setIsOpen(open);
+
+    if (onOpenChange) {
+      onOpenChange(open);
+    } else {
+      setInternalOpen(open);
+    }
+    onDialogOpenChange?.(open);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label="Open comments"
-          className="flex cursor-pointer items-center gap-1 rounded-full transition-colors hover:text-blue-500"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="rounded-full p-1.5 transition-colors group-hover:bg-blue-50 sm:p-2">
-            <MessageSquare
-              size={18}
-              strokeWidth={2.2}
-              className="transition-colors group-hover:text-blue-500"
-            />
-          </span>
-          <span className="text-[13px] group-hover:text-blue-500 sm:text-sm">
-            {post.replyCount}
-          </span>
-        </button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-label="Open comments"
+            className="flex cursor-pointer items-center gap-1 rounded-full transition-colors hover:text-blue-500"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="rounded-full p-1.5 transition-colors group-hover:bg-blue-50 sm:p-2">
+              <MessageSquare
+                size={18}
+                strokeWidth={2.2}
+                className="transition-colors group-hover:text-blue-500"
+              />
+            </span>
+            <span className="text-[13px] group-hover:text-blue-500 sm:text-sm">
+              {post.replyCount}
+            </span>
+          </button>
+        </DialogTrigger>
+      )}
       <DialogContent
         showCloseButton={false}
         onInteractOutside={(e) => {

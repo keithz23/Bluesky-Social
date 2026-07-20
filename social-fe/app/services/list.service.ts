@@ -1,6 +1,6 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
-import { CreateListData, UpdateList } from "../interfaces/list.interface";
+import { CreateListData, List, UpdateList } from "../interfaces/list.interface";
 
 export const ListService = {
   createList: async (payload: CreateListData) => {
@@ -16,12 +16,10 @@ export const ListService = {
       formData.append("listFile", payload.listFile);
     }
 
-    const { data } = await axiosInstance.post(
+    return apiClient.post<List>(
       API_ENDPOINT.LISTS.CREATE_LIST,
       formData,
     );
-
-    return data;
   },
 
   updateList: async (payload: UpdateList) => {
@@ -37,46 +35,43 @@ export const ListService = {
     if (payload.listFile) {
       formData.append("listFile", payload.listFile);
     }
-    const { data } = await axiosInstance.patch(
+    return apiClient.patch<List>(
       API_ENDPOINT.LISTS.UPDATE_LIST,
       formData,
     );
-    return data;
   },
 
   deleteList: async (id: string) => {
-    const { data } = await axiosInstance.delete(
+    return apiClient.delete<unknown>(
       API_ENDPOINT.LISTS.DELETE_LIST(id),
-      {},
     );
-    return data;
   },
 
   getLists: async (cursor?: string, limit?: number, username?: string) => {
-    const { data } = await axiosInstance.get(
+    return apiClient.get<{
+      lists: List[];
+      nextCursor: string | null;
+      hasMore: boolean;
+    }>(
       API_ENDPOINT.LISTS.GET_LISTS({ cursor, limit, username }),
     );
-    return data;
   },
 
   getListById: async (id: string) => {
-    const { data } = await axiosInstance.get(
+    return apiClient.get<List>(
       API_ENDPOINT.LISTS.GET_LIST_BY_ID(id),
     );
-    return { data };
   },
 
   addPostToList: async (listId: string, postId: string) => {
-    const { data } = await axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.LISTS.ADD_POST(listId, postId),
     );
-    return data;
   },
 
   removePostFromList: async (listId: string, postId: string) => {
-    const { data } = await axiosInstance.delete(
+    return apiClient.delete<unknown>(
       API_ENDPOINT.LISTS.REMOVE_POST(listId, postId),
     );
-    return data;
   },
 };

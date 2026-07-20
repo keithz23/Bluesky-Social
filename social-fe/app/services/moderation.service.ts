@@ -1,4 +1,4 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 
 export type ReportReason =
@@ -13,17 +13,15 @@ export type ReportReason =
 
 export const ModerationService = {
   blockUser: async (userId: string) => {
-    const { data } = await axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.MODERATION.BLOCK_USER(userId),
     );
-    return data;
   },
 
   muteUser: async (userId: string) => {
-    const { data } = await axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.MODERATION.MUTE_USER(userId),
     );
-    return data;
   },
 
   reportPost: async ({
@@ -35,10 +33,9 @@ export const ModerationService = {
     reason: ReportReason;
     details?: string;
   }) => {
-    const { data } = await axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.MODERATION.REPORT_POST(postId),
       { reason, details },
     );
-    return data;
   },
 };

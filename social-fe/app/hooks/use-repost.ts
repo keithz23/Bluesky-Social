@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { RepostService } from "../services/repost.service";
 import { rollbackPostCaches, snapshotPostCaches, updatePostEverywhere } from "../utils/post-cache.util";
 
 export const useRepost = (postId: string, isReposted: boolean) => {
@@ -9,8 +8,8 @@ export const useRepost = (postId: string, isReposted: boolean) => {
   return useMutation({
     mutationFn: () =>
       isReposted
-        ? axiosInstance.delete(API_ENDPOINT.REPOSTS.UNREPOST(postId))
-        : axiosInstance.post(API_ENDPOINT.REPOSTS.REPOST(postId)),
+        ? RepostService.unRepost(postId)
+        : RepostService.repost(postId),
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["feed"] });

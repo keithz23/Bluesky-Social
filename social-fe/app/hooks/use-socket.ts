@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { getSocket } from "@/lib/socket";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { AuthService } from "../services/auth.service";
 import { Socket } from "socket.io-client";
 
 let globalToken: string | null = null;
@@ -18,10 +17,10 @@ export const useSocket = () => {
     }
 
     let isMounted = true;
-    axiosInstance.get(API_ENDPOINT.AUTH.SOCKET_TOKEN).then(({ data }) => {
+    AuthService.getSocketToken().then(({ token }) => {
       if (!isMounted) return;
-      globalToken = data.token;
-      const s = getSocket(data.token);
+      globalToken = token;
+      const s = getSocket(token);
       if (!s.connected) s.connect();
       setSocket(s);
     });

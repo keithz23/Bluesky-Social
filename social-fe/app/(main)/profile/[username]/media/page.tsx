@@ -10,11 +10,17 @@ import {
   PostSkeletonList,
 } from "@/app/components/skeletons";
 import { SquarePen } from "lucide-react";
+import PrivateProfileState from "@/app/components/private-profile-state";
+import { useProfile } from "@/app/hooks/use-profile";
+import { isProfilePrivateLocked } from "@/app/utils/profile-privacy.util";
 
 export default function MediaPage() {
   const { username } = useParams<{ username: string }>();
+  const { data: profile } = useProfile(username);
+  const privateLocked = isProfilePrivateLocked(profile);
+  const canLoadProfileContent = Boolean(profile) && !privateLocked;
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useUserPosts(username, "media");
+    useUserPosts(username, "media", { enabled: canLoadProfileContent });
 
   const posts =
     data?.pages.flatMap((page) => page.posts)?.filter(Boolean) ?? [];
@@ -32,6 +38,10 @@ export default function MediaPage() {
         <PostSkeletonList />
       </div>
     );
+  }
+
+  if (privateLocked) {
+    return <PrivateProfileState />;
   }
 
   if (posts.length === 0) {

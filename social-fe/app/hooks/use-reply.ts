@@ -1,4 +1,5 @@
 import {
+  InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
@@ -19,6 +20,12 @@ type InfiniteRepliesData = {
     [key: string]: unknown;
   }>;
   pageParams?: unknown[];
+};
+
+type RepliesResponse = {
+  replies: Feed[];
+  nextCursor: string | null;
+  hasMore: boolean;
 };
 
 const appendReplyToThread = (old: unknown, reply: Feed) => {
@@ -108,9 +115,16 @@ export const useCreateReply = (postId: string) => {
 };
 
 export const useReplies = (postId: string, enabled = true) => {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    RepliesResponse,
+    Error,
+    InfiniteData<RepliesResponse>,
+    [string, string],
+    string | undefined
+  >({
     queryKey: ["replies", postId],
-    queryFn: ({ pageParam }) => ReplyService.getReplies(postId, pageParam),
+    queryFn: ({ pageParam }) =>
+      ReplyService.getReplies(postId, pageParam as string | undefined),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
