@@ -25,6 +25,10 @@ export interface UpdateProfileData {
   coverFile?: File;
 }
 
+export interface UpdateAccountPrivacyData {
+  isPrivate: boolean;
+}
+
 export interface RequestUpdateEmailData {
   newEmail: string;
 }

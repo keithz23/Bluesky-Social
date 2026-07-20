@@ -216,6 +216,27 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
+  async deleteNotificationForActor(data: {
+    userId: string;
+    actorId: string;
+    type: NotificationType;
+    postId?: string;
+  }) {
+    await this.prisma.notification.deleteMany({
+      where: {
+        userId: data.userId,
+        actorId: data.actorId,
+        type: data.type,
+        postId: data.postId,
+      },
+    });
+
+    const count = await this.getUnreadCount(data.userId);
+    this.notificationGateway.emitToUserById(data.userId, 'unread-count', {
+      count,
+    });
+  }
+
   async getUnreadCount(userId: string) {
     return await this.prisma.notification.count({
       where: { userId, isRead: false },

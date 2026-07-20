@@ -823,6 +823,7 @@ enum NotificationType {
   REPOST
   MESSAGE
   FOLLOW_REQUEST
+  FOLLOW_REQUEST_ACCEPTED
 }
 
 enum FollowRequestStatus {

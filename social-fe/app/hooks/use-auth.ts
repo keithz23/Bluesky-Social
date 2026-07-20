@@ -96,12 +96,11 @@ export function useAuth() {
   // 3. Mutation register
   const signup = useMutation({
     mutationFn: async ({ registerDto }: { registerDto: RegisterData }) => {
-      const res = await AuthService.register(registerDto);
-      return res.data;
+      return AuthService.register(registerDto);
     },
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
-      toast.success(data?.message || "Your account is ready to go.");
+      toast.success("Your account is ready to go.");
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
@@ -132,7 +131,7 @@ export function useAuth() {
   const forgotPassword = useMutation({
     mutationFn: async ({ email }: { email: string }) => {
       const res = await AuthService.forgot(email);
-      return res.data;
+      return res;
     },
     onSuccess: (data) => {
       const message =
@@ -159,7 +158,7 @@ export function useAuth() {
       resetPasswordData: ResetPasswordData;
     }) => {
       const res = await AuthService.reset(resetPasswordData);
-      return res.data;
+      return res;
     },
     onSuccess: (data) => {
       toast.success(data?.message || "Password reset successful.");
@@ -186,13 +185,13 @@ export function useAuth() {
         );
       });
       setProfileUploadProgress(hasUpload ? 100 : null);
-      return res.data;
+      return res;
     },
 
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
       await qc.invalidateQueries({ queryKey: ["profile"] });
-      toast.success(data?.message || "Profile updated successfully");
+      toast.success("Profile updated successfully");
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));

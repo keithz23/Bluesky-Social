@@ -34,6 +34,7 @@ import { Enable2FADto } from './dto/enable-2fa.dto';
 import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
 import { Disable2FADto } from './dto/disable-2fa.dto';
 import { Setup2FADto } from './dto/setup-2fa.dto';
+import { UpdateAccountPrivacyDto } from './dto/update-account-privacy.dto';
 import {
   AccountEmailCodeData,
   Login2FAChallengeData,
@@ -456,6 +457,47 @@ export class AuthService {
       }
       throw error;
     }
+  }
+
+  async updateAccountPrivacy(
+    userId: string,
+    updateAccountPrivacyDto: UpdateAccountPrivacyDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!currentUser) throw new NotFoundException('User not found');
+    this.otherUtils.assertActiveAccount(currentUser);
+
+    const { isPrivate } = updateAccountPrivacyDto;
+
+    if (currentUser.isPrivate === isPrivate) {
+      return this.otherUtils.transformUser(currentUser);
+    }
+
+    const [user] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { isPrivate },
+      }),
+      this.prisma.auditLog.create({
+        data: this.otherUtils.createAuditLogData({
+          userId,
+          action: 'ACCOUNT_PRIVACY_CHANGED',
+          userAgent,
+          ipAddress,
+          metadata: {
+            oldIsPrivate: currentUser.isPrivate,
+            newIsPrivate: isPrivate,
+          },
+        }),
+      }),
+    ]);
+
+    return this.otherUtils.transformUser(user);
   }
 
   async changeUsername(

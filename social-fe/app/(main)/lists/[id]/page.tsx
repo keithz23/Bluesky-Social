@@ -23,7 +23,7 @@ export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading } = useGetListById(id);
 
-  const list = data?.data;
+  const list = data;
   const listPosts = list?.posts ?? [];
 
   const isOwner = list

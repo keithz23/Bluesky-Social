@@ -1,18 +1,17 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { User } from "../interfaces/user.interface";
 
 export const UserService = {
   getProfile: async (username: string) => {
-    const { data } = await axiosInstance.get(
+    return apiClient.get<User>(
       API_ENDPOINT.USERS.GET_PROFILE(username),
     );
-    return data;
   },
 
   searchUsers: async (query: string, limit: number = 10, listId?: string) => {
-    const { data } = await axiosInstance.get(
+    return apiClient.get<User[]>(
       API_ENDPOINT.USERS.SEARCH(query, limit, listId),
     );
-    return data;
   },
 };

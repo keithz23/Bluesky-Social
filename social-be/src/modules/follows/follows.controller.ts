@@ -11,19 +11,26 @@ import {
 import { FollowsService } from './follows.service';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { FollowQueryDto } from './dto/follow-query.dto';
+import { FollowRequestQueryDto } from './dto/follow-request-query.dto';
 
 @Controller('follows')
 export class FollowsController {
   constructor(private readonly followsService: FollowsService) {}
 
   @Get('following-lists')
-  getFollowingLists(@Query() query: FollowQueryDto) {
-    return this.followsService.getFollowingLists(query);
+  getFollowingLists(
+    @CurrentUser('id') currentUserId: string,
+    @Query() query: FollowQueryDto,
+  ) {
+    return this.followsService.getFollowingLists(currentUserId, query);
   }
 
   @Get('follower-lists')
-  getFollowerLists(@Query() query: FollowQueryDto) {
-    return this.followsService.getFollowerLists(query);
+  getFollowerLists(
+    @CurrentUser('id') currentUserId: string,
+    @Query() query: FollowQueryDto,
+  ) {
+    return this.followsService.getFollowerLists(currentUserId, query);
   }
 
   @Post(':userId')
@@ -39,6 +46,14 @@ export class FollowsController {
   @Get('status/:userId')
   getStatus(@CurrentUser('id') currentUserId, @Param('userId') userId: string) {
     return this.followsService.getFollowStatus(currentUserId, userId);
+  }
+
+  @Get('requests/received')
+  async getReceivedFollowRequests(
+    @CurrentUser('id') userId: string,
+    @Query() query: FollowRequestQueryDto,
+  ) {
+    return this.followsService.getReceivedFollowRequests(userId, query);
   }
 
   @Post('requests/:senderId/accept')
