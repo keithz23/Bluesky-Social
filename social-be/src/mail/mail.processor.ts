@@ -51,6 +51,7 @@ export class MailProcessor extends WorkerHost {
     this.loadTemplate('request-email-otp');
     this.loadTemplate('request-pwd-otp');
     this.loadTemplate('request-deactivate-account-otp');
+    this.loadTemplate('request-delete-account-otp');
     this.loadTemplate('request-enable-2fa');
     this.loadTemplate('request-disable-2fa');
     this.loadTemplate('login-2fa');
@@ -151,6 +152,13 @@ export class MailProcessor extends WorkerHost {
         case 'request-deactivate-account-otp': {
           subject ||= 'Deactivate your account';
           html = this.renderTemplate('request-deactivate-account-otp', {
+            ...context,
+          });
+          break;
+        }
+        case 'request-delete-account-otp': {
+          subject ||= 'Delete your account';
+          html = this.renderTemplate('request-delete-account-otp', {
             ...context,
           });
           break;

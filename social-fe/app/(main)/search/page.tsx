@@ -79,7 +79,10 @@ function SearchPageContent() {
 
   const isEmptyQuery = trimmedQuery.length === 0;
   const showPeopleLoading =
-    activeTab === "people" && trimmedQuery && isFetchingUsers && users.length === 0;
+    activeTab === "people" &&
+    trimmedQuery &&
+    isFetchingUsers &&
+    users.length === 0;
   const showPostsLoading =
     activeTab === "posts" &&
     debouncedQuery &&
@@ -103,8 +106,9 @@ function SearchPageContent() {
               key={tab.value}
               type="button"
               onClick={() => setActiveTab(tab.value)}
-              className={`relative flex-1 py-3 text-[15px] font-bold transition hover:bg-gray-50 cursor-pointer ${activeTab === tab.value ? "text-gray-900" : "text-gray-500"
-                }`}
+              className={`relative flex-1 py-3 text-[15px] font-bold transition hover:bg-gray-50 cursor-pointer ${
+                activeTab === tab.value ? "text-gray-900" : "text-gray-500"
+              }`}
             >
               {tab.label}
               {activeTab === tab.value && (
@@ -120,9 +124,10 @@ function SearchPageContent() {
       {showPeopleLoading && <UserListSkeleton />}
       {showPostsLoading && <PostSkeletonList />}
 
-      {!isEmptyQuery && activeTab === "people" && !isFetchingUsers && users.length === 0 && (
-        <NoResultsState activeTab="people" />
-      )}
+      {!isEmptyQuery &&
+        activeTab === "people" &&
+        !isFetchingUsers &&
+        users.length === 0 && <NoResultsState activeTab="people" />}
 
       {!isEmptyQuery &&
         activeTab === "posts" &&
@@ -180,10 +185,7 @@ function SearchPageContent() {
 
       {activeTab === "posts" && posts.length > 0 && (
         <>
-          <VirtualPostList
-            posts={posts as Feed[]}
-            dropdownItems={[]}
-          />
+          <VirtualPostList posts={posts as Feed[]} dropdownItems={[]} />
           <InfiniteScrollFooter
             refCallback={ref}
             isFetchingNextPage={isFetchingNextPage}

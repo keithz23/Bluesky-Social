@@ -60,6 +60,7 @@ import {
   cookieOptions,
   refreshTokenCookieOptions,
 } from 'src/common/utils/cookie-option.util';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -551,6 +552,12 @@ export class AuthController {
           `${frontendUrl}/login?error=email_exists&message=${errorMessage}`,
         );
         return;
+      } else if (error instanceof UnauthorizedException) {
+        const errorMessage = encodeURIComponent('This account is not active');
+        response.redirect(
+          `${frontendUrl}/login?error=account_not_active&message=${errorMessage}`,
+        );
+        return;
       }
 
       const errorMessage = encodeURIComponent(
@@ -663,6 +670,41 @@ export class AuthController {
     );
 
     return { message: 'Verification code has been sent to your email.' };
+  }
+
+  @Post('request-delete-account')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async requestDeleteAccount(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.requestDeleteAccount(userId, userAgent, ipAddress);
+
+    return { message: 'Verification code has been sent to your email.' };
+  }
+
+  @Post('delete-account')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  async deleteAccount(
+    @CurrentUser('id') userId: string,
+    @Body() deleteAccountDto: DeleteAccountDto,
+    @Headers('user-agent') userAgent: string,
+    @Ip() ipAddress: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.deleteAccount(
+      userId,
+      deleteAccountDto,
+      userAgent,
+      ipAddress,
+    );
+
+    this.clearAuthCookies(response);
+
+    return result;
   }
 
   @Post('deactivate-account')

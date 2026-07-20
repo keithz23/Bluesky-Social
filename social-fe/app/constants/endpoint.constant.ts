@@ -16,6 +16,8 @@ export const API_ENDPOINT = {
     UPDATE_EMAIL: "/auth/update-email",
     REQUEST_DEACTIVATE_ACCOUNT: "/auth/request-deactivate-account",
     DEACTIVATE_ACCOUNT: "/auth/deactivate-account",
+    REQUEST_DELETE_ACCOUNT: "/auth/request-delete-account",
+    DELETE_ACCOUNT: "/auth/delete-account",
     SOCKET_TOKEN: "/auth/socket-token",
     REQUEST_ENABLE_2FA: "/auth/request-enable-2fa",
     ENABLE_2FA: "/auth/enable-2fa",
@@ -29,12 +31,21 @@ export const API_ENDPOINT = {
     UPDATE_POST: (id: string) => `/posts/update-post/${id}`,
     DELETE_POST: (id: string) => `/posts/delete-post/${id}`,
     GET_BY_USERNAME: (username: string) => `/posts/users/${username}`,
+    PIN_POST: (id: string) => `/posts/${id}/pin`,
+    UNPIN_POST: (id: string) => `/posts/${id}/unpin`,
+    GET_PIN_POST: (username: string) => `/posts/users/pin-post/${username}`,
     GET_BY_ID: (postId: string) => `/posts/post-detail/${postId}`,
-    SEARCH: (params: { q: string; cursor?: string; limit?: number }) => {
+    SEARCH: (params: {
+      q: string;
+      cursor?: string;
+      limit?: number;
+      ownOnly?: boolean;
+    }) => {
       const query = new URLSearchParams();
       query.set("q", params.q);
       if (params.cursor) query.set("cursor", params.cursor);
       if (params.limit) query.set("limit", String(params.limit));
+      if (params.ownOnly) query.set("ownOnly", String(params.ownOnly));
       return `/posts/search?${query.toString()}`;
     },
 
@@ -189,6 +200,10 @@ export const API_ENDPOINT = {
       return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
     },
     GET_LIST_BY_ID: (id: string) => `lists/get-list-by-id/${id}`,
+    ADD_POST: (listId: string, postId: string) =>
+      `/lists/${listId}/items/${postId}`,
+    REMOVE_POST: (listId: string, postId: string) =>
+      `/lists/${listId}/items/${postId}`,
   },
   LISTS_MEMBER: {
     ADD_MEMBER: (listId: string, participantId: string) =>
@@ -204,8 +219,8 @@ export const API_ENDPOINT = {
       if (params?.limit) query.set("limit", String(params.limit));
       const qs = query.toString();
       return qs
-        ? `/lists-member/${listId}/get-list-members?${qs}`
-        : `lists-member/${listId}/members`;
+        ? `/lists-member/${listId}/members?${qs}`
+        : `/lists-member/${listId}/members`;
     },
   },
 

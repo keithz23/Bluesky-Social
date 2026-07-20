@@ -13,6 +13,7 @@ type useAccountSettingsOptions = {
   onRequestEmailCodeSuccess?: () => void;
   onRequestPasswordCodeSuccess?: () => void;
   onRequestDeactivateCodeSuccess?: () => void;
+  onRequestDeleteCodeSuccess?: () => void;
   onRequestEnable2FACodeSuccess?: () => void;
   onRequestDisable2FACodeSuccess?: () => void;
   onEnable2FASuccess?: (data: { recoveryCodes?: string[] }) => void;
@@ -124,6 +125,26 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     onError: (err) => toast.error(extractErrMsg(err)),
   });
 
+  const requestDeleteAccountMutation = useMutation({
+    mutationFn: () => AuthService.requestDeleteAccount(),
+    onSuccess: () => {
+      options?.onRequestDeleteCodeSuccess?.();
+      toast.success("Verification code sent.");
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: (payload: { otp: string }) => AuthService.deleteAccount(payload),
+    onSuccess: async () => {
+      await resetAuth();
+      options?.onSuccess?.();
+      toast.success("Account deleted.");
+      router.push("/login");
+    },
+    onError: (err) => toast.error(extractErrMsg(err)),
+  });
+
   const requestEnable2FAMutation = useMutation({
     mutationFn: (payload: { password: string }) =>
       AuthService.requestEnable2FA(payload),
@@ -179,6 +200,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     changeBirthDayMutation,
     requestDeactivateAccountMutation,
     deactivateAccountMutation,
+    requestDeleteAccountMutation,
+    deleteAccountMutation,
     requestEnable2FAMutation,
     enable2FAMutation,
     requestTOTPSetupMutation,
@@ -194,6 +217,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     isChangingBirthday: changeBirthDayMutation.isPending,
     isRequestingDeactivateCode: requestDeactivateAccountMutation.isPending,
     isDeactivatingAccount: deactivateAccountMutation.isPending,
+    isRequestingDeleteCode: requestDeleteAccountMutation.isPending,
+    isDeletingAccount: deleteAccountMutation.isPending,
     isRequestingEnable2FA: requestEnable2FAMutation.isPending,
     isEnable2FA: enable2FAMutation.isPending,
     isRequestingTOTPSetup: requestTOTPSetupMutation.isPending,

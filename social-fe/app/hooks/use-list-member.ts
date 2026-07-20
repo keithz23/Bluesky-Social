@@ -23,9 +23,20 @@ export const useListMember = () => {
     },
     onSuccess: async (_, variables) => {
       toast.success("User added to list successfully");
-      qc.invalidateQueries({
-        queryKey: ["list-member", variables.listId],
-      });
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: ["list-member", variables.listId],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["list-detail", variables.listId],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["lists"],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["users", "search"],
+        }),
+      ]);
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));
@@ -44,9 +55,20 @@ export const useListMember = () => {
     },
     onSuccess: async (_, variables) => {
       toast.success("User removed from list successfully");
-      qc.invalidateQueries({
-        queryKey: ["list-member", variables.listId],
-      });
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: ["list-member", variables.listId],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["list-detail", variables.listId],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["lists"],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["users", "search"],
+        }),
+      ]);
     },
     onError: (err) => {
       toast.error(extractErrMsg(err));

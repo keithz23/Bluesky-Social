@@ -69,11 +69,8 @@ export default function CommentComposer({
     if (!autoFocus) return;
     const textarea = textareaRef.current;
     textarea?.focus();
-    if (initialText) {
-      textarea?.setSelectionRange(0, initialText.length);
-      return;
-    }
-    textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+    const caretPosition = textarea?.value.length ?? initialText.length;
+    textarea?.setSelectionRange(caretPosition, caretPosition);
   }, [autoFocus, initialText]);
 
   const revokeImagePreviews = (images: ImagePreview[]) => {

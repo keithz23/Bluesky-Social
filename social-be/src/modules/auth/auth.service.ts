@@ -6,9 +6,6 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { addMinutes } from 'date-fns';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -21,21 +18,12 @@ import { MailService } from 'src/mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   PasswordResetToken,
-  Prisma,
   TwoFactorMethod,
   User,
   UserStatus,
 } from '@prisma/client';
 import * as crypto from 'crypto';
-import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
 import { S3Service } from 'src/uploads/s3.service';
-import {
-  CleanupJobData,
-  JOB_NAMES,
-  QUEUE_NAMES,
-} from 'src/common/constants/queue.constant';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { CacheService } from '../cache/cache.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -46,44 +34,37 @@ import { Enable2FADto } from './dto/enable-2fa.dto';
 import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
 import { Disable2FADto } from './dto/disable-2fa.dto';
 import { Setup2FADto } from './dto/setup-2fa.dto';
-import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
-import * as QRCode from 'qrcode';
 import {
   AccountEmailCodeData,
-  AccountEmailCodePayload,
-  AccountEmailCodePurpose,
-  AuditContext,
   Login2FAChallengeData,
-  Login2FAChallengeResponse,
   LoginResponse,
   TotpSetupData,
 } from 'src/common/interfaces/auth.interface';
 
 import {
-  EMAIL_UPDATE_CODE_PREFIX,
   LOGIN_2FA_TTL_SECONDS,
-  MAX_ACTIVE_EMAIL_CODES,
   MAX_LOGIN_2FA_ATTEMPTS,
-  PASSWORD_UPDATE_CODE_PREFIX,
-  RECOVERY_CODE_ALPHABET,
-  RECOVERY_CODE_COUNT,
-  RESET_TTL_MINUTES,
   TOTP_ISSUER,
   TOTP_SETUP_TTL_SECONDS,
 } from 'src/common/constants/auth-config.constant';
+import { DeleteAccountDto } from './dto/delete-account.dto';
+import { JwtUtils } from './utils/jwt.util';
+import { MailUtils } from './utils/mail.util';
+import { TwoFactorUtils } from './utils/two-factor.util';
+import { OtherUtils } from './utils/other.util';
 
 @Injectable()
 export class AuthService {
   private logger = new Logger(AuthService.name);
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService,
-    private configService: ConfigService,
     private mailService: MailService,
     private s3Service: S3Service,
     private redisService: CacheService,
-    @InjectQueue(QUEUE_NAMES.CLEANUP)
-    private cleanupQueue: Queue<CleanupJobData>,
+    private jwtUtils: JwtUtils,
+    private mailUtils: MailUtils,
+    private twoFactorUtils: TwoFactorUtils,
+    private otherUtils: OtherUtils,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<User> {
@@ -170,19 +151,29 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    this.assertActiveAccount(user);
+    if (!user.verified) {
+      throw new UnauthorizedException(
+        'Please check your email and verify your account before logging in.',
+      );
+    }
+
+    this.otherUtils.assertActiveAccount(user);
 
     if (user.twoFactorEnabled) {
-      if (!this.hasConfiguredTotp(user)) {
+      if (!this.twoFactorUtils.hasConfiguredTotp(user)) {
         throw new BadRequestException(
           'Two-factor authentication is not configured for authenticator app. Please disable and set it up again.',
         );
       }
 
-      return this.createAndSendLogin2FAChallenge(user, userAgent, ipAddress);
+      return this.twoFactorUtils.createAndSendLogin2FAChallenge(
+        user,
+        userAgent,
+        ipAddress,
+      );
     }
     // Generate tokens with device info
-    const tokens = await this.generateTokens(
+    const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
       userAgent,
@@ -197,7 +188,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      user: this.transformUser(user),
+      user: this.otherUtils.transformUser(user),
     };
   }
 
@@ -206,7 +197,9 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<AuthResponseDto> {
-    const redisKey = this.getLogin2FAChallengeKey(dto.challengeId);
+    const redisKey = this.twoFactorUtils.getLogin2FAChallengeKey(
+      dto.challengeId,
+    );
     const rawData = await this.redisService.get(redisKey);
 
     if (!rawData) {
@@ -226,14 +219,14 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
     if (!user.twoFactorEnabled) {
       await this.redisService.del(redisKey);
       throw new BadRequestException('Two-factor authentication is not enabled');
     }
 
-    if (!this.hasConfiguredTotp(user)) {
+    if (!this.twoFactorUtils.hasConfiguredTotp(user)) {
       await this.redisService.del(redisKey);
       throw new BadRequestException(
         'Two-factor authentication is not configured for authenticator app. Please disable and set it up again.',
@@ -243,10 +236,10 @@ export class AuthService {
     const method = dto.method;
     const isValidSecondFactor =
       method === 'recovery_code'
-        ? await this.verifyRecoveryCode(user.id, dto.otp, true)
+        ? await this.twoFactorUtils.verifyRecoveryCode(user.id, dto.otp, true)
         : method === 'totp'
-          ? await this.verifyTotpForUser(user, dto.otp)
-          : await this.verifySecondFactor(user, dto.otp, {
+          ? await this.twoFactorUtils.verifyTotpForUser(user, dto.otp)
+          : await this.twoFactorUtils.verifySecondFactor(user, dto.otp, {
               consumeRecoveryCode: true,
             });
 
@@ -263,7 +256,7 @@ export class AuthService {
       throw new BadRequestException('Invalid authenticator or recovery code');
     }
 
-    const tokens = await this.generateTokens(
+    const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
       userAgent,
@@ -273,7 +266,7 @@ export class AuthService {
     await this.redisService.del(redisKey);
 
     await this.prisma.auditLog.create({
-      data: this.createAuditLogData({
+      data: this.otherUtils.createAuditLogData({
         userId: user.id,
         action: 'MFA_LOGIN_SUCCESS',
         userAgent,
@@ -289,7 +282,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      user: this.transformUser(user),
+      user: this.otherUtils.transformUser(user),
     };
   }
 
@@ -327,7 +320,7 @@ export class AuthService {
     });
 
     // Generate new tokens with same device info
-    const tokens = await this.generateTokens(
+    const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
       tokenDoc.userAgent ?? undefined,
@@ -336,7 +329,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      user: this.transformUser(user),
+      user: this.otherUtils.transformUser(user),
     };
   }
 
@@ -373,7 +366,7 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return this.transformUser(user);
+    return this.otherUtils.transformUser(user);
   }
 
   async updateProfile(
@@ -442,19 +435,21 @@ export class AuthService {
         ].filter(Boolean);
 
         if (oldKeys.length) {
-          this.scheduleCleanup(
-            oldKeys as string[],
-            'replaced_by_new_upload',
-          ).catch((err) =>
-            this.logger.warn('Failed to schedule old image cleanup', err),
-          );
+          this.otherUtils
+            .scheduleCleanup(oldKeys as string[], 'replaced_by_new_upload')
+            .catch((err) =>
+              this.logger.warn('Failed to schedule old image cleanup', err),
+            );
         }
       }
 
-      return this.transformUser(user);
+      return this.otherUtils.transformUser(user);
     } catch (error) {
       if (uploadedKeys.length) {
-        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+        await this.otherUtils.scheduleCleanup(
+          uploadedKeys,
+          'transaction_failed',
+        );
         this.logger.warn(
           `Scheduled cleanup for ${uploadedKeys.length} orphaned files`,
         );
@@ -492,7 +487,7 @@ export class AuthService {
         data: { username: normalizedUsername, displayName: normalizedUsername },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'ACCOUNT_USERNAME_CHANGED',
           userAgent,
@@ -505,7 +500,7 @@ export class AuthService {
       }),
     ]);
 
-    return this.transformUser(user);
+    return this.otherUtils.transformUser(user);
   }
 
   async changeBirthday(
@@ -536,20 +531,22 @@ export class AuthService {
         data: { dateOfBirth: birthDate },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'ACCOUNT_BIRTHDAY_CHANGED',
           userAgent,
           ipAddress,
           metadata: {
-            oldDateOfBirth: this.formatAuditDate(currentUser.dateOfBirth),
-            newDateOfBirth: this.formatAuditDate(birthDate),
+            oldDateOfBirth: this.otherUtils.formatAuditDate(
+              currentUser.dateOfBirth,
+            ),
+            newDateOfBirth: this.otherUtils.formatAuditDate(birthDate),
           },
         }),
       }),
     ]);
 
-    return this.transformUser(user);
+    return this.otherUtils.transformUser(user);
   }
 
   async requestUpdatePassword(
@@ -563,7 +560,7 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    await this.createAndSendAccountEmailCode({
+    await this.mailUtils.createAndSendAccountEmailCode({
       user,
       purpose: 'password-update',
       userAgent,
@@ -586,7 +583,7 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const { redisKey } = await this.verifyAccountEmailCode(
+    const { redisKey } = await this.mailUtils.verifyAccountEmailCode(
       'password-update',
       userId,
       otp,
@@ -604,7 +601,7 @@ export class AuthService {
         where: { userId },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'ACCOUNT_PASSWORD_CHANGED',
           userAgent,
@@ -649,7 +646,7 @@ export class AuthService {
       };
     }
 
-    await this.createAndSendAccountEmailCode({
+    await this.mailUtils.createAndSendAccountEmailCode({
       user,
       purpose: 'password-reset',
       userAgent,
@@ -717,7 +714,7 @@ export class AuthService {
         data: { usedAt: new Date() },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId: match.userId,
           action: 'ACCOUNT_PASSWORD_RESET',
           userAgent,
@@ -853,7 +850,7 @@ export class AuthService {
       return null;
     }
 
-    return this.transformUser(user);
+    return this.otherUtils.transformUser(user);
   }
 
   async googleLogin(googleUser: any, ipAddress: string, userAgent: string) {
@@ -864,7 +861,11 @@ export class AuthService {
     });
 
     if (user && user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is not active');
+      throw new UnauthorizedException({
+        message: 'Account is not active',
+        code: 'ACCOUNT_NOT_ACTIVE',
+        email: user.email,
+      });
     }
 
     if (user && !user.googleId) {
@@ -897,7 +898,7 @@ export class AuthService {
         });
       }
 
-      const tokens = await this.generateTokens(
+      const tokens = await this.jwtUtils.generateTokens(
         user.id,
         user.email,
         userAgent,
@@ -947,7 +948,7 @@ export class AuthService {
       });
     }
 
-    const tokens = await this.generateTokens(
+    const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
       userAgent,
@@ -1043,7 +1044,7 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
     if (user.twoFactorEnabled) {
       throw new ConflictException(
@@ -1051,9 +1052,9 @@ export class AuthService {
       );
     }
 
-    await this.assertValidPassword(user, setup2FADto.password);
+    await this.twoFactorUtils.assertValidPassword(user, setup2FADto.password);
 
-    const totp = this.createTotp(user.email);
+    const totp = this.twoFactorUtils.createTotp(user.email);
     const secret = totp.generateSecret();
     const otpauthUrl = totp.toURI({
       issuer: TOTP_ISSUER,
@@ -1062,7 +1063,7 @@ export class AuthService {
     });
 
     await this.redisService.set(
-      this.getTotpSetupKey(userId),
+      this.twoFactorUtils.getTotpSetupKey(userId),
       JSON.stringify({
         secret,
         createdIp: ipAddress,
@@ -1074,7 +1075,8 @@ export class AuthService {
     return {
       secret,
       otpauthUrl,
-      qrCodeDataUrl: await this.generateQrCodeDataURL(otpauthUrl),
+      qrCodeDataUrl:
+        await this.twoFactorUtils.generateQrCodeDataURL(otpauthUrl),
       expiresInSeconds: TOTP_SETUP_TTL_SECONDS,
     };
   }
@@ -1093,7 +1095,7 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
     if (user.twoFactorEnabled) {
       throw new ConflictException(
@@ -1101,7 +1103,7 @@ export class AuthService {
       );
     }
 
-    const setupKey = this.getTotpSetupKey(userId);
+    const setupKey = this.twoFactorUtils.getTotpSetupKey(userId);
     const rawSetup = await this.redisService.get(setupKey);
 
     if (!rawSetup) {
@@ -1111,17 +1113,22 @@ export class AuthService {
     }
 
     const setup = JSON.parse(rawSetup) as TotpSetupData;
-    const isValidTotp = await this.verifyTotpCode(setup.secret, otp);
+    const isValidTotp = await this.twoFactorUtils.verifyTotpCode(
+      setup.secret,
+      otp,
+    );
 
     if (!isValidTotp) {
       throw new BadRequestException('Invalid authenticator code');
     }
 
-    const recoveryCodes = this.generateRecoveryCodes();
+    const recoveryCodes = this.twoFactorUtils.generateRecoveryCodes();
     const recoveryCodeRows = await Promise.all(
       recoveryCodes.map(async (code) => ({
         userId,
-        codeHash: await HashUtil.hash(this.normalizeRecoveryCode(code)),
+        codeHash: await HashUtil.hash(
+          this.twoFactorUtils.normalizeRecoveryCode(code),
+        ),
       })),
     );
 
@@ -1132,7 +1139,9 @@ export class AuthService {
           twoFactorEnabled: true,
           twoFactorEnabledAt: new Date(),
           twoFactorMethod: TwoFactorMethod.TOTP,
-          twoFactorSecret: this.encryptSecuritySecret(setup.secret),
+          twoFactorSecret: this.twoFactorUtils.encryptSecuritySecret(
+            setup.secret,
+          ),
         },
       }),
       this.prisma.recoveryCode.deleteMany({
@@ -1142,7 +1151,7 @@ export class AuthService {
         data: recoveryCodeRows,
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'MFA_TOTP_ENABLED',
           userAgent,
@@ -1173,7 +1182,7 @@ export class AuthService {
     });
 
     if (!user) throw new NotFoundException('User not found');
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
     if (!user.twoFactorEnabled) {
       throw new ConflictException('Two-factor authentication is not enabled.');
@@ -1198,17 +1207,21 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
     if (!user.twoFactorEnabled) {
       throw new ConflictException('Two-factor authentication is not enabled.');
     }
 
-    await this.assertValidPassword(user, password);
+    await this.twoFactorUtils.assertValidPassword(user, password);
 
-    const isValidSecondFactor = await this.verifySecondFactor(user, otp, {
-      consumeRecoveryCode: true,
-    });
+    const isValidSecondFactor = await this.twoFactorUtils.verifySecondFactor(
+      user,
+      otp,
+      {
+        consumeRecoveryCode: true,
+      },
+    );
 
     if (!isValidSecondFactor) {
       throw new BadRequestException('Invalid authenticator or recovery code');
@@ -1232,7 +1245,7 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'MFA_DISABLED',
           userAgent,
@@ -1273,7 +1286,7 @@ export class AuthService {
       throw new ConflictException('Email already exists.');
     }
 
-    await this.createAndSendAccountEmailCode({
+    await this.mailUtils.createAndSendAccountEmailCode({
       user,
       purpose: 'email-update',
       metadata: { new_email: normalizedEmail },
@@ -1297,7 +1310,7 @@ export class AuthService {
     if (!user) throw new NotFoundException('User not found');
 
     const { redisKey, data: requestUpdateEmailData } =
-      await this.verifyAccountEmailCode<
+      await this.mailUtils.verifyAccountEmailCode<
         AccountEmailCodeData & { new_email: string }
       >('email-update', userId, otp);
 
@@ -1318,7 +1331,7 @@ export class AuthService {
         where: { userId },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'ACCOUNT_EMAIL_CHANGED',
           userAgent,
@@ -1347,14 +1360,81 @@ export class AuthService {
     });
 
     if (!user) throw new NotFoundException('User not found');
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
-    await this.createAndSendAccountEmailCode({
+    await this.mailUtils.createAndSendAccountEmailCode({
       user,
       purpose: 'deactivate-account',
       userAgent,
       ipAddress,
     });
+  }
+
+  async requestDeleteAccount(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    this.otherUtils.assertActiveAccount(user);
+
+    await this.mailUtils.createAndSendAccountEmailCode({
+      user,
+      purpose: 'delete-account',
+      userAgent,
+      ipAddress,
+    });
+  }
+
+  async deleteAccount(
+    userId: string,
+    deleteAccountDto: DeleteAccountDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ message: string }> {
+    const { otp } = deleteAccountDto;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+    this.otherUtils.assertActiveAccount(user);
+
+    const { redisKey } = await this.mailUtils.verifyAccountEmailCode(
+      'delete-account',
+      userId,
+      otp,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          status: UserStatus.DELETED,
+          deletedAt: new Date(),
+        },
+      }),
+      this.prisma.refreshToken.deleteMany({
+        where: { userId },
+      }),
+      this.prisma.auditLog.create({
+        data: this.otherUtils.createAuditLogData({
+          userId,
+          action: 'DELETE_ACCOUNT',
+          userAgent,
+          ipAddress,
+          metadata: {
+            status: 'DELETED',
+            refreshTokensRevoked: true,
+          },
+        }),
+      }),
+    ]);
+    await this.redisService.del(redisKey);
+    return { message: 'Account deleted successfully.' };
   }
 
   async deactivateAccount(
@@ -1368,9 +1448,9 @@ export class AuthService {
       where: { id: userId },
     });
     if (!user) throw new NotFoundException('User not found');
-    this.assertActiveAccount(user);
+    this.otherUtils.assertActiveAccount(user);
 
-    const { redisKey } = await this.verifyAccountEmailCode(
+    const { redisKey } = await this.mailUtils.verifyAccountEmailCode(
       'deactivate-account',
       userId,
       otp,
@@ -1388,7 +1468,7 @@ export class AuthService {
         where: { userId },
       }),
       this.prisma.auditLog.create({
-        data: this.createAuditLogData({
+        data: this.otherUtils.createAuditLogData({
           userId,
           action: 'DEACTIVATE_ACCOUNT',
           userAgent,
@@ -1404,497 +1484,5 @@ export class AuthService {
     await this.redisService.del(redisKey);
 
     return { message: 'Account deactivated successfully.' };
-  }
-
-  private async generateTokens(
-    userId: string,
-    email: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = {
-      sub: userId,
-      email,
-    };
-
-    const jwtSecret = this.configService.get<string>('config.jwt.secret') || '';
-    const refreshSecret =
-      this.configService.get<string>('config.jwt.refreshSecret') || jwtSecret;
-
-    const accessToken = this.jwtService.sign(payload, {
-      secret: jwtSecret,
-      expiresIn: this.configService.get('config.jwt.expiresIn', '15m'),
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: refreshSecret,
-      expiresIn: this.configService.get('config.jwt.refreshExpiresIn', '7d'),
-    });
-
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await this.prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId,
-        expiresAt,
-        userAgent,
-        ipAddress,
-      },
-    });
-
-    return { accessToken, refreshToken };
-  }
-
-  private async createAndSendAccountEmailCode({
-    user,
-    purpose,
-    metadata = {},
-    userAgent,
-    ipAddress,
-  }: AccountEmailCodePayload): Promise<void> {
-    const rawCode = generateResetCode();
-    const codeHash = await HashUtil.hash(rawCode);
-    const expiresAt = addMinutes(new Date(), RESET_TTL_MINUTES);
-
-    if (purpose === 'password-reset') {
-      const activeCount = await this.prisma.passwordResetToken.count({
-        where: {
-          userId: user.id,
-          usedAt: null,
-          expiresAt: { gt: new Date() },
-        },
-      });
-
-      if (activeCount >= MAX_ACTIVE_EMAIL_CODES) return;
-
-      await this.prisma.passwordResetToken.create({
-        data: {
-          userId: user.id,
-          tokenHash: codeHash,
-          expiresAt,
-          createdIp: ipAddress,
-          createdUa: userAgent,
-        },
-      });
-    } else {
-      await this.redisService.set(
-        this.getAccountEmailCodeKey(purpose, user.id),
-        JSON.stringify({
-          ...metadata,
-          otpHash: codeHash,
-          createdIp: ipAddress,
-          createdUa: userAgent,
-        }),
-        RESET_TTL_MINUTES * 60,
-      );
-    }
-
-    await this.mailService.sendAccountCodeEmail({
-      to: user.email,
-      code: rawCode,
-      username: user.username,
-      purpose,
-    });
-  }
-
-  private async createAndSendLogin2FAChallenge(
-    user: Pick<User, 'id' | 'email' | 'username'>,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<Login2FAChallengeResponse> {
-    const challengeId = crypto.randomUUID();
-
-    await this.redisService.set(
-      this.getLogin2FAChallengeKey(challengeId),
-      JSON.stringify({
-        userId: user.id,
-        attempts: 0,
-        createdIp: ipAddress,
-        createdUa: userAgent,
-      } satisfies Login2FAChallengeData),
-      LOGIN_2FA_TTL_SECONDS,
-    );
-
-    return {
-      requires2FA: true,
-      challengeId,
-      methods: ['totp', 'recovery_code'],
-      maskedEmail: this.maskEmail(user.email),
-    };
-  }
-
-  private getLogin2FAChallengeKey(challengeId: string): string {
-    return `login-2fa:${challengeId}`;
-  }
-
-  private getAccountEmailCodeKey(
-    purpose: AccountEmailCodePurpose,
-    userId: string,
-  ): string {
-    if (purpose === 'email-update') {
-      return `${EMAIL_UPDATE_CODE_PREFIX}:${userId}`;
-    }
-
-    if (purpose === 'password-update') {
-      return `${PASSWORD_UPDATE_CODE_PREFIX}:${userId}`;
-    }
-
-    return `${purpose}:${userId}`;
-  }
-
-  private async verifyAccountEmailCode<T extends AccountEmailCodeData>(
-    purpose: Exclude<AccountEmailCodePurpose, 'password-reset'>,
-    userId: string,
-    otp: string,
-  ): Promise<{ redisKey: string; data: T }> {
-    const redisKey = this.getAccountEmailCodeKey(purpose, userId);
-    const rawData = await this.redisService.get(redisKey);
-
-    if (!rawData) {
-      throw new BadRequestException('OTP is invalid or expired');
-    }
-
-    const data = JSON.parse(rawData) as T;
-    const normalizedOtp = this.normalizeEmailCode(otp);
-    const isValidOtp = data.otpHash
-      ? await HashUtil.compare(normalizedOtp, data.otpHash)
-      : normalizedOtp === this.normalizeEmailCode(data.otp);
-
-    if (!isValidOtp) {
-      throw new BadRequestException('Invalid OTP');
-    }
-
-    return { redisKey, data };
-  }
-
-  private assertActiveAccount(user: Pick<User, 'status'>): void {
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is not active');
-    }
-  }
-
-  private normalizeEmailCode(code?: string): string {
-    const normalized = (code ?? '').trim().toUpperCase().replace(/\s/g, '');
-
-    if (normalized.length === 10 && !normalized.includes('-')) {
-      return `${normalized.slice(0, 5)}-${normalized.slice(5)}`;
-    }
-
-    return normalized;
-  }
-
-  private createAuditLogData({
-    userId,
-    action,
-    userAgent,
-    ipAddress,
-    metadata,
-  }: AuditContext & {
-    userId: string;
-    action: string;
-    metadata?: Prisma.InputJsonObject;
-  }): Prisma.AuditLogUncheckedCreateInput {
-    return {
-      userId,
-      action,
-      userAgent,
-      ipAddress,
-      metadata,
-    };
-  }
-
-  private formatAuditDate(value?: Date | string | null): string | null {
-    if (!value) return null;
-
-    if (value instanceof Date) {
-      return value.toISOString().slice(0, 10);
-    }
-
-    return value.slice(0, 10);
-  }
-
-  private transformUser(user: any) {
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      displayName: user.displayName,
-      bio: user.bio,
-      avatarUrl: user.avatarUrl,
-      coverUrl: user.coverUrl,
-      website: user.website,
-      location: user.location,
-      verified: user.verified,
-      isPrivate: user.isPrivate,
-      link: user.link,
-      linkTitle: user.linkTitle,
-      interests: user.interests,
-      followersCount: user.followersCount,
-      followingCount: user.followingCount,
-      postsCount: user.postsCount,
-      createdAt: user.createdAt,
-      dateOfBirth: user.dateOfBirth,
-      hasPassword: Boolean(user.passwordHash),
-      twoFactorEnabled: user.twoFactorEnabled,
-      twoFactorMethod: user.twoFactorMethod,
-      twoFactorEnabledAt: user.twoFactorEnabledAt,
-    };
-  }
-
-  private async scheduleCleanup(
-    keys: string[],
-    reason: CleanupJobData['reason'],
-  ) {
-    await this.cleanupQueue.add(
-      JOB_NAMES.CLEANUP_FAILED_UPLOAD,
-      { keys, reason },
-      {
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
-        delay: 1000, // Delay 1s before cleanup
-      },
-    );
-  }
-
-  private maskEmail(email: string): string {
-    const [name, domain] = email.split('@');
-
-    if (!name || !domain) return email;
-
-    const maskedName =
-      name.length <= 2
-        ? `${name[0]}***`
-        : `${name[0]}***${name[name.length - 1]}`;
-
-    const [domainName, ...tldParts] = domain.split('.');
-    const tld = tldParts.join('.');
-
-    const maskedDomain =
-      domainName.length <= 2
-        ? `${domainName[0]}***`
-        : `${domainName[0]}***${domainName[domainName.length - 1]}`;
-
-    return tld
-      ? `${maskedName}@${maskedDomain}.${tld}`
-      : `${maskedName}@${domain}`;
-  }
-
-  private getTotpSetupKey(userId: string): string {
-    return `2fa:totp:setup:${userId}`;
-  }
-
-  private createTotp(label?: string, secret?: string): TOTP {
-    return new TOTP({
-      issuer: TOTP_ISSUER,
-      label,
-      secret,
-      period: 30,
-      digits: 6,
-      algorithm: 'sha1',
-      crypto: new NobleCryptoPlugin(),
-      base32: new ScureBase32Plugin(),
-    });
-  }
-
-  private normalizeTotpCode(code?: string): string {
-    return (code ?? '').trim().replace(/\s/g, '');
-  }
-
-  private async verifyTotpCode(secret: string, code: string): Promise<boolean> {
-    const normalizedCode = this.normalizeTotpCode(code);
-
-    if (!/^\d{6}$/.test(normalizedCode)) return false;
-
-    const result = await this.createTotp(undefined, secret).verify(
-      normalizedCode,
-      {
-        epochTolerance: 30,
-      },
-    );
-
-    return result.valid;
-  }
-
-  private async verifyTotpForUser(
-    user: Pick<
-      User,
-      'twoFactorEnabled' | 'twoFactorMethod' | 'twoFactorSecret'
-    >,
-    code: string,
-  ): Promise<boolean> {
-    if (
-      !user.twoFactorEnabled ||
-      user.twoFactorMethod !== TwoFactorMethod.TOTP ||
-      !user.twoFactorSecret
-    ) {
-      return false;
-    }
-
-    return this.verifyTotpCode(
-      this.decryptSecuritySecret(user.twoFactorSecret),
-      code,
-    );
-  }
-
-  private hasConfiguredTotp(
-    user: Pick<
-      User,
-      'twoFactorEnabled' | 'twoFactorMethod' | 'twoFactorSecret'
-    >,
-  ): boolean {
-    return Boolean(
-      user.twoFactorEnabled &&
-      user.twoFactorMethod === TwoFactorMethod.TOTP &&
-      user.twoFactorSecret,
-    );
-  }
-
-  private generateRecoveryCodes(count = RECOVERY_CODE_COUNT): string[] {
-    return Array.from({ length: count }, () => {
-      const characters = Array.from({ length: 12 }, () => {
-        const index = crypto.randomInt(0, RECOVERY_CODE_ALPHABET.length);
-        return RECOVERY_CODE_ALPHABET[index];
-      }).join('');
-
-      return `KNT-${characters.slice(0, 4)}-${characters.slice(4, 8)}-${characters.slice(8)}`;
-    });
-  }
-
-  private normalizeRecoveryCode(code?: string): string {
-    return (code ?? '').trim().toUpperCase().replace(/[\s-]/g, '');
-  }
-
-  private async verifyRecoveryCode(
-    userId: string,
-    code: string,
-    consume: boolean,
-  ): Promise<boolean> {
-    const normalizedCode = this.normalizeRecoveryCode(code);
-
-    if (!normalizedCode) return false;
-
-    const candidates = await this.prisma.recoveryCode.findMany({
-      where: {
-        userId,
-        usedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    for (const candidate of candidates) {
-      if (await HashUtil.compare(normalizedCode, candidate.codeHash)) {
-        if (consume) {
-          await this.prisma.recoveryCode.updateMany({
-            where: {
-              id: candidate.id,
-              usedAt: null,
-            },
-            data: { usedAt: new Date() },
-          });
-        }
-
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private async verifySecondFactor(
-    user: Pick<
-      User,
-      'id' | 'twoFactorEnabled' | 'twoFactorMethod' | 'twoFactorSecret'
-    >,
-    code: string,
-    options: { consumeRecoveryCode: boolean },
-  ): Promise<boolean> {
-    if (await this.verifyTotpForUser(user, code)) {
-      return true;
-    }
-
-    return this.verifyRecoveryCode(user.id, code, options.consumeRecoveryCode);
-  }
-
-  private async assertValidPassword(
-    user: Pick<User, 'passwordHash'>,
-    password: string,
-  ): Promise<void> {
-    if (!user.passwordHash) {
-      throw new BadRequestException(
-        'Password verification is required for this action.',
-      );
-    }
-
-    const isPasswordValid = await HashUtil.compare(password, user.passwordHash);
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
-    }
-  }
-
-  private getSecurityEncryptionKey(): Buffer {
-    const keyMaterial =
-      process.env.TWO_FACTOR_SECRET_KEY ||
-      this.configService.get<string>('config.jwt.secret') ||
-      this.configService.get<string>('config.jwt.refreshSecret');
-
-    if (!keyMaterial) {
-      throw new Error('Missing secret key for two-factor encryption');
-    }
-
-    return crypto.createHash('sha256').update(keyMaterial).digest();
-  }
-
-  private encryptSecuritySecret(secret: string): string {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv(
-      'aes-256-gcm',
-      this.getSecurityEncryptionKey(),
-      iv,
-    );
-    const encrypted = Buffer.concat([
-      cipher.update(secret, 'utf8'),
-      cipher.final(),
-    ]);
-    const authTag = cipher.getAuthTag();
-
-    return [
-      'v1',
-      iv.toString('base64url'),
-      authTag.toString('base64url'),
-      encrypted.toString('base64url'),
-    ].join(':');
-  }
-
-  private decryptSecuritySecret(value: string): string {
-    if (!value.startsWith('v1:')) return value;
-
-    const [, ivValue, authTagValue, encryptedValue] = value.split(':');
-
-    if (!ivValue || !authTagValue || !encryptedValue) {
-      throw new Error('Invalid encrypted two-factor secret');
-    }
-
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      this.getSecurityEncryptionKey(),
-      Buffer.from(ivValue, 'base64url'),
-    );
-
-    decipher.setAuthTag(Buffer.from(authTagValue, 'base64url'));
-
-    return Buffer.concat([
-      decipher.update(Buffer.from(encryptedValue, 'base64url')),
-      decipher.final(),
-    ]).toString('utf8');
-  }
-
-  async generateQrCodeDataURL(otpAuthUrl: string): Promise<string> {
-    return QRCode.toDataURL(otpAuthUrl);
   }
 }

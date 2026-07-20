@@ -6,9 +6,8 @@ import {
   Pin,
   MoreHorizontal,
   Hash,
-  UserPlus,
-  Radio,
   Users,
+  Plus,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetListById } from "@/app/hooks/use-list";
@@ -88,7 +87,7 @@ export default function ListDetailPage() {
         )}
       </div>
 
-      <div className="sticky top-[10.5rem] z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2 lg:top-28">
+      <div className="sticky top-42 z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 flex mt-2 lg:top-28">
         <button
           onClick={() => setActiveTab("posts")}
           className="flex-1 flex items-center justify-center h-12 relative hover:bg-gray-50 transition-colors cursor-pointer"
@@ -122,10 +121,7 @@ export default function ListDetailPage() {
         {activeTab === "posts" &&
           (listPosts.length > 0 ? (
             <div className="w-full">
-              <VirtualPostList
-                posts={listPosts as Feed[]}
-                dropdownItems={[]}
-              />
+              <VirtualPostList posts={listPosts as Feed[]} dropdownItems={[]} />
             </div>
           ) : (
             <div className="pt-24 px-4">
@@ -153,8 +149,8 @@ function EmptyFeedState() {
         This feed is empty.
       </p>
       <button className="flex items-center gap-2 bg-[#1185fe] hover:bg-blue-600 transition-colors text-white font-bold text-[15px] px-6 py-2.5 rounded-full shadow-sm cursor-pointer">
-        <UserPlus className="w-4 h-4" strokeWidth={2.5} />
-        Start adding people!
+        <Plus className="w-4 h-4" strokeWidth={2.5} />
+        Creating new post!
       </button>
     </div>
   );

@@ -27,6 +27,7 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { SearchPostsDto } from './dto/search-posts.dto';
+import { PinPostQueryDto } from './dto/pin-post-query.dto';
 
 const FANOUT_WRITE_MAX_FOLLOWERS = 5000;
 @Injectable()
@@ -318,6 +319,7 @@ export class PostsService {
               replyFollowing: true,
               replyMentioned: true,
               postTheme: true,
+              isPinned: true,
               user: {
                 select: {
                   id: true,
@@ -411,6 +413,7 @@ export class PostsService {
         replyFollowing: true,
         replyMentioned: true,
         postTheme: true,
+        isPinned: true,
         user: {
           select: {
             id: true,
@@ -536,9 +539,11 @@ export class PostsService {
     const posts = await this.prisma.post.findMany({
       where: {
         isDeleted: false,
-        ...(excludedUserIds.length > 0 && {
-          userId: { notIn: excludedUserIds },
-        }),
+        ...(query.ownOnly
+          ? { userId: currentUserId }
+          : excludedUserIds.length > 0 && {
+              userId: { notIn: excludedUserIds },
+            }),
         OR: [
           {
             content: {
@@ -1671,6 +1676,171 @@ export class PostsService {
       nextCursor,
       hasMore,
     };
+  }
+
+  async pinPost(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+
+    if (post.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to pin this post');
+    }
+
+    if (post.isPinned) {
+      return { message: 'Post pinned successfully' };
+    }
+
+    await this.prisma.post.update({
+      where: { id: postId },
+      data: { isPinned: true },
+    });
+
+    return { message: 'Post pinned successfully' };
+  }
+
+  async getPinPost(
+    username: string,
+    currentUserId: string,
+    query: PinPostQueryDto,
+  ) {
+    const limit = query.limit ?? 20;
+    const user = await this.prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const posts = await this.prisma.post.findMany({
+      where: { userId: user.id, isPinned: true, isDeleted: false },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(query.cursor && {
+        cursor: { id: query.cursor },
+        skip: 1,
+      }),
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        replyCount: true,
+        repostCount: true,
+        bookmarkCount: true,
+        replyPolicy: true,
+        replyFollowers: true,
+        replyFollowing: true,
+        replyMentioned: true,
+        postTheme: true,
+        isPinned: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+            followersCount: true,
+            followingCount: true,
+          },
+        },
+        media: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            width: true,
+            height: true,
+            altText: true,
+          },
+        },
+      },
+    });
+
+    if (posts.length === 0)
+      return { posts: [], nextCursor: null, hasMore: false };
+
+    const hasMore = posts.length > limit;
+    if (hasMore) posts.pop();
+    const nextCursor = hasMore ? posts[posts.length - 1].id : null;
+
+    const postIds = posts.map((p) => p.id);
+
+    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
+      this.prisma.like.findMany({
+        where: { userId: currentUserId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      this.prisma.bookmark.findMany({
+        where: { userId: currentUserId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      this.prisma.repost.findMany({
+        where: { userId: currentUserId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedSet = new Set(likedPosts.map((l) => l.postId));
+    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
+    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
+
+    const following = await this.prisma.follow.findMany({
+      where: { followerId: currentUserId },
+      select: {
+        followingId: true,
+      },
+    });
+
+    const followingIds = following.map((f) => f.followingId);
+
+    const followingSet = new Set(followingIds);
+
+    const userInfo = posts.length > 0 ? posts[0].user : null;
+
+    return {
+      posts: posts.map((post) => ({
+        ...post,
+        isLiked: likedSet.has(post.id),
+        isBookmarked: bookmarkedSet.has(post.id),
+        isReposted: repostedSet.has(post.id),
+        user: userInfo
+          ? {
+              ...userInfo,
+              followStatus:
+                userInfo.id === currentUserId
+                  ? null
+                  : followingSet.has(userInfo.id)
+                    ? 'following'
+                    : 'none',
+            }
+          : null,
+      })),
+      nextCursor,
+      hasMore,
+    };
+  }
+
+  async unpinPost(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+
+    if (post.userId !== userId)
+      throw new ForbiddenException('You are not authorized to unpin this post');
+
+    await this.prisma.post.update({
+      where: { id: postId },
+      data: { isPinned: false },
+    });
+
+    return { message: 'Post unpinned successfully' };
   }
 
   private async canReplyToPost(

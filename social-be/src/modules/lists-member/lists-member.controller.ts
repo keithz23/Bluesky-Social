@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Param, Delete, Query } from '@nestjs/common';
 import { ListsMemberService } from './lists-member.service';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { AddMembersDto } from './dto/add-member.dto';
 
 @Controller('lists-member')
 export class ListsMemberController {
@@ -37,7 +36,14 @@ export class ListsMemberController {
   getListMembers(
     @Param('listId') listId: string,
     @CurrentUser('id') currentUserId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.listsMemberService.getListMember(listId, currentUserId);
+    return this.listsMemberService.getListMember(
+      listId,
+      currentUserId,
+      cursor,
+      limit ? Number(limit) : undefined,
+    );
   }
 }

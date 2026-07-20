@@ -6,6 +6,7 @@ export type AccountEmailCodePurpose =
   | 'email-update'
   | 'password-update'
   | 'deactivate-account'
+  | 'delete-account'
   | 'enable-2fa'
   | 'disable-2fa';
 

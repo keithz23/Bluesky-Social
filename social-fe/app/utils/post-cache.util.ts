@@ -12,10 +12,7 @@ type InfinitePostsData = {
 
 const isFeedPost = (value: unknown): value is Feed => {
   return Boolean(
-    value &&
-    typeof value === "object" &&
-    "id" in value &&
-    "user" in value,
+    value && typeof value === "object" && "id" in value && "user" in value,
   );
 };
 
@@ -24,19 +21,24 @@ export const snapshotPostCaches = (qc: QueryClient) => ({
   bookmarks: qc.getQueryData(["bookmarks"]),
   reposts: qc.getQueryData(["reposts"]),
   userPosts: qc.getQueriesData({ queryKey: ["userPosts"] }),
+  userPinnedPosts: qc.getQueriesData({ queryKey: ["userPinnedPosts"] }),
   postDetails: qc.getQueriesData({ queryKey: ["post-detail"] }),
   replies: qc.getQueriesData({ queryKey: ["replies"] }),
-})
+});
 
-export const rollbackPostCaches = (qc: QueryClient, snapshot: ReturnType<typeof snapshotPostCaches>) => {
+export const rollbackPostCaches = (
+  qc: QueryClient,
+  snapshot: ReturnType<typeof snapshotPostCaches>,
+) => {
   qc.setQueryData(["feed"], snapshot.feed);
   qc.setQueryData(["bookmarks"], snapshot.bookmarks);
   qc.setQueryData(["reposts"], snapshot.reposts);
 
   snapshot.userPosts.forEach(([key, data]) => qc.setQueryData(key, data));
+  snapshot.userPinnedPosts.forEach(([key, data]) => qc.setQueryData(key, data));
   snapshot.postDetails.forEach(([key, data]) => qc.setQueryData(key, data));
   snapshot.replies.forEach(([key, data]) => qc.setQueryData(key, data));
-}
+};
 
 export const updatePostEverywhere = (
   qc: QueryClient,
@@ -45,6 +47,9 @@ export const updatePostEverywhere = (
 ) => {
   const postDetailKeys = qc.getQueriesData({ queryKey: ["post-detail"] });
   const userPostKeys = qc.getQueriesData({ queryKey: ["userPosts"] });
+  const userPinnedPostKeys = qc.getQueriesData({
+    queryKey: ["userPinnedPosts"],
+  });
   const replyKeys = qc.getQueriesData({ queryKey: ["replies"] });
 
   updatePostInCaches(
@@ -54,6 +59,7 @@ export const updatePostEverywhere = (
       ["reposts"],
       ...postDetailKeys.map(([key]) => key as any[]),
       ...userPostKeys.map(([key]) => key as any[]),
+      ...userPinnedPostKeys.map(([key]) => key as any[]),
       ...replyKeys.map(([key]) => key as any[]),
     ],
     postId,

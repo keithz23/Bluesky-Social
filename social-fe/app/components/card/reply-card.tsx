@@ -76,41 +76,11 @@ export default function ReplyCard({
     router.push(`/profile/${reply.user.username}`);
   };
 
-  const handleNextImage = useCallback(
-    (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (zoomData && zoomData.currentIndex < zoomData.media.length - 1) {
-        setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex + 1 });
-      }
-    },
-    [zoomData],
-  );
-
-  const handlePrevImage = useCallback(
-    (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (zoomData && zoomData.currentIndex > 0) {
-        setZoomData({ ...zoomData, currentIndex: zoomData.currentIndex - 1 });
-      }
-    },
-    [zoomData],
-  );
-
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!requireAuth()) return;
     toggleLike();
   };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!zoomData) return;
-      if (e.key === "ArrowRight") handleNextImage();
-      if (e.key === "ArrowLeft") handlePrevImage();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [zoomData, handleNextImage, handlePrevImage]);
 
   const formattedDate = formatCompactDate(reply.createdAt);
 
