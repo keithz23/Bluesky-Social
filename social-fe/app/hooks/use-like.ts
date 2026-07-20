@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { LikeService } from "../services/like.service";
 import { rollbackPostCaches, snapshotPostCaches, updatePostEverywhere } from "../utils/post-cache.util";
 
 export const useLike = (postId: string, isLiked: boolean) => {
@@ -9,8 +8,8 @@ export const useLike = (postId: string, isLiked: boolean) => {
   return useMutation({
     mutationFn: () =>
       isLiked
-        ? axiosInstance.delete(API_ENDPOINT.LIKES.UNLIKE(postId))
-        : axiosInstance.post(API_ENDPOINT.LIKES.LIKE(postId)),
+        ? LikeService.unLike(postId)
+        : LikeService.like(postId),
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["feed"] });

@@ -1,4 +1,4 @@
-import { axiosInstance, refreshAuthSession } from "@/lib/axios";
+import { apiClient, refreshAuthSession } from "@/lib/axios";
 import type { AxiosProgressEvent } from "axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
@@ -22,19 +22,15 @@ import type { User } from "../interfaces/user.interface";
 
 export const AuthService = {
   register: (registerData: RegisterData) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REGISTER, registerData);
+    return apiClient.post<User>(API_ENDPOINT.AUTH.REGISTER, registerData);
   },
 
   login: async (crendentials: LoginCredentials): Promise<LoginResponse> => {
-    const response = await axiosInstance.post(
-      API_ENDPOINT.AUTH.LOGIN,
-      crendentials,
-    );
-    return response.data;
+    return apiClient.post<LoginResponse>(API_ENDPOINT.AUTH.LOGIN, crendentials);
   },
 
   logout: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.LOGOUT, {});
+    return apiClient.post<unknown>(API_ENDPOINT.AUTH.LOGOUT, {});
   },
 
   refresh: async (): Promise<AuthResponse> => {
@@ -42,8 +38,7 @@ export const AuthService = {
   },
 
   me: async (): Promise<User> => {
-    const response = await axiosInstance.get(API_ENDPOINT.AUTH.ME);
-    return response.data ?? response;
+    return apiClient.get<User>(API_ENDPOINT.AUTH.ME);
   },
 
   updateProfile: async (
@@ -63,107 +58,124 @@ export const AuthService = {
     if (updateProfileData.coverFile) {
       formData.append("cover", updateProfileData.coverFile);
     }
-    const { data } = await axiosInstance.patch(
+    return apiClient.patch<User>(
       API_ENDPOINT.AUTH.UPDATE_PROFILE,
       formData,
       { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress },
     );
-    return data;
   },
 
   forgot: (email: string) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.FORGOT, { email });
+    return apiClient.post<{ message?: string; canResetPassword?: boolean }>(
+      API_ENDPOINT.AUTH.FORGOT,
+      { email },
+    );
   },
 
   reset: (resetPasswordData: ResetPasswordData) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.RESET, resetPasswordData);
+    return apiClient.post<{ message?: string }>(
+      API_ENDPOINT.AUTH.RESET,
+      resetPasswordData,
+    );
   },
 
   requestUpdateEmail: (requestUpdateEmailData: RequestUpdateEmailData) => {
-    return axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.AUTH.REQUEST_UPDATE_EMAIL,
       requestUpdateEmailData,
     );
   },
 
   updateEmail: (updateEmailData: UpdateEmailData) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.UPDATE_EMAIL, updateEmailData);
+    return apiClient.post<unknown>(
+      API_ENDPOINT.AUTH.UPDATE_EMAIL,
+      updateEmailData,
+    );
   },
 
   requestUpdatePassword: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_UPDATE_PASSWORD);
+    return apiClient.post<unknown>(API_ENDPOINT.AUTH.REQUEST_UPDATE_PASSWORD);
   },
 
   changePassword: (changePasswordData: ChangePasswordData) => {
-    return axiosInstance.patch(
+    return apiClient.patch<unknown>(
       API_ENDPOINT.AUTH.CHANGE_PASSWORD,
       changePasswordData,
     );
   },
 
   changeUsername: (changeUsernameData: ChangeUsernameData) => {
-    return axiosInstance.patch(
+    return apiClient.patch<unknown>(
       API_ENDPOINT.AUTH.CHANGE_USERNAME,
       changeUsernameData,
     );
   },
 
   changeBirthDay: (changeBirthDayData: ChangeBirthDayData) => {
-    return axiosInstance.patch(
+    return apiClient.patch<unknown>(
       API_ENDPOINT.AUTH.CHANGE_BIRTHDAY,
       changeBirthDayData,
     );
   },
 
   requestDeactivateAccount: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT);
+    return apiClient.post<unknown>(API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT);
   },
 
   deactivateAccount: (deactivateAccountData: DeactivateAccountData) => {
-    return axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.AUTH.DEACTIVATE_ACCOUNT,
       deactivateAccountData,
     );
   },
 
   requestDeleteAccount: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_DELETE_ACCOUNT);
+    return apiClient.post<unknown>(API_ENDPOINT.AUTH.REQUEST_DELETE_ACCOUNT);
   },
 
   deleteAccount: (deleteAccountData: DeleteAccountData) => {
-    return axiosInstance.post(
+    return apiClient.post<unknown>(
       API_ENDPOINT.AUTH.DELETE_ACCOUNT,
       deleteAccountData,
     );
   },
 
   requestEnable2FA: (setup2FAData: Setup2FAData) => {
-    return axiosInstance.post(
+    return apiClient.post<{ secret: string; qrCodeDataUrl: string }>(
       API_ENDPOINT.AUTH.REQUEST_ENABLE_2FA,
       setup2FAData,
     );
   },
 
   enable2FA: (enable2FAData: Enable2FAData) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.ENABLE_2FA, enable2FAData);
+    return apiClient.post<{ recoveryCodes?: string[] }>(
+      API_ENDPOINT.AUTH.ENABLE_2FA,
+      enable2FAData,
+    );
   },
 
   requestDisable2FA: () => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.REQUEST_DISABLE_2FA);
+    return apiClient.post<unknown>(API_ENDPOINT.AUTH.REQUEST_DISABLE_2FA);
   },
 
   disable2FA: (disable2FAData: Disable2FAData) => {
-    return axiosInstance.post(API_ENDPOINT.AUTH.DISABLE_2FA, disable2FAData);
+    return apiClient.post<unknown>(
+      API_ENDPOINT.AUTH.DISABLE_2FA,
+      disable2FAData,
+    );
   },
 
   verifyLogin2FA: async (payload: {
     challengeId: string;
     otp: string;
   }): Promise<AuthResponse> => {
-    const response = await axiosInstance.post(
+    return apiClient.post<AuthResponse>(
       API_ENDPOINT.AUTH.VERIFY_LOGIN_2FA,
       payload,
     );
-    return response.data;
+  },
+
+  getSocketToken: () => {
+    return apiClient.get<{ token: string }>(API_ENDPOINT.AUTH.SOCKET_TOKEN);
   },
 };

@@ -1,17 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { BookmarkService } from "../services/bookmark.service";
 import { rollbackPostCaches, snapshotPostCaches, updatePostEverywhere } from "../utils/post-cache.util";
 
 export const useGetBookmarks = () => {
   return useQuery({
     queryKey: ["bookmarks"],
-    queryFn: async () => {
-      const { data } = await axiosInstance.get(
-        API_ENDPOINT.BOOKMARKS.GET_BOOKMARKS,
-      );
-      return data;
-    },
+    queryFn: BookmarkService.getBookMarks,
   });
 };
 
@@ -21,8 +15,8 @@ export const useBookmark = (postId: string, isBookmarked: boolean) => {
   return useMutation({
     mutationFn: () =>
       isBookmarked
-        ? axiosInstance.delete(API_ENDPOINT.BOOKMARKS.UNBOOKMARK(postId))
-        : axiosInstance.post(API_ENDPOINT.BOOKMARKS.BOOKMARK(postId)),
+        ? BookmarkService.unBookMark(postId)
+        : BookmarkService.bookmark(postId),
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["feed"] });

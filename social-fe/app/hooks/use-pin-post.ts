@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { PostService } from "../services/post.service";
 import {
   rollbackPostCaches,
   snapshotPostCaches,
@@ -18,8 +17,8 @@ export const usePinPost = (
   return useMutation({
     mutationFn: () =>
       isPinned
-        ? axiosInstance.delete(API_ENDPOINT.POSTS.UNPIN_POST(postId))
-        : axiosInstance.post(API_ENDPOINT.POSTS.PIN_POST(postId)),
+        ? PostService.unpinPost(postId)
+        : PostService.pinPost(postId),
 
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["userPosts"] });

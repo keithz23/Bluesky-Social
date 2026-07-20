@@ -1,9 +1,16 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { InfiniteData, useInfiniteQuery } from "@tanstack/react-query";
 import { ChatService } from "@/app/services/chat.service";
 import { infiniteQueryOptions } from "./infinite-query-options";
+import { MessagesResponse } from "../interfaces/chat.interface";
 
 export function useMessages(conversationId: string | undefined) {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    MessagesResponse,
+    Error,
+    InfiniteData<MessagesResponse>,
+    [string, string | undefined],
+    string | undefined
+  >({
     ...infiniteQueryOptions,
     queryKey: ["messages", conversationId],
     queryFn: ({ pageParam }) =>

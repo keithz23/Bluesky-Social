@@ -8,8 +8,7 @@ import React, {
   useRef,
 } from "react";
 import { io, Socket } from "socket.io-client";
-import { axiosInstance } from "@/lib/axios";
-import { API_ENDPOINT } from "@/app/constants/endpoint.constant";
+import { AuthService } from "@/app/services/auth.service";
 import { useGlobal } from "@/app/hooks/use-global";
 import { useChatRealtime } from "@/app/hooks/use-chat-realtime";
 
@@ -61,10 +60,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         isInitialized.current = true;
 
-        const { data } = await axiosInstance.get(
-          API_ENDPOINT.AUTH.SOCKET_TOKEN,
-        );
-        const token = data.token;
+        const { token } = await AuthService.getSocketToken();
 
         const commonOptions = {
           auth: { token },

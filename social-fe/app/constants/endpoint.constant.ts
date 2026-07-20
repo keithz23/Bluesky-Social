@@ -199,7 +199,7 @@ export const API_ENDPOINT = {
       const qs = query.toString();
       return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
     },
-    GET_LIST_BY_ID: (id: string) => `lists/get-list-by-id/${id}`,
+    GET_LIST_BY_ID: (id: string) => `/lists/get-list-by-id/${id}`,
     ADD_POST: (listId: string, postId: string) =>
       `/lists/${listId}/items/${postId}`,
     REMOVE_POST: (listId: string, postId: string) =>

@@ -1,6 +1,7 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import type { AxiosProgressEvent } from "axios";
+import { Feed } from "../interfaces/feed.interface";
 
 export const ReplyService = {
   createReply: async (
@@ -8,7 +9,7 @@ export const ReplyService = {
     payload: FormData,
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
   ) => {
-    const { data } = await axiosInstance.post(
+    return apiClient.post<Feed>(
       API_ENDPOINT.POSTS.CREATE_REPLY(postId),
       payload,
       {
@@ -16,17 +17,18 @@ export const ReplyService = {
         onUploadProgress,
       },
     );
-
-    return data;
   },
 
   getReplies: async (postId: string, cursor?: string, limit?: number) => {
     const params = new URLSearchParams();
     if (cursor) params.set("cursor", cursor);
     if (limit) params.set("limit", String(limit));
-    const { data } = await axiosInstance.get(
+    return apiClient.get<{
+      replies: Feed[];
+      nextCursor: string | null;
+      hasMore: boolean;
+    }>(
       `${API_ENDPOINT.POSTS.GET_REPLIES(postId)}?${params}`,
     );
-    return data;
   },
 };

@@ -151,7 +151,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     onSuccess: (response) => {
       toast.success("Authenticator setup ready.");
       options?.onRequestEnable2FACodeSuccess?.();
-      options?.onRequestTOTPSetupSuccess?.(response.data);
+      options?.onRequestTOTPSetupSuccess?.(response);
     },
     onError: (err) => toast.error(extractErrMsg(err)),
   });
@@ -162,8 +162,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Two-factor authentication enabled.");
       options?.onSuccess?.();
-      options?.onEnable2FASuccess?.(response.data);
-      options?.onEnableTOTPSuccess?.(response.data);
+      options?.onEnable2FASuccess?.(response);
+      options?.onEnableTOTPSuccess?.(response);
     },
     onError: (err) => toast.error(extractErrMsg(err)),
   });
