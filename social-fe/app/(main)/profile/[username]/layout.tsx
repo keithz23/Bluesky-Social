@@ -33,7 +33,7 @@ export default function ProfileLayout({
     { name: "Videos", href: `${profileRoot}/videos` },
     { name: "Likes", href: `${profileRoot}/likes` },
     { name: "Feeds", href: `${profileRoot}/feeds` },
-    { name: "Starter Packs", href: `${profileRoot}/starter-packs` },
+
     { name: "Lists", href: `${profileRoot}/lists` },
   ];
 
@@ -72,7 +72,6 @@ export default function ProfileLayout({
             </PhotoView>
           )}
         </PhotoProvider>
-
 
         <button
           type="button"
@@ -173,9 +172,10 @@ export default function ProfileLayout({
             key={tab.name}
             href={tab.href}
             className={`px-4 py-3 text-[15px] font-bold whitespace-nowrap cursor-pointer transition
-              ${isActiveTab(tab.href)
-                ? "text-gray-900 border-b-[3px] border-blue-600"
-                : "text-gray-500 hover:bg-gray-100"
+              ${
+                isActiveTab(tab.href)
+                  ? "text-gray-900 border-b-[3px] border-blue-600"
+                  : "text-gray-500 hover:bg-gray-100"
               }`}
           >
             {tab.name}

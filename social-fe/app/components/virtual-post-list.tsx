@@ -31,15 +31,18 @@ export default function VirtualPostList({
   }, [posts]);
 
   const offsets = useMemo(() => {
-    return uniquePosts.reduce<Array<{ top: number; height: number }>>((items, post) => {
-      const top =
-        items.length === 0
-          ? 0
-          : items[items.length - 1].top + items[items.length - 1].height;
-      const height = sizes[post.id] ?? ESTIMATED_POST_HEIGHT;
-      items.push({ top, height });
-      return items;
-    }, []);
+    return uniquePosts.reduce<Array<{ top: number; height: number }>>(
+      (items, post) => {
+        const top =
+          items.length === 0
+            ? 0
+            : items[items.length - 1].top + items[items.length - 1].height;
+        const height = sizes[post.id] ?? ESTIMATED_POST_HEIGHT;
+        items.push({ top, height });
+        return items;
+      },
+      [],
+    );
   }, [uniquePosts, sizes]);
 
   const totalHeight =
@@ -54,9 +57,9 @@ export default function VirtualPostList({
       return;
     }
 
-    const scrollRoot = container.closest("[data-main-scroll]") as
-      | HTMLElement
-      | null;
+    const scrollRoot = container.closest(
+      "[data-main-scroll]",
+    ) as HTMLElement | null;
     const containerRect = container.getBoundingClientRect();
     const rootRect = scrollRoot?.getBoundingClientRect();
     const scrollTop = scrollRoot?.scrollTop ?? window.scrollY;
@@ -87,9 +90,9 @@ export default function VirtualPostList({
   }, [offsets, uniquePosts.length]);
 
   useEffect(() => {
-    const scrollRoot = containerRef.current?.closest("[data-main-scroll]") as
-      | HTMLElement
-      | null;
+    const scrollRoot = containerRef.current?.closest(
+      "[data-main-scroll]",
+    ) as HTMLElement | null;
     const scrollTarget = scrollRoot ?? window;
 
     updateRange();

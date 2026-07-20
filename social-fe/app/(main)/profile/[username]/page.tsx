@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useProfile } from "@/app/hooks/use-profile";
-import { useUserPosts } from "@/app/hooks/use-post";
+import { useUserPinPosts, useUserPosts } from "@/app/hooks/use-post";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { Feed } from "@/app/interfaces/feed.interface";
 import NewPostModal from "@/app/components/dialog/new-post-dialog";
@@ -19,13 +19,11 @@ import {
   BookA,
   Copy,
   Funnel,
-  Pin,
   Settings,
   VolumeOff,
 } from "lucide-react";
 
 const dropdownItems: DropdownItem[] = [
-  { id: 1, title: "Pin to your profile", icon: <Pin size={18} /> },
   { id: 2, title: "Translate", icon: <BookA size={18} /> },
   { id: 3, title: "Copy post text", icon: <Copy size={18} /> },
   { id: 4, title: "Mute thread", icon: <VolumeOff size={18} /> },
@@ -44,9 +42,14 @@ export default function PostsPage() {
     isFetchingNextPage,
     isLoading: isPostLoading,
   } = useUserPosts(username, "posts");
+  const { data: pinnedData, isLoading: isPinnedPostLoading } =
+    useUserPinPosts(username);
 
   const posts =
     data?.pages.flatMap((page) => page.posts)?.filter(Boolean) ?? [];
+  const pinnedPosts =
+    pinnedData?.pages.flatMap((page) => page.posts)?.filter(Boolean) ?? [];
+  const displayPosts = [...pinnedPosts, ...posts];
 
   const { ref } = useInfiniteScroll({
     hasNextPage,
@@ -55,7 +58,7 @@ export default function PostsPage() {
     enabled: posts.length > 0,
   });
 
-  if (posts.length === 0 && !isPostLoading) {
+  if (displayPosts.length === 0 && !isPostLoading && !isPinnedPostLoading) {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-12 sm:py-16">
         <SquarePen
@@ -91,16 +94,20 @@ export default function PostsPage() {
   return (
     <>
       <div className="flex flex-col">
-        {isPostLoading && posts.length === 0 && <PostSkeletonList />}
+        {(isPostLoading || isPinnedPostLoading) &&
+          displayPosts.length === 0 && <PostSkeletonList />}
 
-        <VirtualPostList posts={posts as Feed[]} dropdownItems={dropdownItems} />
+        <VirtualPostList
+          posts={displayPosts as Feed[]}
+          dropdownItems={dropdownItems}
+        />
       </div>
 
       <InfiniteScrollFooter
         refCallback={ref}
         isFetchingNextPage={isFetchingNextPage}
         hasNextPage={hasNextPage}
-        hasItems={posts.length > 0}
+        hasItems={displayPosts.length > 0}
       />
     </>
   );

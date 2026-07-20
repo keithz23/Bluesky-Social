@@ -65,4 +65,18 @@ export const ListService = {
     );
     return { data };
   },
+
+  addPostToList: async (listId: string, postId: string) => {
+    const { data } = await axiosInstance.post(
+      API_ENDPOINT.LISTS.ADD_POST(listId, postId),
+    );
+    return data;
+  },
+
+  removePostFromList: async (listId: string, postId: string) => {
+    const { data } = await axiosInstance.delete(
+      API_ENDPOINT.LISTS.REMOVE_POST(listId, postId),
+    );
+    return data;
+  },
 };

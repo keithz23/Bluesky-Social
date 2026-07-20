@@ -50,6 +50,24 @@ export class ListsController {
     return this.listsService.deleteList(userId, listId);
   }
 
+  @Post(':listId/items/:postId')
+  addPostToList(
+    @CurrentUser('id') userId: string,
+    @Param('listId') listId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.listsService.addPostToList(userId, listId, postId);
+  }
+
+  @Delete(':listId/items/:postId')
+  removePostFromList(
+    @CurrentUser('id') userId: string,
+    @Param('listId') listId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.listsService.removePostFromList(userId, listId, postId);
+  }
+
   @Get('get-lists')
   getLists(@CurrentUser('id') userId: string, @Query() query: FeedQueryDto) {
     return this.listsService.getLists(userId, query);

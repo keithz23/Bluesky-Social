@@ -234,6 +234,19 @@ export const useUserPosts = (username: string, filter: string) => {
   });
 };
 
+export const useUserPinPosts = (username: string) => {
+  return useInfiniteQuery({
+    queryKey: ["userPinnedPosts", username],
+    queryFn: ({ pageParam }) =>
+      PostService.getPinPostsByUsername(username, pageParam),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
+    enabled: !!username,
+    ...infiniteQueryOptions,
+  });
+};
+
 export const useGetPostById = (postId: string, enabled = true) => {
   return useQuery({
     queryKey: ["post-detail", postId],
@@ -242,13 +255,16 @@ export const useGetPostById = (postId: string, enabled = true) => {
   });
 };
 
-export const useSearchPosts = (query: string) => {
+export const useSearchPosts = (
+  query: string,
+  options?: { ownOnly?: boolean },
+) => {
   const trimmedQuery = query.trim();
 
   return useInfiniteQuery({
-    queryKey: ["posts", "search", trimmedQuery],
+    queryKey: ["posts", "search", trimmedQuery, options?.ownOnly ?? false],
     queryFn: ({ pageParam }) =>
-      PostService.searchPosts(trimmedQuery, pageParam, 20),
+      PostService.searchPosts(trimmedQuery, pageParam, 20, options),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,

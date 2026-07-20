@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Pin, Hash, Users, Loader2 } from "lucide-react";
+import { ArrowLeft, Pin, Hash, Users, Loader2, Plus } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetListById, useLists } from "@/app/hooks/use-list";
 import { useAuth } from "@/app/hooks/use-auth";
@@ -17,6 +17,7 @@ import PeopleTab from "@/app/components/tabs/people-tab";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import VirtualPostList from "@/app/components/virtual-post-list";
 import { Feed } from "@/app/interfaces/feed.interface";
+import AddPostDialog from "@/app/components/dialog/add-post-dialog";
 
 export default function ListDetailPage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function ListDetailPage() {
   const [activeTab, setActiveTab] = useState<"posts" | "people">("posts");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAddPostDialogOpen, setIsAddPostDialogOpen] = useState(false);
 
   const { id } = useParams<{ id: string }>();
   const { data, isLoading } = useGetListById(id);
@@ -31,6 +33,7 @@ export default function ListDetailPage() {
 
   const list = data?.data;
   const listPosts = list?.posts ?? [];
+  const currentListPostIds = listPosts.map((post: Feed) => post.id);
 
   const {
     data: membersData,
@@ -40,8 +43,9 @@ export default function ListDetailPage() {
     isLoading: isFetchingMemberlist,
   } = useGetListMembers(id);
 
-  const isOwner = list
-    ? user?.id === list?.userId
+  const isListOwner = user?.id === list?.userId;
+  const ownerLabel = list
+    ? isListOwner
       ? "List by you"
       : `List by ${list.user?.username || "Unknown"}`
     : "";
@@ -85,6 +89,17 @@ export default function ListDetailPage() {
           </button>
 
           <div className="flex items-center gap-2">
+            {isListOwner && activeTab === "posts" && (
+              <button
+                type="button"
+                onClick={() => setIsAddPostDialogOpen(true)}
+                className="flex items-center gap-1.5 bg-[#1185fe] text-white hover:bg-blue-600 px-3 py-1.5 rounded-full font-bold text-[14px] transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add post
+              </button>
+            )}
+
             <button className="flex items-center gap-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold text-[14px] transition-colors cursor-pointer">
               <Pin className="w-4 h-4" />
               Pin to home
@@ -120,7 +135,7 @@ export default function ListDetailPage() {
                 {list?.name}
               </h1>
               <p className="text-[15px] text-gray-500 leading-tight mt-0.5">
-                {isOwner}
+                {ownerLabel}
               </p>
             </div>
           </div>
@@ -177,8 +192,8 @@ export default function ListDetailPage() {
               ) : (
                 <div className="pt-24 px-4 w-full">
                   <EmptyFeedState
-                    listId={list?.id}
-                    currentListMembers={currentListMembers}
+                    isOwner={isListOwner}
+                    onAddPostClick={() => setIsAddPostDialogOpen(true)}
                   />
                 </div>
               )}
@@ -194,7 +209,7 @@ export default function ListDetailPage() {
                 </div>
               ) : currentListMembers.length === 0 ? (
                 <div className="pt-24 px-4 w-full">
-                  <EmptyFeedState
+                  <EmptyUserState
                     listId={list?.id}
                     currentListMembers={currentListMembers}
                   />
@@ -222,6 +237,13 @@ export default function ListDetailPage() {
           list={list}
         />
       )}
+
+      <AddPostDialog
+        open={isAddPostDialogOpen}
+        onOpenChange={setIsAddPostDialogOpen}
+        listId={list.id}
+        currentPostIds={currentListPostIds}
+      />
 
       {isDeleteDialogOpen && (
         <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -264,6 +286,34 @@ export default function ListDetailPage() {
 }
 
 function EmptyFeedState({
+  isOwner,
+  onAddPostClick,
+}: {
+  isOwner: boolean;
+  onAddPostClick: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center text-center animate-in fade-in duration-300">
+      <div className="mb-4 text-gray-400">
+        <Hash className="w-12 h-12" strokeWidth={1} />
+      </div>
+      <p className="text-[15px] text-gray-600 mb-6 font-medium">
+        This feed is empty.
+      </p>
+      {isOwner && (
+        <button
+          className="flex items-center gap-2 bg-[#1185fe] hover:bg-blue-600 transition-colors text-white font-bold text-[15px] px-6 py-2.5 rounded-full shadow-sm cursor-pointer"
+          onClick={onAddPostClick}
+        >
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          Add post
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EmptyUserState({
   listId,
   currentListMembers,
 }: {

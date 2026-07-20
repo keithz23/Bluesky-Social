@@ -160,7 +160,7 @@ export default function MessageInput({
               />
             </div>
           ) : (
-            <div className="h-[350px] overflow-y-auto rounded-xl">
+            <div className="h-87.5 overflow-y-auto rounded-xl">
               <Grid
                 width={296}
                 columns={2}
