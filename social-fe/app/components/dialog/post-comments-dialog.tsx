@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Globe2, MessageSquare, ThumbsUp, X } from "lucide-react";
+import { Globe2, MessageSquare, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -26,13 +26,17 @@ import {
   getMediaGridClass,
   getMediaItemClass,
 } from "@/app/interfaces/card/card.interface";
+import LikeButton from "../button/like-button";
+import RepostButton from "../button/repost-button";
 
 interface PostCommentsDialogProps {
   post: Feed;
   replyDisabled?: boolean;
+  onDialogOpenChange?: (open: boolean) => void;
+  onOpenPhotoView?: (open: boolean) => void;
 }
 
-function ModalPostPreview({ post }: { post: Feed }) {
+function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
   const hasMedia = post.media?.length > 0;
 
   return (
@@ -88,18 +92,22 @@ function ModalPostPreview({ post }: { post: Feed }) {
 
           <div className="w-full bg-gray-100">
             {post.media.length === 1 ? (
-              <PhotoProvider>
+              <PhotoProvider
+                onVisibleChange={(visible) => onOpenPhotoView?.(visible)}
+              >
                 <PhotoView src={post.media[0].mediaUrl}>
                   <img
                     src={post.media[0].mediaUrl}
                     alt={post.media[0].altText ?? ""}
-                    className="max-h-[58vh] min-h-80 w-full object-cover"
+                    className="max-h-[58vh] min-h-80 w-full object-cover cursor-pointer"
                   />
                 </PhotoView>
               </PhotoProvider>
             ) : (
               <div className={getMediaGridClass(post.media.length)}>
-                <PhotoProvider>
+                <PhotoProvider
+                  onVisibleChange={(visible) => onOpenPhotoView?.(visible)}
+                >
                   {post.media.slice(0, 4).map((media, index) => (
                     <PhotoView src={media.mediaUrl} key={index}>
                       <div
@@ -145,6 +153,7 @@ export default function PostCommentsDialog({
 }: PostCommentsDialogProps) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isPhotoView, setIsPhotoView] = useState(false);
   const { data: detailPost, isLoading: isLoadingPost } = useGetPostById(
     post.id,
     isOpen,
@@ -166,8 +175,15 @@ export default function PostCommentsDialog({
   const titleName =
     displayPost.user.displayName || displayPost.user.username || "Post";
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open && isPhotoView) {
+      return;
+    }
+    setIsOpen(open);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -187,9 +203,14 @@ export default function PostCommentsDialog({
           </span>
         </button>
       </DialogTrigger>
-
       <DialogContent
         showCloseButton={false}
+        onInteractOutside={(e) => {
+          if (isPhotoView) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isPhotoView) e.preventDefault();
+        }}
         className="h-[min(850px,calc(100vh-2rem))] w-[calc(100vw-1.5rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-xl border-none bg-white p-0 shadow-2xl sm:w-180 sm:max-w-none"
       >
         <div className="relative flex h-15 items-center justify-center border-b border-gray-200 px-14">
@@ -212,23 +233,36 @@ export default function PostCommentsDialog({
 
           {detailPost?.parentChain?.map((parent: Feed) => (
             <div key={parent.id} className="border-b border-gray-100">
-              <ModalPostPreview post={parent} />
+              <ModalPostPreview
+                post={parent}
+                onOpenPhotoView={setIsPhotoView}
+              />
             </div>
           ))}
 
-          <ModalPostPreview post={displayPost} />
+          <ModalPostPreview
+            post={displayPost}
+            onOpenPhotoView={setIsPhotoView}
+          />
 
           <div className="border-b border-gray-200 px-4 py-2">
             <div className="mb-2 flex items-center justify-between text-[13px] text-gray-600">
-              <div className="flex items-center gap-1.5">
-                <span className="flex size-5 items-center justify-center rounded-full bg-blue-500 text-white">
-                  <ThumbsUp className="size-3 fill-current" />
-                </span>
-                <span>{displayPost.likeCount}</span>
+              <div className="flex justify-center items-center gap-x-10">
+                <LikeButton
+                  isLiked={displayPost?.isLiked}
+                  likeCount={displayPost?.likeCount}
+                  postId={displayPost?.id}
+                />
+
+                <RepostButton
+                  isReposted={displayPost?.isReposted}
+                  repostCount={displayPost?.repostCount}
+                  postId={displayPost?.id}
+                />
               </div>
+
               <div className="flex items-center gap-3">
                 <span>{displayPost.replyCount} comments</span>
-                <span>{displayPost.repostCount} shares</span>
               </div>
             </div>
           </div>

@@ -86,3 +86,56 @@ export const useGetListById = (id: string) => {
     enabled: !!id,
   });
 };
+
+export const useListPosts = () => {
+  const qc = useQueryClient();
+
+  const addPost = useMutation({
+    mutationFn: async ({
+      listId,
+      postId,
+    }: {
+      listId: string;
+      postId: string;
+    }) => {
+      return ListService.addPostToList(listId, postId);
+    },
+    onSuccess: async (_, variables) => {
+      toast.success("Post added to list");
+      await qc.invalidateQueries({
+        queryKey: ["list-detail", variables.listId],
+      });
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
+  const removePost = useMutation({
+    mutationFn: async ({
+      listId,
+      postId,
+    }: {
+      listId: string;
+      postId: string;
+    }) => {
+      return ListService.removePostFromList(listId, postId);
+    },
+    onSuccess: async (_, variables) => {
+      toast.success("Post removed from list");
+      await qc.invalidateQueries({
+        queryKey: ["list-detail", variables.listId],
+      });
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
+  return {
+    addPostMutation: addPost,
+    removePostMutation: removePost,
+    isAddingPost: addPost.isPending,
+    isRemovingPost: removePost.isPending,
+  };
+};

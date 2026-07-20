@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Share } from "lucide-react";
+import { Pin, Share } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import {
   Tooltip,
@@ -69,6 +69,13 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
         <AvatarHoverCard data={post} handleProfileClick={handleProfileClick} />
 
         <div className="min-w-0 flex-1">
+          {post.isPinned && (
+            <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-gray-500">
+              <Pin className="h-3.5 w-3.5" />
+              <span>Pinned</span>
+            </div>
+          )}
+
           <div className="flex min-w-0 items-center gap-x-1">
             <div className="min-w-0 truncate text-[15px] font-bold">
               <UserHoverCard
@@ -136,6 +143,11 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:justify-start sm:gap-8">
+              <LikeButton
+                postId={post.id}
+                isLiked={post.isLiked}
+                likeCount={post.likeCount}
+              />
               <div className="flex items-center gap-1 group cursor-pointer">
                 <PostCommentsDialog post={post} replyDisabled={replyDisabled} />
               </div>
@@ -144,12 +156,6 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
                 postId={post.id}
                 isReposted={post.isReposted}
                 repostCount={post.repostCount}
-              />
-
-              <LikeButton
-                postId={post.id}
-                isLiked={post.isLiked}
-                likeCount={post.likeCount}
               />
             </div>
 
@@ -190,6 +196,7 @@ const PostCard = React.memo(PostCardComponent, (prev, next) => {
     prev.post.isBookmarked === next.post.isBookmarked &&
     prev.post.bookmarkCount === next.post.bookmarkCount &&
     prev.post.replyCount === next.post.replyCount &&
+    prev.post.isPinned === next.post.isPinned &&
     prev.dropdownItems === next.dropdownItems
   );
 });
