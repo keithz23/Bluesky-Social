@@ -1,12 +1,13 @@
 import { useState, useCallback } from "react";
 import { debounce } from "lodash";
 import { UserService } from "../services/user.service";
+import { User } from "../interfaces/user.interface";
 
 export const useMention = () => {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [mentionStart, setMentionStart] = useState(-1);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<User[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);

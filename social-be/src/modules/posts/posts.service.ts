@@ -412,6 +412,8 @@ export class PostsService {
         replyFollowers: true,
         replyFollowing: true,
         replyMentioned: true,
+        parentPostId: true,
+        rootPostId: true,
         postTheme: true,
         isPinned: true,
         user: {

@@ -1,12 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  InfiniteData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useSocket } from "@/providers/socket.provider";
 import { NotificationService } from "../services/notification.service";
 import { infiniteQueryOptions } from "./infinite-query-options";
+import { Notifications } from "../interfaces/notification.interface";
 
 type NotificationFilter = "all" | "mention";
+type NotificationsResponse = {
+  notifications: Notifications[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
 
 const updateNotificationCaches = (
   qc: ReturnType<typeof useQueryClient>,
@@ -161,9 +172,15 @@ export const useNotifications = (enabled = true) => {
 };
 
 export const useGetNotifications = (filter: NotificationFilter = "all") => {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    NotificationsResponse,
+    Error,
+    InfiniteData<NotificationsResponse>,
+    [string, NotificationFilter],
+    string | undefined
+  >({
     queryKey: ["notifications", filter],
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam }): Promise<NotificationsResponse> =>
       NotificationService.getNotifications(filter, pageParam),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>

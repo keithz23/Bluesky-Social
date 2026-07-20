@@ -31,7 +31,7 @@ export default function ListDetailPage() {
   const { data, isLoading } = useGetListById(id);
   const { deleteMutation, isDeleting } = useLists();
 
-  const list = data?.data;
+  const list = data;
   const listPosts = list?.posts ?? [];
   const currentListPostIds = listPosts.map((post: Feed) => post.id);
 

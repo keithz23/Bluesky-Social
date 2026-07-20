@@ -109,9 +109,9 @@ export default function ProfileLayout({
           >
             Edit Profile
           </button>
-        ) : (
-          <FollowButton targetUserId={profile?.id} />
-        )}
+        ) : profile?.id ? (
+          <FollowButton targetUserId={profile.id} />
+        ) : null}
         <button
           type="button"
           aria-label="More profile actions"

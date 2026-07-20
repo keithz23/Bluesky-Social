@@ -481,8 +481,31 @@ export default function EditPostDialog({
             </div>
           </DialogTitle>
 
-          <div className="flex min-w-0 gap-3 px-4 py-4">
+          <div className="flex gap-2 p-3">
             <Avatar data={post.user} className="h-11 w-11 sm:h-11 sm:w-11" />
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-slate-950">
+                {post.user?.displayName || post.user?.username}
+              </span>
+              <div className="mt-1">
+                <button
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={openPrivacySettings}
+                  className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                >
+                  <Globe className="h-4 w-4" strokeWidth={2} />
+                  {replyType === "anyone"
+                    ? "Anyone can interact"
+                    : replyType === "nobody"
+                      ? "Nobody can reply"
+                      : "Custom interactions"}
+                  <ChevronDown className="h-4 w-4" strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex min-w-0 gap-3 px-4 py-4">
             <div className="relative min-w-0 flex-1 pt-1">
               <div className="relative min-h-32 min-w-0">
                 <textarea
@@ -546,7 +569,7 @@ export default function EditPostDialog({
           </div>
 
           {hasImages && (
-            <div className="ml-18 min-w-0 px-4 pb-3">
+            <div className="min-w-0 px-4 pb-3">
               <div className={`grid ${getGridClass(imageCount)} gap-2`}>
                 {keptImages.map((media, index) => {
                   const isThreeFirst = imageCount === 3 && index === 0;
@@ -611,7 +634,7 @@ export default function EditPostDialog({
           )}
 
           {hasGif && gifPreview && (
-            <div className="relative ml-18 inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
+            <div className="relative inline-block max-w-[calc(100%-4.5rem)] px-4 pb-3">
               <img
                 src={gifPreview}
                 alt="Selected GIF"
@@ -625,22 +648,6 @@ export default function EditPostDialog({
               </button>
             </div>
           )}
-
-          <div className="mt-1 px-4 pb-4 pl-18">
-            <button
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={openPrivacySettings}
-              className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
-            >
-              <Globe className="h-4 w-4" strokeWidth={2} />
-              {replyType === "anyone"
-                ? "Anyone can interact"
-                : replyType === "nobody"
-                  ? "Nobody can reply"
-                  : "Custom interactions"}
-              <ChevronDown className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
 
           <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
             <ComposerFloatingPicker

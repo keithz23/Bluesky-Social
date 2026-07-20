@@ -1,14 +1,21 @@
 import {
+  InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { CreateListData, UpdateList } from "../interfaces/list.interface";
+import { CreateListData, List, UpdateList } from "../interfaces/list.interface";
 import { ListService } from "../services/list.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
 import { infiniteQueryOptions } from "./infinite-query-options";
+
+type ListsResponse = {
+  lists: List[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
 
 export const useLists = () => {
   const qc = useQueryClient();
@@ -68,10 +75,16 @@ export const useLists = () => {
 };
 
 export const useGetlists = (username?: string) => {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    ListsResponse,
+    Error,
+    InfiniteData<ListsResponse>,
+    [string, string],
+    string | undefined
+  >({
     queryKey: ["lists", username ?? "me"],
-    queryFn: ({ pageParam }) =>
-      ListService.getLists(pageParam, undefined, username),
+    queryFn: ({ pageParam }): Promise<ListsResponse> =>
+      ListService.getLists(pageParam as string | undefined, undefined, username),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,

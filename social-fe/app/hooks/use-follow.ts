@@ -1,23 +1,41 @@
-import { axiosInstance } from "@/lib/axios";
 import {
+  InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { API_ENDPOINT } from "../constants/endpoint.constant";
 import { FollowService } from "../services/follow.service";
 import { infiniteQueryOptions } from "./infinite-query-options";
+import { User } from "../interfaces/user.interface";
+
+type FollowingResponse = {
+  following: Array<
+    User & {
+      followId: string;
+      followedAt: string;
+      isAdded?: boolean;
+    }
+  >;
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+type FollowerResponse = {
+  follower: Array<
+    User & {
+      followerId: string;
+      followerAt: string;
+    }
+  >;
+  nextCursor: string | null;
+  hasMore: boolean;
+};
 
 export const useFollowStatus = (targetUserId: string) => {
   return useQuery({
     queryKey: ["follow-status", targetUserId],
-    queryFn: async () => {
-      const { data } = await axiosInstance.get(
-        API_ENDPOINT.FOLLOWS.STATUS(targetUserId),
-      );
-      return data; // { status: 'following' | 'requested' | 'none' }
-    },
+    queryFn: () => FollowService.getStatus(targetUserId),
   });
 };
 
@@ -32,14 +50,12 @@ export const useFollow = (targetUserId: string) => {
   };
 
   const follow = useMutation({
-    mutationFn: () =>
-      axiosInstance.post(API_ENDPOINT.FOLLOWS.FOLLOW(targetUserId)),
+    mutationFn: () => FollowService.follow(targetUserId),
     onSuccess: invalidate,
   });
 
   const unfollow = useMutation({
-    mutationFn: () =>
-      axiosInstance.delete(API_ENDPOINT.FOLLOWS.UNFOLLOW(targetUserId)),
+    mutationFn: () => FollowService.unfollow(targetUserId),
     onSuccess: invalidate,
   });
 
@@ -47,7 +63,13 @@ export const useFollow = (targetUserId: string) => {
 };
 
 export const useGetFollowingLists = (username: string, listId?: string) => {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    FollowingResponse,
+    Error,
+    InfiniteData<FollowingResponse>,
+    [string, string, string | undefined],
+    string | undefined
+  >({
     queryKey: ["followings", username, listId],
 
     queryFn: ({ pageParam }) =>
@@ -66,7 +88,13 @@ export const useGetFollowingLists = (username: string, listId?: string) => {
 };
 
 export const useGetFollowerLists = (username: string) => {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    FollowerResponse,
+    Error,
+    InfiniteData<FollowerResponse>,
+    [string, string],
+    string | undefined
+  >({
     queryKey: ["followers", username],
 
     queryFn: ({ pageParam }) =>

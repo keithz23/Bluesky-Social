@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { MessageCircle } from "lucide-react";
-import VirtualPostList from "@/app/components/virtual-post-list";
+import ReplyCard from "@/app/components/card/reply-card";
+import PostCommentsDialog from "@/app/components/dialog/post-comments-dialog";
 import {
   InfiniteScrollFooter,
   PostSkeletonList,
@@ -13,6 +15,7 @@ import { Feed } from "@/app/interfaces/feed.interface";
 
 export default function RepliesPage() {
   const { username } = useParams<{ username: string }>();
+  const [selectedReply, setSelectedReply] = useState<Feed | null>(null);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useUserPosts(username, "replies");
 
@@ -47,7 +50,27 @@ export default function RepliesPage() {
 
   return (
     <>
-      <VirtualPostList posts={replies as Feed[]} dropdownItems={[]} />
+      <div className="flex flex-col">
+        {(replies as Feed[]).map((reply, index) => (
+          <ReplyCard
+            key={reply.id}
+            reply={reply}
+            isLastInThread={index === replies.length - 1}
+            onClick={setSelectedReply}
+          />
+        ))}
+      </div>
+
+      {selectedReply && (
+        <PostCommentsDialog
+          post={selectedReply}
+          open={!!selectedReply}
+          onOpenChange={(open) => {
+            if (!open) setSelectedReply(null);
+          }}
+          hideTrigger
+        />
+      )}
 
       <InfiniteScrollFooter
         refCallback={ref}

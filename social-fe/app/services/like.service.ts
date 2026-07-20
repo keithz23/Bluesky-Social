@@ -1,12 +1,12 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 
 export const LikeService = {
   like: (postId: string) => {
-    return axiosInstance.post(API_ENDPOINT.LIKES.LIKE(postId));
+    return apiClient.post<unknown>(API_ENDPOINT.LIKES.LIKE(postId));
   },
 
   unLike: (postId: string) => {
-    return axiosInstance.post(API_ENDPOINT.LIKES.UNLIKE(postId));
+    return apiClient.delete<unknown>(API_ENDPOINT.LIKES.UNLIKE(postId));
   },
 };
