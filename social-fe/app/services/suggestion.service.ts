@@ -1,11 +1,11 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
+import { User } from "../interfaces/user.interface";
 
 export const SuggestionsService = {
   getSuggestedUsers: async (limit?: number) => {
-    const { data } = await axiosInstance.get(
-      API_ENDPOINT.SUGGESTIONS.GET_USERS(limit)
+    return apiClient.get<User[]>(
+      API_ENDPOINT.SUGGESTIONS.GET_USERS(limit),
     );
-    return data;
   },
 };

@@ -2,13 +2,15 @@
 
 import { useLayoutEffect, useState } from "react";
 import { useProfile } from "@/app/hooks/use-profile";
-import { ArrowLeft, MoreHorizontal, BadgeCheck } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, BadgeCheck, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { FollowButton } from "@/app/components/button/follow-button";
 import EditProfileModal from "@/app/components/dialog/edit-profile-dialog";
 import { ProfileHeaderSkeleton } from "@/app/components/skeletons";
 import { PhotoProvider, PhotoView } from "react-photo-view";
+import PrivateProfileState from "@/app/components/private-profile-state";
+import { isProfilePrivateLocked } from "@/app/utils/profile-privacy.util";
 
 export default function ProfileLayout({
   children,
@@ -21,6 +23,7 @@ export default function ProfileLayout({
   const pathname = usePathname();
   const router = useRouter();
   const profileRoot = `/profile/${username}`;
+  const privateLocked = isProfilePrivateLocked(profile);
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -109,9 +112,9 @@ export default function ProfileLayout({
           >
             Edit Profile
           </button>
-        ) : (
-          <FollowButton targetUserId={profile?.id} />
-        )}
+        ) : profile?.id ? (
+          <FollowButton targetUserId={profile.id} />
+        ) : null}
         <button
           type="button"
           aria-label="More profile actions"
@@ -132,6 +135,12 @@ export default function ProfileLayout({
           )}
         </div>
         <p className="text-gray-500 text-[15px]">@{profile?.username}</p>
+        {profile?.isPrivate && (
+          <div className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+            <LockKeyhole className="h-3.5 w-3.5" strokeWidth={2} />
+            Private
+          </div>
+        )}
 
         {profile?.bio && (
           <p className="mt-2 text-[15px] text-gray-900">{profile.bio}</p>
@@ -165,25 +174,31 @@ export default function ProfileLayout({
         </div>
       </div>
 
-      {/* --- TABS --- */}
-      <div className="flex overflow-x-auto border-b border-gray-200 no-scrollbar sticky top-14 z-20 bg-white/95 backdrop-blur-sm lg:top-14">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.name}
-            href={tab.href}
-            className={`px-4 py-3 text-[15px] font-bold whitespace-nowrap cursor-pointer transition
-              ${
-                isActiveTab(tab.href)
-                  ? "text-gray-900 border-b-[3px] border-blue-600"
-                  : "text-gray-500 hover:bg-gray-100"
-              }`}
-          >
-            {tab.name}
-          </Link>
-        ))}
-      </div>
+      {privateLocked ? (
+        <PrivateProfileState />
+      ) : (
+        <>
+          {/* --- TABS --- */}
+          <div className="flex overflow-x-auto border-b border-gray-200 no-scrollbar sticky top-14 z-20 bg-white/95 backdrop-blur-sm lg:top-14">
+            {tabs.map((tab) => (
+              <Link
+                key={tab.name}
+                href={tab.href}
+                className={`px-4 py-3 text-[15px] font-bold whitespace-nowrap cursor-pointer transition
+                  ${
+                    isActiveTab(tab.href)
+                      ? "text-gray-900 border-b-[3px] border-blue-600"
+                      : "text-gray-500 hover:bg-gray-100"
+                  }`}
+              >
+                {tab.name}
+              </Link>
+            ))}
+          </div>
 
-      {children}
+          {children}
+        </>
+      )}
 
       <EditProfileModal
         profile={profile}

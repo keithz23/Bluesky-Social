@@ -1,14 +1,8 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
-import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { Feed } from "@/app/interfaces/feed.interface";
 import Avatar from "../avatar";
 import { PostMedia } from "@/app/interfaces/post.interface";
@@ -33,6 +27,7 @@ interface ReplyCardProps {
   disabled?: boolean;
   depth?: 0 | 1;
   parentReply?: Feed;
+  onClick?: (reply: Feed) => void;
 }
 
 export default function ReplyCard({
@@ -41,17 +36,13 @@ export default function ReplyCard({
   disabled = false,
   depth = 0,
   parentReply,
+  onClick,
 }: ReplyCardProps) {
   const router = useRouter();
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
   const [showReplies, setShowReplies] = useState(false);
   const [showReplyComposer, setShowReplyComposer] = useState(false);
-  const [zoomData, setZoomData] = useState<{
-    media: PostMedia[];
-    currentIndex: number;
-  } | null>(null);
-
   const isNested = depth === 1;
   const replyTarget = parentReply ?? reply;
   const replyDisabled =
@@ -82,6 +73,19 @@ export default function ReplyCard({
     toggleLike();
   };
 
+  const handleReplyClick = () => {
+    onClick?.(reply);
+  };
+
+  const handleReplyKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick || e.currentTarget !== e.target) return;
+
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick(reply);
+    }
+  };
+
   const formattedDate = formatCompactDate(reply.createdAt);
 
   const likeLabel = formatCount(reply.likeCount, "like");
@@ -92,7 +96,13 @@ export default function ReplyCard({
       <div
         className={`transition hover:bg-gray-50/40 ${
           isNested ? "px-0 py-1.5" : "px-4 py-2.5"
-        } ${!isLastInThread && !isNested ? "border-b border-gray-100/70" : ""}`}
+        } ${onClick ? "cursor-pointer" : ""} ${
+          !isLastInThread && !isNested ? "border-b border-gray-100/70" : ""
+        }`}
+        onClick={onClick ? handleReplyClick : undefined}
+        onKeyDown={handleReplyKeyDown}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
       >
         <div className="group/comment flex gap-3">
           <Avatar
@@ -164,6 +174,10 @@ export default function ReplyCard({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!requireAuth()) return;
+                      if (onClick) {
+                        onClick(reply);
+                        return;
+                      }
                       setShowReplyComposer((current) => !current);
                     }}
                     className="cursor-pointer text-[12px] font-semibold text-gray-500 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
@@ -194,7 +208,10 @@ export default function ReplyCard({
         </div>
 
         {showReplyComposer && (
-          <div className="ml-12 mt-1.5 sm:ml-[52px]">
+          <div
+            className="ml-12 mt-1.5 sm:ml-[52px]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CommentComposer
               post={replyTarget}
               disabled={replyDisabled}

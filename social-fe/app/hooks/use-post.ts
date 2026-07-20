@@ -1,4 +1,5 @@
 import {
+  InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -9,6 +10,7 @@ import {
   CreatePostPayload,
   UpdatePostPayload,
 } from "../interfaces/post.interface";
+import { Feed } from "../interfaces/feed.interface";
 import { PostService } from "../services/post.service";
 import { toast } from "sonner";
 import { infiniteQueryOptions } from "./infinite-query-options";
@@ -21,6 +23,12 @@ import {
   updatePostEverywhere,
 } from "../utils/post-cache.util";
 import { extractErrMsg } from "../utils/error.util";
+
+type PostsResponse = {
+  posts: Feed[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
 
 export function usePost() {
   const qc = useQueryClient();
@@ -57,7 +65,7 @@ export function usePost() {
         },
       );
       setCreateUploadProgress(hasUpload ? 100 : null);
-      return response.data;
+      return response;
     },
 
     onSuccess: (data) => {
@@ -84,7 +92,7 @@ export function usePost() {
   const deletePostMutation = useMutation({
     mutationFn: async (postId: string) => {
       const response = await PostService.deletePost(postId);
-      return response.data;
+      return response;
     },
 
     onMutate: async (postId: string) => {
@@ -167,7 +175,7 @@ export function usePost() {
         },
       );
       setUpdateUploadProgress(hasUpload ? 100 : null);
-      return response.data;
+      return response;
     },
 
     onMutate: async () => {
@@ -221,28 +229,54 @@ export function usePost() {
   };
 }
 
-export const useUserPosts = (username: string, filter: string) => {
-  return useInfiniteQuery({
+export const useUserPosts = (
+  username: string,
+  filter: string,
+  options?: { enabled?: boolean },
+) => {
+  return useInfiniteQuery<
+    PostsResponse,
+    Error,
+    InfiniteData<PostsResponse>,
+    [string, string, string],
+    string | undefined
+  >({
     queryKey: ["userPosts", username, filter],
     queryFn: ({ pageParam }) =>
-      PostService.getPostsByUsername(username, filter, pageParam),
+      PostService.getPostsByUsername(
+        username,
+        filter,
+        pageParam as string | undefined,
+      ),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!username,
+    enabled: !!username && (options?.enabled ?? true),
     ...infiniteQueryOptions,
   });
 };
 
-export const useUserPinPosts = (username: string) => {
-  return useInfiniteQuery({
+export const useUserPinPosts = (
+  username: string,
+  options?: { enabled?: boolean },
+) => {
+  return useInfiniteQuery<
+    PostsResponse,
+    Error,
+    InfiniteData<PostsResponse>,
+    [string, string],
+    string | undefined
+  >({
     queryKey: ["userPinnedPosts", username],
     queryFn: ({ pageParam }) =>
-      PostService.getPinPostsByUsername(username, pageParam),
+      PostService.getPinPostsByUsername(
+        username,
+        pageParam as string | undefined,
+      ),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!username,
+    enabled: !!username && (options?.enabled ?? true),
     ...infiniteQueryOptions,
   });
 };
@@ -261,10 +295,21 @@ export const useSearchPosts = (
 ) => {
   const trimmedQuery = query.trim();
 
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    PostsResponse,
+    Error,
+    InfiniteData<PostsResponse>,
+    [string, string, string, boolean],
+    string | undefined
+  >({
     queryKey: ["posts", "search", trimmedQuery, options?.ownOnly ?? false],
     queryFn: ({ pageParam }) =>
-      PostService.searchPosts(trimmedQuery, pageParam, 20, options),
+      PostService.searchPosts(
+        trimmedQuery,
+        pageParam as string | undefined,
+        20,
+        options,
+      ),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,

@@ -286,10 +286,14 @@ export class PostsService {
 
     const user = await this.prisma.user.findFirst({
       where: { username },
-      select: { id: true },
+      select: { id: true, isPrivate: true },
     });
 
     if (!user) throw new NotFoundException('User not found');
+
+    if (!(await this.canViewUserContent(currentUserId, user))) {
+      return { posts: [], nextCursor: null, hasMore: false };
+    }
 
     if (query.filter === 'likes') {
       const likes = await this.prisma.like.findMany({
@@ -412,6 +416,8 @@ export class PostsService {
         replyFollowers: true,
         replyFollowing: true,
         replyMentioned: true,
+        parentPostId: true,
+        rootPostId: true,
         postTheme: true,
         isPinned: true,
         user: {
@@ -698,6 +704,7 @@ export class PostsService {
             avatarUrl: true,
             verified: true,
             bio: true,
+            isPrivate: true,
             followersCount: true,
             followingCount: true,
           },
@@ -717,6 +724,15 @@ export class PostsService {
     });
 
     if (!post) throw new NotFoundException('Post not found');
+
+    if (
+      !(await this.canViewUserContent(userId, {
+        id: post.user.id,
+        isPrivate: post.user.isPrivate,
+      }))
+    ) {
+      throw new NotFoundException('Post not found');
+    }
 
     // Build parent chain (root → ... → immediate parent)
     const parentChain: any[] = [];
@@ -746,12 +762,13 @@ export class PostsService {
                 id: true,
                 username: true,
                 displayName: true,
-                avatarUrl: true,
-                verified: true,
-                bio: true,
-                followersCount: true,
-                followingCount: true,
-              },
+            avatarUrl: true,
+            verified: true,
+            bio: true,
+            isPrivate: true,
+            followersCount: true,
+            followingCount: true,
+          },
             },
             media: {
               orderBy: { orderIndex: 'asc' },
@@ -1561,6 +1578,24 @@ export class PostsService {
   ) {
     const pageSize = Number(limit) || 20;
 
+    const parentPost = await this.prisma.post.findUnique({
+      where: { id: postId, isDeleted: false },
+      select: {
+        user: {
+          select: {
+            id: true,
+            isPrivate: true,
+          },
+        },
+      },
+    });
+
+    if (!parentPost) throw new NotFoundException('Post not found');
+
+    if (!(await this.canViewUserContent(userId, parentPost.user))) {
+      return { replies: [], nextCursor: null, hasMore: false };
+    }
+
     const replies = await this.prisma.post.findMany({
       where: {
         parentPostId: postId,
@@ -1709,10 +1744,14 @@ export class PostsService {
     const limit = query.limit ?? 20;
     const user = await this.prisma.user.findFirst({
       where: { username },
-      select: { id: true },
+      select: { id: true, isPrivate: true },
     });
 
     if (!user) throw new NotFoundException('User not found');
+
+    if (!(await this.canViewUserContent(currentUserId, user))) {
+      return { posts: [], nextCursor: null, hasMore: false };
+    }
 
     const posts = await this.prisma.post.findMany({
       where: { userId: user.id, isPinned: true, isDeleted: false },
@@ -1911,6 +1950,26 @@ export class PostsService {
 
   private escapeRegExp(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private async canViewUserContent(
+    currentUserId: string,
+    targetUser: { id: string; isPrivate: boolean },
+  ) {
+    if (targetUser.id === currentUserId) return true;
+    if (!targetUser.isPrivate) return true;
+
+    const follow = await this.prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUser.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    return Boolean(follow);
   }
 
   private async scheduleCleanup(

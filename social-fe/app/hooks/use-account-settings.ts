@@ -104,6 +104,24 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     },
   });
 
+  const updateAccountPrivacyMutation = useMutation({
+    mutationFn: (payload: { isPrivate: boolean }) =>
+      AuthService.updateAccountPrivacy(payload),
+    onSuccess: async (user) => {
+      qc.setQueryData(["me"], user);
+      await qc.invalidateQueries({ queryKey: ["profile"] });
+      options?.onSuccess?.();
+      toast.success(
+        user.isPrivate
+          ? "Private account enabled."
+          : "Private account disabled.",
+      );
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
   const requestDeactivateAccountMutation = useMutation({
     mutationFn: () => AuthService.requestDeactivateAccount(),
     onSuccess: () => {
@@ -151,7 +169,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     onSuccess: (response) => {
       toast.success("Authenticator setup ready.");
       options?.onRequestEnable2FACodeSuccess?.();
-      options?.onRequestTOTPSetupSuccess?.(response.data);
+      options?.onRequestTOTPSetupSuccess?.(response);
     },
     onError: (err) => toast.error(extractErrMsg(err)),
   });
@@ -162,8 +180,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Two-factor authentication enabled.");
       options?.onSuccess?.();
-      options?.onEnable2FASuccess?.(response.data);
-      options?.onEnableTOTPSuccess?.(response.data);
+      options?.onEnable2FASuccess?.(response);
+      options?.onEnableTOTPSuccess?.(response);
     },
     onError: (err) => toast.error(extractErrMsg(err)),
   });
@@ -198,6 +216,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     changePasswordMutation,
     changeUsernameMutation,
     changeBirthDayMutation,
+    updateAccountPrivacyMutation,
     requestDeactivateAccountMutation,
     deactivateAccountMutation,
     requestDeleteAccountMutation,
@@ -215,6 +234,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     isChangingPassword: changePasswordMutation.isPending,
     isChangingUsername: changeUsernameMutation.isPending,
     isChangingBirthday: changeBirthDayMutation.isPending,
+    isUpdatingAccountPrivacy: updateAccountPrivacyMutation.isPending,
     isRequestingDeactivateCode: requestDeactivateAccountMutation.isPending,
     isDeactivatingAccount: deactivateAccountMutation.isPending,
     isRequestingDeleteCode: requestDeleteAccountMutation.isPending,

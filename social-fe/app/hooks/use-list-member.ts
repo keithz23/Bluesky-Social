@@ -1,4 +1,5 @@
 import {
+  InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
@@ -7,6 +8,10 @@ import { ListMemberService } from "../services/list-member.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
 import { infiniteQueryOptions } from "./infinite-query-options";
+
+type ListMembersResponse = Awaited<
+  ReturnType<typeof ListMemberService.getMemberList>
+>;
 
 export const useListMember = () => {
   const qc = useQueryClient();
@@ -84,11 +89,20 @@ export const useListMember = () => {
 };
 
 export const useGetListMembers = (listId: string) => {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    ListMembersResponse,
+    Error,
+    InfiniteData<ListMembersResponse>,
+    [string, string],
+    string | undefined
+  >({
     queryKey: ["list-member", listId],
 
     queryFn: ({ pageParam }) =>
-      ListMemberService.getMemberList(listId, pageParam),
+      ListMemberService.getMemberList(
+        listId,
+        pageParam as string | undefined,
+      ),
 
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>

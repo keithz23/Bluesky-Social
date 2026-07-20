@@ -8,6 +8,7 @@ export const API_ENDPOINT = {
     FORGOT: "/auth/forgot-password",
     RESET: "/auth/reset-password",
     UPDATE_PROFILE: "/auth/update-profile",
+    ACCOUNT_PRIVACY: "/auth/account-privacy",
     REQUEST_UPDATE_PASSWORD: "/auth/request-update-password",
     CHANGE_PASSWORD: "/auth/change-password",
     CHANGE_USERNAME: "/auth/change-username",
@@ -119,6 +120,13 @@ export const API_ENDPOINT = {
     FOLLOW: (userId: string) => `/follows/${userId}`,
     UNFOLLOW: (userId: string) => `/follows/${userId}`,
     STATUS: (userId: string) => `/follows/status/${userId}`,
+    RECEIVED_REQUESTS: (params?: { cursor?: string; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      const qs = query.toString();
+      return qs ? `/follows/requests/received?${qs}` : "/follows/requests/received";
+    },
     ACCEPT: (senderId: string) => `/follows/requests/${senderId}/accept`,
     DECLINE: (senderId: string) => `/follows/requests/${senderId}/decline`,
   },
@@ -199,7 +207,7 @@ export const API_ENDPOINT = {
       const qs = query.toString();
       return qs ? `/lists/get-lists?${qs}` : "/lists/get-lists";
     },
-    GET_LIST_BY_ID: (id: string) => `lists/get-list-by-id/${id}`,
+    GET_LIST_BY_ID: (id: string) => `/lists/get-list-by-id/${id}`,
     ADD_POST: (listId: string, postId: string) =>
       `/lists/${listId}/items/${postId}`,
     REMOVE_POST: (listId: string, postId: string) =>

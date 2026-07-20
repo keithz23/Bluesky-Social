@@ -151,4 +151,48 @@ axiosInstance.interceptors.response.use(
   },
 );
 
+export const apiClient = {
+  get: async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const payload = await axiosInstance.get<unknown, ApiEnvelope<T> | T>(
+      url,
+      config,
+    );
+    return unwrapApiData(payload);
+  },
+
+  post: async <T, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<T> => {
+    const payload = await axiosInstance.post<unknown, ApiEnvelope<T> | T, D>(
+      url,
+      data,
+      config,
+    );
+    return unwrapApiData(payload);
+  },
+
+  patch: async <T, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<T> => {
+    const payload = await axiosInstance.patch<unknown, ApiEnvelope<T> | T, D>(
+      url,
+      data,
+      config,
+    );
+    return unwrapApiData(payload);
+  },
+
+  delete: async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const payload = await axiosInstance.delete<unknown, ApiEnvelope<T> | T>(
+      url,
+      config,
+    );
+    return unwrapApiData(payload);
+  },
+};
+
 export { axiosInstance };

@@ -269,10 +269,15 @@ export class ListsService {
     if (query.username) {
       const owner = await this.prisma.user.findUnique({
         where: { username: query.username },
-        select: { id: true },
+        select: { id: true, isPrivate: true },
       });
 
       if (!owner) return { lists: [], hasMore: false, nextCursor: null };
+
+      if (!(await this.canViewUserContent(userId, owner))) {
+        return { lists: [], hasMore: false, nextCursor: null };
+      }
+
       ownerId = owner.id;
     }
 
@@ -369,6 +374,7 @@ export class ListsService {
             username: true,
             displayName: true,
             avatarUrl: true,
+            isPrivate: true,
           },
         },
 
@@ -413,6 +419,15 @@ export class ListsService {
     });
 
     if (!list) return null;
+
+    if (
+      !(await this.canViewUserContent(userId, {
+        id: list.userId,
+        isPrivate: list.user.isPrivate,
+      }))
+    ) {
+      return null;
+    }
 
     const mappedPosts = list.items.map((item) => item.post);
     const postIds = mappedPosts.map((post) => post.id);
@@ -475,6 +490,26 @@ export class ListsService {
         delay: 1000, // Delay 1s before cleanup
       },
     );
+  }
+
+  private async canViewUserContent(
+    currentUserId: string,
+    targetUser: { id: string; isPrivate: boolean },
+  ) {
+    if (targetUser.id === currentUserId) return true;
+    if (!targetUser.isPrivate) return true;
+
+    const follow = await this.prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUser.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    return Boolean(follow);
   }
 
   private extractKeyFromUrl(url: string): string {

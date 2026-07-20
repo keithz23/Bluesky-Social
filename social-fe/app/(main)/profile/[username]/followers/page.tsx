@@ -13,16 +13,20 @@ import { useProfile } from "@/app/hooks/use-profile";
 import { ArrowLeft, BadgeCheck, UserRoundX } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import PrivateProfileState from "@/app/components/private-profile-state";
+import { isProfilePrivateLocked } from "@/app/utils/profile-privacy.util";
 
 export default function FollowersPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { username } = useParams<{ username: string }>();
-  const { data: profile } = useProfile(username);
+  const { data: profile, isLoading: isProfileLoading } = useProfile(username);
+  const privateLocked = isProfilePrivateLocked(profile);
+  const canLoadProfileContent = Boolean(profile) && !privateLocked;
   const isOwnProfile = user?.username === username;
 
   const { data, fetchNextPage, isFetchingNextPage, isLoading, hasNextPage } =
-    useGetFollowerLists(username);
+    useGetFollowerLists(username, { enabled: canLoadProfileContent });
 
   const follower = data?.pages.flatMap((page) => page.follower) ?? [];
 
@@ -55,11 +59,18 @@ export default function FollowersPage() {
         </div>
 
         <div className="flex flex-col">
+          {privateLocked && <PrivateProfileState />}
+
           {/* --- SKELETON LOADING --- */}
-          {isLoading && <UserListSkeleton />}
+          {!privateLocked && (isProfileLoading || isLoading) && (
+            <UserListSkeleton />
+          )}
 
           {/* --- EMPTY STATE --- */}
-          {!isLoading && follower.length === 0 && (
+          {!privateLocked &&
+            !isProfileLoading &&
+            !isLoading &&
+            follower.length === 0 && (
             <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
               <div className="text-slate-500 mb-4">
                 <UserRoundX className="w-16 h-16 stroke-[1.5]" />
@@ -78,7 +89,7 @@ export default function FollowersPage() {
           )}
 
           {/* --- RENDER LIST --- */}
-          {follower.map((fl) => (
+          {!privateLocked && follower.map((fl) => (
             <div
               className="p-4 border-b border-gray-100 hover:bg-gray-50 transition"
               key={fl.id}
@@ -121,12 +132,14 @@ export default function FollowersPage() {
           ))}
 
           {/* Trigger infinite scroll */}
-          <InfiniteScrollFooter
-            refCallback={ref}
-            isFetchingNextPage={isFetchingNextPage}
-            hasNextPage={hasNextPage}
-            hasItems={follower.length > 0}
-          />
+          {!privateLocked && (
+            <InfiniteScrollFooter
+              refCallback={ref}
+              isFetchingNextPage={isFetchingNextPage}
+              hasNextPage={hasNextPage}
+              hasItems={follower.length > 0}
+            />
+          )}
         </div>
       </div>
     </>

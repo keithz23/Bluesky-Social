@@ -1,4 +1,5 @@
 import { User } from "./user.interface";
+import { Feed } from "./feed.interface";
 
 export interface CreateListData {
   name: string;
@@ -15,5 +16,8 @@ export interface List {
   name: string;
   description: string;
   listPhoto: string;
+  createdAt?: string;
+  userId?: string;
   user: User;
+  posts?: Feed[];
 }

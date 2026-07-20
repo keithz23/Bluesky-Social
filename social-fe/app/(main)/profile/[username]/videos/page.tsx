@@ -10,11 +10,17 @@ import {
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useUserPosts } from "@/app/hooks/use-post";
 import { Feed } from "@/app/interfaces/feed.interface";
+import PrivateProfileState from "@/app/components/private-profile-state";
+import { useProfile } from "@/app/hooks/use-profile";
+import { isProfilePrivateLocked } from "@/app/utils/profile-privacy.util";
 
 export default function VideosPage() {
   const { username } = useParams<{ username: string }>();
+  const { data: profile } = useProfile(username);
+  const privateLocked = isProfilePrivateLocked(profile);
+  const canLoadProfileContent = Boolean(profile) && !privateLocked;
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useUserPosts(username, "videos");
+    useUserPosts(username, "videos", { enabled: canLoadProfileContent });
 
   const posts =
     data?.pages.flatMap((page) => page.posts)?.filter(Boolean) ?? [];
@@ -28,6 +34,10 @@ export default function VideosPage() {
 
   if (isLoading) {
     return <PostSkeletonList />;
+  }
+
+  if (privateLocked) {
+    return <PrivateProfileState />;
   }
 
   if (posts.length === 0) {

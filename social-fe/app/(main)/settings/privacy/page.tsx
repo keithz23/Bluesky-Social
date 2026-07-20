@@ -6,6 +6,7 @@ import { useAuth } from "@/app/hooks/use-auth";
 import { useState } from "react";
 import Enable2FADialog from "@/app/components/dialog/enable-2fa-dialog";
 import Disable2FADialog from "@/app/components/dialog/disable-2fa-dialog";
+import { useRouter } from "next/navigation";
 
 type PrivacyRowProps = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -19,6 +20,7 @@ type PrivacyRowProps = {
 };
 
 export default function PrivacyPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [isEnable2FAOpen, setIsEnable2FAOpen] = useState(false);
   const [isDisable2FAOpen, setIsDisable2FAOpen] = useState(false);
@@ -35,16 +37,19 @@ export default function PrivacyPage() {
             description={twoFactorEnabled ? "Enable" : undefined}
             actionLabel={twoFactorEnabled ? "Disable" : "Enable"}
             iconClassName={twoFactorEnabled ? "text-blue-600" : "text-black"}
-            labelClassName={twoFactorEnabled ? 'text-red-600' : 'text-blue-600'}
+            labelClassName={twoFactorEnabled ? "text-red-600" : "text-blue-600"}
             onClick={
-              twoFactorEnabled ? () => setIsDisable2FAOpen(true) : () => setIsEnable2FAOpen(true)
+              twoFactorEnabled
+                ? () => setIsDisable2FAOpen(true)
+                : () => setIsEnable2FAOpen(true)
             }
           />
         )}
         <PrivacyRow
           icon={KeyRound}
-          label="App passwords"
+          label="Account Privacy"
           chevron
+          onClick={() => router.push("/settings/privacy/account-privacy")}
         />
       </section>
 
@@ -81,11 +86,15 @@ function PrivacyRow({
       type="button"
       disabled={!onClick}
       onClick={onClick}
-      className={`flex h-12 w-full items-center justify-between gap-4 px-5 text-left transition ${onClick ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
-        }`}
+      className={`flex h-12 w-full items-center justify-between gap-4 px-5 text-left transition ${
+        onClick ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
+      }`}
     >
       <div className="flex min-w-0 items-start gap-4">
-        <Icon className={`h-5 w-5 shrink-0 ${iconClassName}`} strokeWidth={2.2} />
+        <Icon
+          className={`h-5 w-5 shrink-0 ${iconClassName}`}
+          strokeWidth={2.2}
+        />
         <div className="min-w-0">
           <span className="block truncate text-[16px] font-normal leading-5 text-black">
             {label}
