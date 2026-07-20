@@ -4,15 +4,31 @@ import {
   useGetNotifications,
   useNotifications,
 } from "@/app/hooks/use-notifications";
+import {
+  ReceivedFollowRequest,
+  useFollowRequestActions,
+  useReceivedFollowRequests,
+} from "@/app/hooks/use-follow";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import {
   InfiniteScrollFooter,
   NotificationSkeleton,
 } from "@/app/components/skeletons";
 import { Notifications } from "@/app/interfaces/notification.interface";
-import { Settings, Bell, BadgeCheck, Circle } from "lucide-react";
+import { extractErrMsg } from "@/app/utils/error.util";
+import {
+  Settings,
+  Bell,
+  BadgeCheck,
+  Circle,
+  Check,
+  Loader2,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const TABS = [
   { label: "All", value: "all" },
@@ -22,13 +38,36 @@ const TABS = [
 export default function NotificationsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<"all" | "mention">("all");
+  const [actionRequestId, setActionRequestId] = useState<string | null>(null);
   const { unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { data, fetchNextPage, isFetchingNextPage, hasNextPage, isLoading } =
     useGetNotifications(filter);
+  const {
+    data: followRequestsData,
+    fetchNextPage: fetchNextFollowRequests,
+    isFetchingNextPage: isFetchingNextFollowRequests,
+    hasNextPage: hasNextFollowRequestsPage,
+    isLoading: isFollowRequestsLoading,
+  } = useReceivedFollowRequests({ enabled: filter === "all" });
+  const { accept, decline } = useFollowRequestActions();
 
-  const notifications =
+  const allNotifications =
     data?.pages.flatMap((page) => page?.notifications || []) || [];
-  const isEmpty = notifications.length === 0 && !isLoading;
+  const notifications =
+    filter === "all"
+      ? allNotifications.filter((noti) => noti.type !== "FOLLOW_REQUEST")
+      : allNotifications;
+  const followRequests =
+    filter === "all"
+      ? followRequestsData?.pages.flatMap((page) => page?.receivedFollow || [])
+      : [];
+  const hasFollowRequests = Boolean(followRequests?.length);
+  const isRequestLoading = filter === "all" && isFollowRequestsLoading;
+  const isEmpty =
+    notifications.length === 0 &&
+    !hasFollowRequests &&
+    !isLoading &&
+    !isRequestLoading;
 
   const { ref } = useInfiniteScroll({
     fetchNextPage,
@@ -52,6 +91,40 @@ export default function NotificationsPage() {
 
     if (noti.actor?.username) {
       router.push(`/profile/${noti.actor.username}`);
+    }
+  };
+
+  const handleAcceptRequest = async (
+    e: React.MouseEvent,
+    request: ReceivedFollowRequest,
+  ) => {
+    e.stopPropagation();
+    setActionRequestId(request.requestId);
+
+    try {
+      await accept.mutateAsync(request.id);
+      toast.success("Follow request accepted");
+    } catch (err) {
+      toast.error(extractErrMsg(err));
+    } finally {
+      setActionRequestId(null);
+    }
+  };
+
+  const handleDeclineRequest = async (
+    e: React.MouseEvent,
+    request: ReceivedFollowRequest,
+  ) => {
+    e.stopPropagation();
+    setActionRequestId(request.requestId);
+
+    try {
+      await decline.mutateAsync(request.id);
+      toast.success("Follow request declined");
+    } catch (err) {
+      toast.error(extractErrMsg(err));
+    } finally {
+      setActionRequestId(null);
     }
   };
 
@@ -94,7 +167,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Loading */}
-      {isLoading && <NotificationSkeleton />}
+      {(isLoading || isRequestLoading) && <NotificationSkeleton />}
 
       {/* Empty */}
       {isEmpty && (
@@ -109,6 +182,96 @@ export default function NotificationsPage() {
       {/* List */}
       {!isEmpty && (
         <div className="flex flex-col w-full">
+          {filter === "all" && hasFollowRequests && (
+            <div className="border-b border-gray-100">
+              <div className="flex items-center gap-2 px-4 pb-2 pt-3 text-sm font-bold text-gray-900">
+                <UserPlus className="size-4 text-blue-600" />
+                Follow requests
+              </div>
+
+              {followRequests?.map((request) => {
+                const isActing =
+                  actionRequestId === request.requestId &&
+                  (accept.isPending || decline.isPending);
+
+                return (
+                  <div
+                    key={request.requestId}
+                    onClick={() => router.push(`/profile/${request.username}`)}
+                    className="flex gap-3 px-4 py-3 cursor-pointer transition hover:bg-gray-50"
+                  >
+                    <div className="pt-1">
+                      <Avatar data={request} />
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-[15px] leading-snug text-gray-900">
+                          <span
+                            className="inline-flex cursor-pointer items-center gap-1 font-bold hover:underline"
+                            onClick={(e) =>
+                              handleProfileClick(e, request.username)
+                            }
+                          >
+                            {request.displayName}
+                            {request.verified && (
+                              <BadgeCheck className="h-4 w-4 fill-blue-500 text-white" />
+                            )}
+                          </span>
+                          <span className="ml-1 text-gray-600">
+                            requested to follow you.
+                          </span>
+                        </div>
+                        <span className="mt-1 block text-sm text-gray-500">
+                          @{request.username}
+                        </span>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => handleAcceptRequest(e, request)}
+                          disabled={isActing}
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isActing ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Check className="size-4" />
+                          )}
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeclineRequest(e, request)}
+                          disabled={isActing}
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-gray-300 px-4 text-sm font-bold text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <X className="size-4" />
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {hasNextFollowRequestsPage && (
+                <button
+                  type="button"
+                  onClick={() => fetchNextFollowRequests()}
+                  disabled={isFetchingNextFollowRequests}
+                  className="flex w-full items-center justify-center gap-2 border-t border-gray-100 px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
+                >
+                  {isFetchingNextFollowRequests && (
+                    <Loader2 className="size-4 animate-spin" />
+                  )}
+                  Show more requests
+                </button>
+              )}
+            </div>
+          )}
+
           {notifications.map((noti: Notifications) => (
             <div
               key={noti.id}
@@ -139,6 +302,10 @@ export default function NotificationsPage() {
                     {noti.type === "MENTION" && "mentioned you in a post."}
                     {noti.type === "REPOST" && "reposted your post."}
                     {noti.type === "REPLY" && "replied to your post."}
+                    {noti.type === "FOLLOW_REQUEST" &&
+                      "requested to follow you."}
+                    {noti.type === "FOLLOW_REQUEST_ACCEPTED" &&
+                      "accepted your follow request."}
                   </span>
                 </div>
                 <span className="text-sm text-gray-500 mt-1">

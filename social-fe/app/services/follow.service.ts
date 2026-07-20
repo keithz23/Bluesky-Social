@@ -49,11 +49,32 @@ export const FollowService = {
     }>(API_ENDPOINT.FOLLOWS.STATUS(userId));
   },
 
+  getReceivedFollowRequests: async (cursor?: string, limit?: number) => {
+    return apiClient.get<{
+      receivedFollow: Array<
+        User & {
+          requestId: string;
+          requestedAt: string;
+        }
+      >;
+      nextCursor: string | null;
+      hasMore: boolean;
+    }>(API_ENDPOINT.FOLLOWS.RECEIVED_REQUESTS({ cursor, limit }));
+  },
+
   follow: (userId: string) => {
     return apiClient.post<unknown>(API_ENDPOINT.FOLLOWS.FOLLOW(userId));
   },
 
   unfollow: (userId: string) => {
     return apiClient.delete<unknown>(API_ENDPOINT.FOLLOWS.UNFOLLOW(userId));
+  },
+
+  acceptRequest: (senderId: string) => {
+    return apiClient.post<unknown>(API_ENDPOINT.FOLLOWS.ACCEPT(senderId));
+  },
+
+  declineRequest: (senderId: string) => {
+    return apiClient.delete<unknown>(API_ENDPOINT.FOLLOWS.DECLINE(senderId));
   },
 };

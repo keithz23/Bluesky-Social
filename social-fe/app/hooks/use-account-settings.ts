@@ -104,6 +104,24 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     },
   });
 
+  const updateAccountPrivacyMutation = useMutation({
+    mutationFn: (payload: { isPrivate: boolean }) =>
+      AuthService.updateAccountPrivacy(payload),
+    onSuccess: async (user) => {
+      qc.setQueryData(["me"], user);
+      await qc.invalidateQueries({ queryKey: ["profile"] });
+      options?.onSuccess?.();
+      toast.success(
+        user.isPrivate
+          ? "Private account enabled."
+          : "Private account disabled.",
+      );
+    },
+    onError: (err) => {
+      toast.error(extractErrMsg(err));
+    },
+  });
+
   const requestDeactivateAccountMutation = useMutation({
     mutationFn: () => AuthService.requestDeactivateAccount(),
     onSuccess: () => {
@@ -198,6 +216,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     changePasswordMutation,
     changeUsernameMutation,
     changeBirthDayMutation,
+    updateAccountPrivacyMutation,
     requestDeactivateAccountMutation,
     deactivateAccountMutation,
     requestDeleteAccountMutation,
@@ -215,6 +234,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
     isChangingPassword: changePasswordMutation.isPending,
     isChangingUsername: changeUsernameMutation.isPending,
     isChangingBirthday: changeBirthDayMutation.isPending,
+    isUpdatingAccountPrivacy: updateAccountPrivacyMutation.isPending,
     isRequestingDeactivateCode: requestDeactivateAccountMutation.isPending,
     isDeactivatingAccount: deactivateAccountMutation.isPending,
     isRequestingDeleteCode: requestDeleteAccountMutation.isPending,

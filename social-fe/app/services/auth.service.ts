@@ -9,6 +9,7 @@ import {
   ResetPasswordData,
   UpdateEmailData,
   UpdateProfileData,
+  UpdateAccountPrivacyData,
   ChangeUsernameData,
   ChangeBirthDayData,
   DeactivateAccountData,
@@ -62,6 +63,13 @@ export const AuthService = {
       API_ENDPOINT.AUTH.UPDATE_PROFILE,
       formData,
       { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress },
+    );
+  },
+
+  updateAccountPrivacy: (updateAccountPrivacyData: UpdateAccountPrivacyData) => {
+    return apiClient.patch<User>(
+      API_ENDPOINT.AUTH.ACCOUNT_PRIVACY,
+      updateAccountPrivacyData,
     );
   },
 

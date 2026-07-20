@@ -6,11 +6,17 @@ import ListItem from "@/app/components/list-item";
 import { InfiniteScrollFooter, ListSkeleton } from "@/app/components/skeletons";
 import { useInfiniteScroll } from "@/app/hooks/use-infinite-scroll";
 import { useGetlists } from "@/app/hooks/use-list";
+import PrivateProfileState from "@/app/components/private-profile-state";
+import { useProfile } from "@/app/hooks/use-profile";
+import { isProfilePrivateLocked } from "@/app/utils/profile-privacy.util";
 
 export default function ListsPage() {
   const { username } = useParams<{ username: string }>();
+  const { data: profile } = useProfile(username);
+  const privateLocked = isProfilePrivateLocked(profile);
+  const canLoadProfileContent = Boolean(profile) && !privateLocked;
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useGetlists(username);
+    useGetlists(username, { enabled: canLoadProfileContent });
 
   const lists = data?.pages.flatMap((page) => page.lists) ?? [];
 
@@ -22,6 +28,10 @@ export default function ListsPage() {
   });
 
   if (isLoading) return <ListSkeleton />;
+
+  if (privateLocked) {
+    return <PrivateProfileState />;
+  }
 
   if (lists.length === 0) {
     return (
