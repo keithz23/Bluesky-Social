@@ -11,6 +11,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { PermissionsModule } from '../permissions/permissions.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -40,9 +41,11 @@ import { PermissionsModule } from '../permissions/permissions.module';
           SettingsModule,
           AuditLogsModule,
           PermissionsModule,
+          RolesModule,
         ],
       },
     ]),
+    RolesModule,
   ],
 })
 export class AdminModule {}
