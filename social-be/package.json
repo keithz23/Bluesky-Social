@@ -12,6 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
+    "seed": "ts-node prisma/seed.ts",
     "seed:realistic": "ts-node prisma/seed-realistic.ts",
     "seed:realistic:prod": "node dist/prisma/seed-realistic.js",
     "seed:perf": "ts-node prisma/seed-perf.ts",
