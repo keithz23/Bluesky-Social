@@ -91,11 +91,96 @@ model User {
 
   appPasswords  AppPassword[]
   recoveryCodes RecoveryCode[]
+  userRoles     UserRole[]
 
   @@index([username])
   @@index([email])
   @@index([createdAt(sort: Desc)])
   @@map("users")
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relation 
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  displayName String  @unique @map("display_name")
+  name        String  @unique
+  description String?
+  resource    String
+  action      String
+
+  groupId String?          @map("group_id")
+  group   PermissionGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model PermissionGroup {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  permissions Permission[]
+
+  @@map("permission_groups")
+}
+
+model RolePermission {
+  id String @id @default(cuid())
+
+  // Relations
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id String @id @default(cuid())
+
+  // Relations
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
 }
 
 model AppPassword {
