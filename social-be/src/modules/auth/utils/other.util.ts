@@ -9,6 +9,24 @@ import {
 } from 'src/common/constants/queue.constant';
 import { AuditContext } from 'src/common/interfaces/auth.interface';
 
+type UserWithRoles = Prisma.UserGetPayload<{
+  include: {
+    userRoles: {
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: {
+                permission: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
 export class OtherUtils {
   constructor(
     @InjectQueue(QUEUE_NAMES.CLEANUP)
@@ -50,7 +68,7 @@ export class OtherUtils {
     return value.slice(0, 10);
   }
 
-  public transformUser(user: any) {
+  public transformUser(user: User) {
     return {
       id: user.id,
       username: user.username,
@@ -59,13 +77,9 @@ export class OtherUtils {
       bio: user.bio,
       avatarUrl: user.avatarUrl,
       coverUrl: user.coverUrl,
-      website: user.website,
-      location: user.location,
+      googleId: user.googleId,
       verified: user.verified,
       isPrivate: user.isPrivate,
-      link: user.link,
-      linkTitle: user.linkTitle,
-      interests: user.interests,
       followersCount: user.followersCount,
       followingCount: user.followingCount,
       postsCount: user.postsCount,
@@ -76,6 +90,16 @@ export class OtherUtils {
       twoFactorMethod: user.twoFactorMethod,
       twoFactorEnabledAt: user.twoFactorEnabledAt,
     };
+  }
+
+  public transformRoles(user: UserWithRoles) {
+    return user.userRoles.map(({ role }) => ({
+      id: role.id,
+      name: role.name,
+      permissions: role.rolePermissions.map(
+        ({ permission }) => permission.name,
+      ),
+    }));
   }
 
   public async scheduleCleanup(

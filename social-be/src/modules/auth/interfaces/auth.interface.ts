@@ -1,3 +1,5 @@
+import { TwoFactorMethod } from '@prisma/client';
+
 export interface SignupData {
   username: string;
   email: string;
@@ -16,14 +18,30 @@ export interface TokenPayload {
   email: string;
 }
 
+export interface AuthUserResponse {
+  id: string;
+  username: string;
+  email: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  googleId: string | null;
+  verified: boolean;
+  isPrivate: boolean;
+  followersCount: number;
+  followingCount: number;
+  postsCount: number;
+  createdAt: Date;
+  dateOfBirth: Date | null;
+  hasPassword: boolean;
+  twoFactorEnabled: boolean;
+  twoFactorMethod: TwoFactorMethod | null;
+  twoFactorEnabledAt: Date | null;
+}
+
 export interface AuthResponse {
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  };
+  user: AuthUserResponse;
   accessToken: string;
   refreshToken: string;
 }
