@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { usePost } from "@/app/hooks/use-post";
 import { ReplyType } from "@/app/interfaces/post.interface";
 import { useMention } from "@/app/hooks/use-metion";
@@ -512,9 +517,7 @@ export default function NewPostModal({
         onToggleSaveForNextTime={() =>
           setSaveForNextTime((current) => !current)
         }
-        onToggleListsExpanded={() =>
-          setIsListsExpanded((current) => !current)
-        }
+        onToggleListsExpanded={() => setIsListsExpanded((current) => !current)}
       />
       <DiscardDraftDialog
         open={showExitConfirm}
