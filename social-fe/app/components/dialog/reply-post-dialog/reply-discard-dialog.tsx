@@ -15,12 +15,12 @@ export function ReplyDiscardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTitle className="sr-only">Discard reply</DialogTitle>
       <DialogContent
         className="w-full max-w-62.5 rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-100 [&>button]:hidden"
         onInteractOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
       >
+        <DialogTitle className="sr-only">Discard reply</DialogTitle>
         <div className="flex flex-col">
           <h2 className="text-xl font-bold text-gray-900 mb-2">
             Discard reply?

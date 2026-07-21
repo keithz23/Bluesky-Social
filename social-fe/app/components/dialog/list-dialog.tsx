@@ -146,10 +146,6 @@ export default function ListFormDialog({
           </DialogTrigger>
         )}
 
-        <DialogTitle className="sr-only">
-          {isEditing ? "Edit user list" : "Create user list"}
-        </DialogTitle>
-
         <DialogContent
           onInteractOutside={(e) => {
             e.preventDefault();
@@ -161,6 +157,10 @@ export default function ListFormDialog({
           }}
           className="sm:max-w-125 p-0 gap-0 overflow-hidden [&>button]:hidden rounded-2xl"
         >
+          <DialogTitle className="sr-only">
+            {isEditing ? "Edit user list" : "Create user list"}
+          </DialogTitle>
+
           {/* --- HEADER --- */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
             <button
@@ -286,12 +286,12 @@ export default function ListFormDialog({
       {/* --- CONFIRM DISCARD MODAL --- */}
       {showExitConfirm && (
         <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-          <DialogTitle className="sr-only">Discard</DialogTitle>
           <DialogContent
             className="w-full max-w-[320px] rounded-[32px] bg-white p-6 shadow-xl border-none gap-0 z-1000 [&>button]:hidden"
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
+            <DialogTitle className="sr-only">Discard</DialogTitle>
             <div className="flex flex-col">
               <h2 className="text-xl font-bold text-gray-900 mb-2">
                 Discard changes?
