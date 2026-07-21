@@ -41,7 +41,7 @@ const chunk = async <T>(
 
 const pick = <T>(items: T[], index: number) => items[index % items.length];
 
-async function main() {
+export async function main() {
   console.log('Perf seed config:', config);
 
   const now = new Date();
@@ -68,6 +68,22 @@ async function main() {
   await chunk('users', users, (batch) =>
     prisma.user.createMany({ data: batch, skipDuplicates: true }),
   );
+
+  const userRole = await prisma.role.findUnique({
+    where: {
+      name: 'user',
+    },
+  });
+
+  if (userRole) {
+    await prisma.userRole.createMany({
+      data: userIds.map((id) => ({
+        userId: id,
+        roleId: userRole.id,
+      })),
+      skipDuplicates: true,
+    });
+  }
 
   const follows = userIds.flatMap((followerId, i) => {
     const max = Math.min(config.followsPerUser, config.users - 1);
@@ -137,12 +153,15 @@ async function main() {
 
   const postIds = posts.map((post) => post.id);
   const likes = userIds.flatMap((userId, userIndex) =>
-    Array.from({ length: Math.min(config.likesPerUser, postIds.length) }, (_, j) => ({
-      id: id('like'),
-      userId,
-      postId: pick(postIds, userIndex * 17 + j * 13),
-      createdAt: new Date(now.getTime() - (userIndex + j) * 1200),
-    })),
+    Array.from(
+      { length: Math.min(config.likesPerUser, postIds.length) },
+      (_, j) => ({
+        id: id('like'),
+        userId,
+        postId: pick(postIds, userIndex * 17 + j * 13),
+        createdAt: new Date(now.getTime() - (userIndex + j) * 1200),
+      }),
+    ),
   );
 
   await chunk('likes', likes, (batch) =>
@@ -209,20 +228,23 @@ async function main() {
   );
 
   const messages = conversations.flatMap((conversation, conversationIndex) =>
-    Array.from({ length: config.messagesPerConversation }, (_, messageIndex) => {
-      const createdAt = new Date(
-        conversation.createdAt.getTime() + messageIndex * 10_000,
-      );
+    Array.from(
+      { length: config.messagesPerConversation },
+      (_, messageIndex) => {
+        const createdAt = new Date(
+          conversation.createdAt.getTime() + messageIndex * 10_000,
+        );
 
-      return {
-        id: id('msg'),
-        conversationId: conversation.id,
-        senderId: pick(userIds, conversationIndex + messageIndex),
-        content: `Perf message ${config.runId}/${conversationIndex}/${messageIndex}`,
-        createdAt,
-        updatedAt: createdAt,
-      };
-    }),
+        return {
+          id: id('msg'),
+          conversationId: conversation.id,
+          senderId: pick(userIds, conversationIndex + messageIndex),
+          content: `Perf message ${config.runId}/${conversationIndex}/${messageIndex}`,
+          createdAt,
+          updatedAt: createdAt,
+        };
+      },
+    ),
   );
 
   await chunk('messages', messages, (batch) =>

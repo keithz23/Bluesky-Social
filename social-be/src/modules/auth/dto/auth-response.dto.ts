@@ -1,75 +1,133 @@
+import { TwoFactorMethod } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
 
 export class UserResponseDto {
-  @ApiProperty({ example: 'clxxx...' })
   @Expose()
+  @ApiProperty({ example: 'clxxx...' })
   id!: string;
 
-  @ApiProperty({ example: 'johndoe' })
   @Expose()
+  @ApiProperty({ example: 'johndoe' })
   username!: string;
 
-  @ApiProperty({ example: 'john.doe@example.com' })
   @Expose()
+  @ApiProperty({ example: 'john.doe@example.com' })
   email!: string;
 
-  @ApiPropertyOptional({ example: 'John Doe' })
   @Expose()
+  @ApiPropertyOptional({ example: 'John Doe' })
   displayName?: string;
 
-  @ApiPropertyOptional({ example: 'Software Developer | Coffee Lover ☕' })
   @Expose()
-  bio?: string;
+  @ApiPropertyOptional({ example: 'Software Developer | Coffee Lover' })
+  bio?: string | null;
 
+  @Expose()
   @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
-  @Expose()
-  avatarUrl?: string;
+  avatarUrl?: string | null;
 
+  @Expose()
   @ApiPropertyOptional({ example: 'https://example.com/cover.jpg' })
-  @Expose()
-  coverUrl?: string;
+  coverUrl?: string | null;
 
-  @ApiPropertyOptional({ example: 'https://example.com' })
   @Expose()
-  website?: string;
+  @ApiPropertyOptional({ example: 'google-oauth-id-123' })
+  googleId?: string | null;
 
-  @ApiPropertyOptional({ example: 'San Francisco, CA' })
   @Expose()
-  location?: string;
-
   @ApiProperty({ example: false })
-  @Expose()
   verified!: boolean;
 
-  @ApiProperty({ example: false })
   @Expose()
+  @ApiProperty({ example: false })
   isPrivate!: boolean;
 
-  @ApiProperty({ example: 150 })
   @Expose()
+  @ApiProperty({ example: 150 })
   followersCount!: number;
 
-  @ApiProperty({ example: 89 })
   @Expose()
+  @ApiProperty({ example: 89 })
   followingCount!: number;
 
-  @ApiProperty({ example: 234 })
   @Expose()
+  @ApiProperty({ example: 234 })
   postsCount!: number;
 
-  @ApiProperty()
   @Expose()
+  @ApiProperty()
   createdAt!: Date;
+
+  @Expose()
+  @ApiPropertyOptional({ example: '1998-01-15' })
+  dateOfBirth?: Date | null;
+
+  @Expose()
+  @ApiProperty({ example: true })
+  hasPassword!: boolean;
+
+  @Expose()
+  @ApiProperty({ example: false })
+  twoFactorEnabled!: boolean;
+
+  @Expose()
+  @ApiPropertyOptional({
+    enum: TwoFactorMethod,
+    example: TwoFactorMethod.EMAIL,
+  })
+  twoFactorMethod?: TwoFactorMethod | null;
+
+  @Expose()
+  @ApiPropertyOptional()
+  twoFactorEnabledAt?: Date | null;
+}
+
+export class RoleResponseDto {
+  @Expose()
+  @ApiProperty({
+    example: 'clxxx...',
+  })
+  id!: string;
+
+  @Expose()
+  @ApiProperty({
+    example: 'admin',
+  })
+  name!: string;
+
+  @Expose()
+  @ApiProperty({
+    type: [String],
+    example: ['user.read', 'user.write', 'post.read', 'post.delete'],
+  })
+  permissions!: string[];
 }
 
 export class AuthResponseDto {
-  @ApiProperty({ description: 'JWT access token (expires in 15m)' })
+  @Expose()
+  @ApiProperty({
+    description: 'JWT access token (expires in 15 minutes)',
+  })
   accessToken!: string;
 
-  @ApiProperty({ description: 'Refresh token (expires in 7d)' })
+  @Expose()
+  @ApiProperty({
+    description: 'Refresh token (expires in 7 days)',
+  })
   refreshToken!: string;
 
-  @ApiProperty({ type: UserResponseDto })
+  @Expose()
+  @Type(() => UserResponseDto)
+  @ApiProperty({
+    type: UserResponseDto,
+  })
   user!: UserResponseDto;
+
+  @Expose()
+  @Type(() => RoleResponseDto)
+  @ApiProperty({
+    type: [RoleResponseDto],
+  })
+  roles!: RoleResponseDto[];
 }
