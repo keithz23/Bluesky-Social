@@ -76,7 +76,7 @@ const tags = [
   '#notes',
 ];
 
-async function main() {
+export async function main() {
   const { faker } = await importFaker();
   faker.seed(Number.parseInt(config.runId, 36) || Date.now());
 
@@ -91,40 +91,46 @@ async function main() {
   const recentPostsByAuthor = new Map<string, RecentPost[]>();
 
   for (let i = 0; i < userIds.length; i += config.batchSize) {
-    const batch = userIds.slice(i, i + config.batchSize).map((userId, index) => {
-      const userIndex = i + index;
-      const fullName = faker.person.fullName();
-      const createdAt = faker.date.between({
-        from: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 180),
-        to: now,
+    const batch = userIds
+      .slice(i, i + config.batchSize)
+      .map((userId, index) => {
+        const userIndex = i + index;
+        const fullName = faker.person.fullName();
+        const createdAt = faker.date.between({
+          from: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 180),
+          to: now,
+        });
+
+        return {
+          id: userId,
+          username: usernames[userIndex],
+          displayName: `${fullName} ${config.runId}-${userIndex}`,
+          email: `bot_${config.runId}_${userIndex}@example.test`,
+          passwordHash: null,
+          dateOfBirth: faker.date.birthdate({ min: 18, max: 45, mode: 'age' }),
+          bio: faker.helpers.arrayElement([
+            `${faker.person.jobTitle()}. ${faker.company.catchPhrase()}.`,
+            `Building small things on the internet. ${faker.location.city()}.`,
+            `Notes on code, design, and everyday momentum.`,
+            `${faker.person.jobArea()} enthusiast. Usually overthinking details.`,
+          ]),
+          avatarUrl: `https://i.pravatar.cc/240?u=${encodeURIComponent(userId)}`,
+          coverUrl: `https://picsum.photos/seed/cover-${userId}/1200/400`,
+          verified: userIndex % 17 === 0,
+          createdAt,
+          updatedAt: createdAt,
+          followersCount: Math.min(config.followsPerUser, config.users - 1),
+          followingCount: Math.min(config.followsPerUser, config.users - 1),
+          postsCount: config.postsPerUser,
+        };
       });
 
-      return {
-        id: userId,
-        username: usernames[userIndex],
-        displayName: `${fullName} ${config.runId}-${userIndex}`,
-        email: `bot_${config.runId}_${userIndex}@example.test`,
-        passwordHash: null,
-        dateOfBirth: faker.date.birthdate({ min: 18, max: 45, mode: 'age' }),
-        bio: faker.helpers.arrayElement([
-          `${faker.person.jobTitle()}. ${faker.company.catchPhrase()}.`,
-          `Building small things on the internet. ${faker.location.city()}.`,
-          `Notes on code, design, and everyday momentum.`,
-          `${faker.person.jobArea()} enthusiast. Usually overthinking details.`,
-        ]),
-        avatarUrl: `https://i.pravatar.cc/240?u=${encodeURIComponent(userId)}`,
-        coverUrl: `https://picsum.photos/seed/cover-${userId}/1200/400`,
-        verified: userIndex % 17 === 0,
-        createdAt,
-        updatedAt: createdAt,
-        followersCount: Math.min(config.followsPerUser, config.users - 1),
-        followingCount: Math.min(config.followsPerUser, config.users - 1),
-        postsCount: config.postsPerUser,
-      };
-    });
-
     await prisma.user.createMany({ data: batch, skipDuplicates: true });
-    progress('users', Math.min(i + config.batchSize, userIds.length), userIds.length);
+    progress(
+      'users',
+      Math.min(i + config.batchSize, userIds.length),
+      userIds.length,
+    );
   }
 
   const totalPosts = config.users * config.postsPerUser;
