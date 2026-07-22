@@ -137,7 +137,7 @@ export class RolesService {
     });
   }
 
-  // Revoke permision
+  // Revoke permission
   async revokePermission(roleId: string, permissionId: string) {
     try {
       return await this.prisma.rolePermission.delete({

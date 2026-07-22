@@ -11,8 +11,8 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  LockKeyhole,
   Mail,
+  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -141,88 +141,79 @@ export default function AdminLoginPage() {
     isSubmitting || (loginStep === "2fa" ? !otpValue?.trim() : !isValid);
 
   return (
-    <main className="min-h-dvh bg-[#f6f7f9] text-slate-950">
-      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-5 py-6 sm:px-8">
-        <header className="flex h-12 items-center justify-between">
+    <main className="relative min-h-screen bg-slate-50 text-slate-900 selection:bg-blue-100 selection:text-blue-900">
+      {/* Subtle Dot Pattern Background */}
+      <div className="absolute inset-0 z-0 h-full w-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [bg-size:16px_16px] opacity-70"></div>
+
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8">
+        {/* Header */}
+        <header className="flex h-14 items-center justify-between">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+            className="group inline-flex items-center gap-2.5 text-sm font-semibold text-blue-600 transition hover:text-blue-900"
           >
-            <span className="flex size-8 items-center justify-center rounded-md bg-slate-950 text-sm font-bold text-white">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-blue-800 text-base font-bold text-white shadow-md transition-transform group-hover:scale-105">
               K
-            </span>
-            Konekt Admin
+            </div>
+            <span className="text-base tracking-tight">Konekt Admin</span>
           </Link>
-          <span className="hidden items-center gap-2 text-xs font-medium text-slate-500 sm:inline-flex">
-            <ShieldCheck className="size-4 text-blue-600" />
-            Protected access
-          </span>
+          <div className="hidden items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm sm:flex">
+            <ShieldCheck className="size-4" />
+            Protected Access
+          </div>
         </header>
 
-        <section className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[1fr_440px] lg:py-14">
-          <div className="max-w-xl">
-            <div className="mb-7 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm">
-              <LockKeyhole className="size-4 text-blue-600" />
-              Administrative console
-            </div>
-            <h1 className="text-4xl font-bold leading-tight tracking-normal text-slate-950 sm:text-5xl">
-              Sign in to manage Konekt.
-            </h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">
-              Review platform activity, moderate reports, and manage access
-              using an administrator account.
-            </p>
-
-            <div className="mt-10 grid max-w-lg gap-3 sm:grid-cols-3">
-              {["Role-based access", "2FA ready", "Session protected"].map(
-                (item) => (
-                  <div
-                    key={item}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm"
-                  >
-                    {item}
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-
-          <div className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-7 mx-auto flex flex-col items-center">
-              <h2 className="text-2xl font-bold tracking-normal text-slate-950">
-                Admin sign in
+        {/* Main Form Content */}
+        <section className="flex flex-1 items-center justify-center py-12">
+          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-10">
+            <div className="mb-8 text-center">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                Admin Portal
               </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Sign in to manage your workspace
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               {loginStep === "2fa" && (
-                <div className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-700">
-                  <button
-                    type="button"
-                    onClick={goBackToPasswordStep}
-                    className="mb-2 inline-flex cursor-pointer items-center gap-2 font-semibold text-blue-700 transition hover:text-blue-900"
-                  >
-                    <ArrowLeft className="size-4" />
-                    Back
-                  </button>
-                  <p className="font-semibold text-slate-950">
-                    Two-factor verification
-                  </p>
-                  <p className="mt-1 leading-5">
-                    Enter the code from your authenticator app or use a recovery
-                    code.
-                  </p>
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                    <button
+                      type="button"
+                      onClick={goBackToPasswordStep}
+                      className="group mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 transition hover:text-blue-800"
+                    >
+                      <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" />
+                      Back to login
+                    </button>
+                    <div className="flex items-start gap-3">
+                      <ShieldAlert className="mt-0.5 size-5 text-blue-600" />
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          Two-factor Verification
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                          Enter the code from your authenticator app or use a
+                          recovery code to continue.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {loginStep === "password" && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-account">
-                      Admin email or username
+                <div className="animate-in fade-in zoom-in-95 duration-300 space-y-5">
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="admin-account"
+                      className="text-sm font-medium text-slate-700"
+                    >
+                      Email or Username
                     </Label>
                     <div className="relative">
-                      <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                      <Mail className="pointer-events-none absolute left-3 top-1/2 size-4.5 -translate-y-1/2 text-slate-400" />
                       <Input
                         id="admin-account"
                         type="text"
@@ -230,28 +221,33 @@ export default function AdminLoginPage() {
                         aria-invalid={Boolean(errors.account)}
                         placeholder="admin@konekt.com"
                         {...register("account")}
-                        className="h-11 rounded-md border-slate-300 bg-white pl-10 shadow-none placeholder:text-slate-400 focus-visible:ring-blue-600/25"
+                        className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 shadow-sm transition-all focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-500/20"
                       />
                     </div>
                     {errors.account && (
-                      <p className="text-xs font-medium text-red-600">
+                      <p className="text-xs font-medium text-red-500">
                         {errors.account.message}
                       </p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="admin-password"
+                      className="text-sm font-medium text-slate-700"
+                    >
+                      Password
+                    </Label>
                     <div className="relative">
-                      <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                      <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4.5 -translate-y-1/2 text-slate-400" />
                       <Input
                         id="admin-password"
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         aria-invalid={Boolean(errors.password)}
-                        placeholder="Enter password"
+                        placeholder="Enter your password"
                         {...register("password")}
-                        className="h-11 rounded-md border-slate-300 bg-white pl-10 pr-11 shadow-none placeholder:text-slate-400 focus-visible:ring-blue-600/25"
+                        className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-12 shadow-sm transition-all focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-500/20"
                       />
                       <button
                         type="button"
@@ -259,27 +255,32 @@ export default function AdminLoginPage() {
                           showPassword ? "Hide password" : "Show password"
                         }
                         onClick={() => setShowPassword((current) => !current)}
-                        className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                        className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       >
                         {showPassword ? (
-                          <EyeOff className="size-4" />
+                          <EyeOff className="size-4.5" />
                         ) : (
-                          <Eye className="size-4" />
+                          <Eye className="size-4.5" />
                         )}
                       </button>
                     </div>
                     {errors.password && (
-                      <p className="text-xs font-medium text-red-600">
+                      <p className="text-xs font-medium text-red-500">
                         {errors.password.message}
                       </p>
                     )}
                   </div>
-                </>
+                </div>
               )}
 
               {loginStep === "2fa" && (
-                <div className="space-y-2">
-                  <Label htmlFor="admin-otp">Verification code</Label>
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="admin-otp"
+                    className="text-sm font-medium text-slate-700"
+                  >
+                    Verification Code
+                  </Label>
                   <Input
                     id="admin-otp"
                     type="text"
@@ -289,16 +290,17 @@ export default function AdminLoginPage() {
                     {...register("otp", {
                       onChange: () => clearErrors("otp"),
                     })}
-                    className="h-11 rounded-md border-slate-300 bg-white shadow-none placeholder:text-slate-400 focus-visible:ring-blue-600/25"
+                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-center text-lg tracking-widest shadow-sm transition-all focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-500/20 placeholder:text-sm placeholder:tracking-normal"
                   />
                   {errors.otp && (
-                    <p className="text-xs font-medium text-red-600">
+                    <p className="text-xs font-medium text-red-500 text-center mt-1">
                       {errors.otp.message}
                     </p>
                   )}
                   {twoFAChallenge?.maskedEmail && (
-                    <p className="text-xs text-slate-500">
-                      Challenge sent for {twoFAChallenge.maskedEmail}
+                    <p className="text-xs text-slate-500 text-center mt-2">
+                      Challenge sent for{" "}
+                      <strong>{twoFAChallenge.maskedEmail}</strong>
                     </p>
                   )}
                 </div>
@@ -307,25 +309,28 @@ export default function AdminLoginPage() {
               <Button
                 type="submit"
                 disabled={isSubmitDisabled}
-                className="h-11 w-full rounded-md bg-slate-950 font-semibold text-white shadow-none hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-500"
+                className="mt-2 h-12 w-full rounded-xl bg-blue-600 text-base font-semibold text-white shadow-md transition-all hover:bg-blue-700 focus:ring-2 disabled:bg-blue-100 disabled:text-slate-400 disabled:shadow-none cursor-pointer"
               >
                 {isSubmitting ? (
-                  <>
-                    <Spinner />
-                    Checking access
-                  </>
+                  <span className="flex items-center gap-2">
+                    <Spinner className="size-4" />
+                    Checking access...
+                  </span>
                 ) : loginStep === "2fa" ? (
-                  "Verify and continue"
+                  "Verify & Continue"
                 ) : (
-                  "Sign in"
+                  "Sign In"
                 )}
               </Button>
             </form>
 
-            <p className="mt-6 border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500">
-              Protected administrative access. Contact a system owner if your
-              account needs elevated permissions.
-            </p>
+            <div className="mt-8 border-t border-slate-100 pt-6">
+              <p className="text-center text-xs leading-relaxed text-slate-400">
+                Protected administrative access. <br />
+                Contact a system owner if your account needs elevated
+                permissions.
+              </p>
+            </div>
           </div>
         </section>
       </div>
