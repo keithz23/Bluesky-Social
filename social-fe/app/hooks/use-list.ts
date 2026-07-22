@@ -87,7 +87,11 @@ export const useGetlists = (
   >({
     queryKey: ["lists", username ?? "me"],
     queryFn: ({ pageParam }): Promise<ListsResponse> =>
-      ListService.getLists(pageParam as string | undefined, undefined, username),
+      ListService.getLists(
+        pageParam as string | undefined,
+        undefined,
+        username,
+      ),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
