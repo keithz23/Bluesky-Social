@@ -30,6 +30,7 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { createRedisOptions } from './config/redis-options';
 import { DevDataModule } from './modules/dev-data/dev-data.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -106,6 +107,7 @@ import { DevDataModule } from './modules/dev-data/dev-data.module';
     MonitoringModule,
     ModerationModule,
     DevDataModule,
+    AdminModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [

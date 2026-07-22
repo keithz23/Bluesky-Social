@@ -136,6 +136,21 @@ export class AuthService {
       where: {
         OR: [{ email: account }, { username: account }],
       },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -190,6 +205,7 @@ export class AuthService {
     return {
       ...tokens,
       user: this.otherUtils.transformUser(user),
+      roles: this.otherUtils.transformRoles(user),
     };
   }
 
@@ -216,6 +232,21 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: data.userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user) throw new NotFoundException('User not found');
@@ -284,6 +315,7 @@ export class AuthService {
     return {
       ...tokens,
       user: this.otherUtils.transformUser(user),
+      roles: this.otherUtils.transformRoles(user),
     };
   }
 
@@ -291,7 +323,25 @@ export class AuthService {
     // Verify refresh token in database
     const tokenDoc = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true },
+      include: {
+        user: {
+          include: {
+            userRoles: {
+              include: {
+                role: {
+                  include: {
+                    rolePermissions: {
+                      include: {
+                        permission: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!tokenDoc) {
@@ -331,6 +381,7 @@ export class AuthService {
     return {
       ...tokens,
       user: this.otherUtils.transformUser(user),
+      roles: this.otherUtils.transformRoles(user),
     };
   }
 
