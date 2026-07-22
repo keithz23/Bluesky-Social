@@ -11,6 +11,7 @@ const STATIC_TITLES: Record<string, string> = {
   "/signup": "Sign up",
   "/forgot": "Forgot password",
   "/password-updated": "Password updated",
+  "/admin/login": "Admin login",
   "/explore": "Explore",
   "/feeds": "Feeds",
   "/lists": "Lists",
