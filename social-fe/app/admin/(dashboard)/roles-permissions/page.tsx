@@ -21,7 +21,6 @@ import {
   ShieldAlert,
   Trash,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -31,25 +30,15 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import CreateRoleDialog from "../../components/dialogs/role-form-dialog";
 import { useRole } from "../../hooks/use-role";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "../../hooks/use-permissions";
 import { PermissionManager } from "../../components/permission-manager";
-import { Checkbox } from "@/components/ui/checkbox";
 import RoleFormDialog from "../../components/dialogs/role-form-dialog";
+import DataTable from "../../components/table-data";
+import { ColumnDef } from "../../interfaces/column.interface";
 
 export default function RolesManagementPage() {
-  const [isOpenCreateRoleDialog, setIsOpenCreateRoleDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,20 +102,14 @@ export default function RolesManagementPage() {
     isDeleting,
     isLoading,
   } = useRole(page, limit);
-  const {
-    permissionGroup,
-    permissionGroupLoading,
-    syncPermissionsMutation,
-    isSyncing,
-  } = usePermissions();
+  const { permissionGroup, syncPermissionsMutation, isSyncing } =
+    usePermissions();
 
   const rolesList = (rolesResponse?.data ?? []) as any[];
   const meta = rolesResponse?.meta ?? { total: 0, totalPages: 1 };
 
   const totalItems = meta.total;
   const totalPages = meta.totalPages;
-  const startItem = totalItems === 0 ? 0 : (page - 1) * limit + 1;
-  const endItem = Math.min(page * limit, totalItems);
 
   const openEditSheet = (role: any) => {
     let flatPermissionIds: string[] = [];
@@ -231,6 +214,70 @@ export default function RolesManagementPage() {
     );
   };
 
+  const columns: ColumnDef<any>[] = [
+    {
+      header: "Role Details",
+      cell: (role) => (
+        <>
+          <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate">
+            {role.name}
+          </div>
+          <div className="text-sm text-gray-500 mt-1 max-w-50 md:max-w-xs truncate">
+            {role.description}
+          </div>
+        </>
+      ),
+    },
+    {
+      header: "Attached Permissions",
+      className: "whitespace-nowrap",
+      cell: (role) => (
+        <Badge
+          variant="secondary"
+          className="bg-blue-50 text-blue-700 border-blue-200"
+        >
+          {role._count?.rolePermissions || role.rolePermissions?.length || 0}{" "}
+          policies
+        </Badge>
+      ),
+    },
+    {
+      header: "Users",
+      className: "whitespace-nowrap",
+      cell: (role) => (
+        <div className="flex items-center gap-2 text-gray-600">
+          <Users className="w-4 h-4" /> {role._count?.userRoles || 0}
+        </div>
+      ),
+    },
+    {
+      header: "Actions",
+      className: "text-right whitespace-nowrap",
+      cell: (role) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-gray-600 border-gray-200 hover:bg-gray-100"
+            onClick={() => handleOpenEdit(role)}
+            title="Edit Role Info"
+          >
+            <Pen className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+            onClick={() => openEditSheet(role)}
+            title="Manage Permissions"
+          >
+            <ShieldAlert className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="w-full h-[85vh] overflow-hidden flex flex-col bg-gray-50/50">
       {/* Header */}
@@ -265,191 +312,24 @@ export default function RolesManagementPage() {
       </div>
 
       {/* Main Table */}
-      <Card className="rounded-xl border bg-white py-0 shadow-sm flex-1 flex flex-col overflow-hidden">
-        <CardContent className="p-0 flex flex-col flex-1 min-h-0">
-          <div className="flex-1 min-h-0 overflow-auto relative w-full">
-            <table className="w-full border-collapse text-left min-w-200">
-              <thead className="shadow-sm">
-                <tr className="border-b-2 bg-gray-100 text-sm uppercase tracking-wider text-gray-500">
-                  <th className="sticky top-0 z-10 w-12.5 whitespace-nowrap bg-gray-50/90 pl-6 pr-2 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    <Checkbox
-                      aria-label="Select all roles"
-                      checked={isAllSelected}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Role Details
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Attached Permissions
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Users
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 text-right font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {isLoading || permissionGroupLoading ? (
-                  Array.from({ length: limit }).map((_, i) => (
-                    <tr key={`skeleton-${i}`} className="border-b">
-                      <td className="py-4 pl-6 pr-2 w-12.5">
-                        <Skeleton className="h-4 w-4 rounded-xs" />
-                      </td>
-                      <td className="py-4 px-6">
-                        <Skeleton className="h-4 w-40 mb-2" />
-                        <Skeleton className="h-3 w-64" />
-                      </td>
-                      <td className="py-4 px-6">
-                        <Skeleton className="h-6 w-24 rounded-full" />
-                      </td>
-                      <td className="py-4 px-6">
-                        <Skeleton className="h-4 w-16" />
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <Skeleton className="h-8 w-8 rounded ml-auto" />
-                      </td>
-                    </tr>
-                  ))
-                ) : rolesList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="py-10 px-6 text-center text-gray-500"
-                    >
-                      No roles found.
-                    </td>
-                  </tr>
-                ) : (
-                  rolesList.map((role) => (
-                    <tr
-                      key={role.id}
-                      className="border-b hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 pl-6 pr-2 w-12.5">
-                        <Checkbox
-                          aria-label={`Select ${role.name}`}
-                          checked={selectedRoleIds.includes(role.id)}
-                          onCheckedChange={(checked: boolean) =>
-                            handleSelectRole(role.id, checked)
-                          }
-                        />
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate">
-                          {role.name}
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1 max-w-50 md:max-w-xs truncate">
-                          {role.description}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">
-                        <Badge
-                          variant="secondary"
-                          className="bg-blue-50 text-blue-700 border-blue-200"
-                        >
-                          {role._count?.rolePermissions ||
-                            role.rolePermissions?.length ||
-                            0}{" "}
-                          policies
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Users className="w-4 h-4" />{" "}
-                          {role._count?.userRoles || 0}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
-                            title="Edit Role Info"
-                            onClick={() => handleOpenEdit(role)}
-                          >
-                            <Pen className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50 cursor-pointer"
-                            onClick={() => openEditSheet(role)}
-                            title="Manage Permissions"
-                          >
-                            <ShieldAlert className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex shrink-0 flex-col sm:flex-row items-center justify-between border-t bg-white px-6 py-4 gap-4 z-20">
-            <p className="text-sm text-muted-foreground">
-              Showing{" "}
-              <span className="font-medium">
-                {startItem}–{endItem}
-              </span>{" "}
-              of <span className="font-medium">{totalItems}</span> roles
-            </p>
-            <Pagination className="justify-end">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (page > 1) changePage(page - 1);
-                    }}
-                    className={
-                      page <= 1 ? "pointer-events-none opacity-50" : ""
-                    }
-                  />
-                </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (p) => (
-                    <PaginationItem key={p}>
-                      <PaginationLink
-                        href="#"
-                        isActive={p === page}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          changePage(p);
-                        }}
-                      >
-                        {p}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ),
-                )}
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (page < totalPages) changePage(page + 1);
-                    }}
-                    className={
-                      page >= totalPages ? "pointer-events-none opacity-50" : ""
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        </CardContent>
-      </Card>
+      <DataTable
+        tableName="roles"
+        data={rolesList}
+        columns={columns}
+        isLoading={isLoading}
+        // Pagination
+        page={page}
+        limit={limit}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        changePage={changePage}
+        // Select
+        enableSelection={true}
+        selectedIds={selectedRoleIds}
+        isAllSelected={isAllSelected}
+        onSelectRow={handleSelectRole}
+        onSelectAll={handleSelectAll}
+      />
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent

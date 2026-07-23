@@ -45,7 +45,7 @@ export const useRole = (page?: number, limit?: number) => {
       return RoleService.deleteRoles(roleIds);
     },
     onSuccess: async () => {
-      toast.success("Role updated successfully");
+      toast.success("Roles deleted");
 
       await qc.invalidateQueries({ queryKey: ["roles"] });
     },
@@ -63,6 +63,7 @@ export const useRole = (page?: number, limit?: number) => {
   } = useQuery({
     queryKey: ["roles", page, limit],
     queryFn: () => RoleService.findAllRoles(page, limit),
+    placeholderData: (prev) => prev,
   });
 
   return {

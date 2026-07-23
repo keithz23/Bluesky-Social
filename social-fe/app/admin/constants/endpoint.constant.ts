@@ -14,4 +14,11 @@ export const ADMIN_API_ENDPOINT = {
     REVOKE_PERMISSION: (roleId: string, permissionId: string) =>
       `/admin/roles/${roleId}/permissions/${permissionId}`,
   },
+  USERS: {
+    CREATE_USER: "/admin/users",
+    DELETE_USER: "/admin/users",
+    FIND_ALL: "/admin/users",
+    UPDATE_USER: (id: string) => `/admin/users/${id}`,
+    FIND_ONE: (id: string) => `/admin/users/${id}`,
+  },
 };
