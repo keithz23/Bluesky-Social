@@ -5,5 +5,5 @@ export class DeleteRoleDto {
   @ApiProperty()
   @IsArray()
   @IsNotEmpty()
-  ids!: string[];
+  roleIds!: string[];
 }

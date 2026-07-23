@@ -18,10 +18,18 @@ type QueueItem = {
 
 export type RefreshResponse = AuthResponse;
 
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 type ApiEnvelope<T> = {
   statusCode: number;
   message: string;
   data: T;
+  meta?: PaginationMeta;
   timestamp: string;
 };
 
@@ -160,12 +168,40 @@ export const apiClient = {
     return unwrapApiData(payload);
   },
 
+  getPaginated: async <T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<{ data: T; meta: PaginationMeta }> => {
+    const payload = await axiosInstance.get<unknown, ApiEnvelope<T>>(
+      url,
+      config,
+    );
+
+    return {
+      data: payload.data,
+      meta: payload.meta || { page: 1, limit: 10, total: 0, totalPages: 1 },
+    };
+  },
+
   post: async <T, D = unknown>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>,
   ): Promise<T> => {
     const payload = await axiosInstance.post<unknown, ApiEnvelope<T> | T, D>(
+      url,
+      data,
+      config,
+    );
+    return unwrapApiData(payload);
+  },
+
+  put: async <T, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<T> => {
+    const payload = await axiosInstance.put<unknown, ApiEnvelope<T> | T, D>(
       url,
       data,
       config,
