@@ -125,7 +125,9 @@ export const API_ENDPOINT = {
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
       const qs = query.toString();
-      return qs ? `/follows/requests/received?${qs}` : "/follows/requests/received";
+      return qs
+        ? `/follows/requests/received?${qs}`
+        : "/follows/requests/received";
     },
     ACCEPT: (senderId: string) => `/follows/requests/${senderId}/accept`,
     DECLINE: (senderId: string) => `/follows/requests/${senderId}/decline`,
@@ -213,6 +215,7 @@ export const API_ENDPOINT = {
     REMOVE_POST: (listId: string, postId: string) =>
       `/lists/${listId}/items/${postId}`,
   },
+
   LISTS_MEMBER: {
     ADD_MEMBER: (listId: string, participantId: string) =>
       `/lists-member/${listId}/members/${participantId}`,

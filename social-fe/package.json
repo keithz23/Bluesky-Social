@@ -16,6 +16,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@lottiefiles/dotlottie-react": "^0.18.3",
     "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-virtual": "^3.14.8",
     "@uiw/react-color": "^2.10.3",
     "axios": "^1.13.5",
     "class-variance-authority": "^0.7.1",
@@ -38,6 +39,7 @@
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
+    "vaul": "^1.1.2",
     "zod": "^4.3.6",
     "zustand": "^5.0.13"
   },
