@@ -1,17 +1,22 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import "../globals.css";
+import { usePathname, useRouter } from "next/navigation";
 import AdminGlobalHeader from "./components/admin-global-header";
 import Sidebar from "./components/sidebar";
+import { useAuth } from "../hooks/use-auth";
+import Loading from "../components/loading";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isAuthenticated, user, isLoadingProfile } = useAuth();
 
   const handleMenuToggle = () => {
     setIsMenuOpen((prev) => !prev);
@@ -20,6 +25,11 @@ export default function AdminLayout({
   const closeMenu = () => {
     setIsMenuOpen(false);
   };
+
+  const isAdminRoute = pathname === "/admin";
+
+  const shouldRedirectToLogin =
+    !isLoadingProfile && !isAuthenticated && !isAdminRoute;
 
   useEffect(() => {
     const handleResize = () => {
@@ -31,8 +41,18 @@ export default function AdminLayout({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (shouldRedirectToLogin) {
+      router.push("/admin/login");
+    }
+  }, [shouldRedirectToLogin, router]);
+
   if (pathname === "/admin/login") {
     return <>{children}</>;
+  }
+
+  if (isLoadingProfile || shouldRedirectToLogin) {
+    return <Loading />;
   }
 
   return (

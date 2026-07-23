@@ -47,6 +47,12 @@ export class RolesService {
         take: safeLimit,
         orderBy: { createdAt: 'desc' },
         include: {
+          _count: {
+            select: {
+              userRoles: true,
+              rolePermissions: true,
+            },
+          },
           rolePermissions: {
             include: {
               permission: true,
@@ -106,9 +112,9 @@ export class RolesService {
   }
 
   async delete(deleteRoleDto: DeleteRoleDto) {
-    const { ids } = deleteRoleDto;
+    const { roleIds } = deleteRoleDto;
     return await this.prisma.role.deleteMany({
-      where: { id: { in: ids } },
+      where: { id: { in: roleIds } },
     });
   }
 
@@ -156,5 +162,68 @@ export class RolesService {
       }
       throw error;
     }
+  }
+
+  // Sync Permissions
+  async syncPermissions(roleId: string, permissionIds: string[]) {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Kiểm tra Role có tồn tại không
+      const role = await tx.role.findUnique({ where: { id: roleId } });
+      if (!role) throw new NotFoundException('Role not found');
+
+      // 2. Kiểm tra xem các permissionIds gửi lên có hợp lệ không (chỉ check nếu mảng có data)
+      if (permissionIds.length > 0) {
+        const permissions = await tx.permission.findMany({
+          where: { id: { in: permissionIds } },
+        });
+        if (permissions.length !== permissionIds.length) {
+          throw new NotFoundException('One or more permissions not found');
+        }
+      }
+
+      // 3. XÓA CÁC QUYỀN THỪA: Xóa các quyền cũ của Role mà không có trong mảng permissionIds mới
+      await tx.rolePermission.deleteMany({
+        where: {
+          roleId: roleId,
+          permissionId: { notIn: permissionIds }, // Trong Prisma: Nếu mảng rỗng, nó sẽ xóa hết
+        },
+      });
+
+      // 4. THÊM CÁC QUYỀN MỚI (Nếu có)
+      if (permissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+          skipDuplicates: true, // Prisma tự động bỏ qua các record đã tồn tại (dựa vào khóa chính/composite key)
+        });
+      }
+
+      // 5. Trả về kết quả mới nhất
+      return tx.role.findUnique({
+        where: { id: roleId },
+        include: { rolePermissions: { include: { permission: true } } },
+      });
+    });
+  }
+
+  // Group Permissions
+  async findAllGroupPermissions() {
+    const result = await this.prisma.permissionGroup.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        permissions: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            displayName: true,
+            resource: true,
+            action: true,
+          },
+        },
+      },
+    });
+    return result;
   }
 }

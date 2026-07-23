@@ -3,6 +3,4 @@ export interface CreateRoleData {
   description?: string;
 }
 
-export interface UpdateRoleData extends Partial<CreateRoleData> {
-  roleId: string;
-}
+export interface UpdateRoleData extends Partial<CreateRoleData> {}

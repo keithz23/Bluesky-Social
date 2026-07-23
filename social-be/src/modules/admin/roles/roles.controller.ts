@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Put,
 } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -14,6 +15,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleQueryDto } from './dto/role-query,dto';
 import { DeleteRoleDto } from './dto/delete-role.dto';
 import { assignPermissionsDto } from './dto/assign-permissions.dto';
+import { SyncPermissionsDto } from './dto/sync-permissions.dto';
 
 @Controller('roles')
 export class RolesController {
@@ -27,6 +29,12 @@ export class RolesController {
   @Get()
   findAll(@Query() query: RoleQueryDto) {
     return this.rolesService.findAll(query);
+  }
+
+  // Permission Group
+  @Get('permissions')
+  findAllPermissionGroup() {
+    return this.rolesService.findAllGroupPermissions();
   }
 
   @Get(':roleId')
@@ -56,6 +64,17 @@ export class RolesController {
     return this.rolesService.assignPermissions(
       roleId,
       assignPermissionsDto.permissionIds,
+    );
+  }
+
+  @Put(':roleId/permissions')
+  syncPermissions(
+    @Param('roleId') roleId: string,
+    @Body() syncPermissionsDto: SyncPermissionsDto,
+  ) {
+    return this.rolesService.syncPermissions(
+      roleId,
+      syncPermissionsDto.permissionIds,
     );
   }
 

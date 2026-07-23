@@ -75,7 +75,7 @@ export default function AdminGlobalHeader({
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-30 h-16 border-b border-slate-200 bg-white/95 backdrop-blur lg:left-72">
+    <header className="fixed left-0 right-0 top-0 z-50 h-16 border-b border-slate-200 bg-white/95 backdrop-blur lg:left-72">
       <div className="flex h-full items-center justify-between gap-4 px-4 md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,11 +17,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
 
-interface CreateRoleDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
 const roleSchema = z.object({
   name: z
     .string()
@@ -36,10 +32,19 @@ const roleSchema = z.object({
 
 type RoleFormValues = z.infer<typeof roleSchema>;
 
-export default function CreateRoleDialog({
+interface RoleFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  roleToEdit?: { id: string; name: string; description: string } | null;
+}
+
+export default function RoleFormDialog({
   open,
   onOpenChange,
-}: CreateRoleDialogProps) {
+  roleToEdit,
+}: RoleFormDialogProps) {
+  const isEditMode = !!roleToEdit;
+
   const {
     register,
     handleSubmit,
@@ -54,46 +59,77 @@ export default function CreateRoleDialog({
     },
   });
 
-  const { createRoleMutation, isCreating } = useRole();
+  const { createRoleMutation, isCreating, updateRoleMutation, isUpdating } =
+    useRole();
+
+  useEffect(() => {
+    if (open) {
+      if (roleToEdit) {
+        reset({
+          name: roleToEdit.name,
+          description: roleToEdit.description || "",
+        });
+      } else {
+        reset({ name: "", description: "" });
+      }
+    }
+  }, [open, roleToEdit, reset]);
+  // ====================================================================
 
   const closeAndReset = () => {
-    reset();
+    reset({ name: "", description: "" });
     onOpenChange(false);
   };
 
   const onSubmit = (data: RoleFormValues) => {
-    createRoleMutation.mutate(
-      {
-        payload: {
-          name: data.name,
-          description: data.description,
+    if (isEditMode && roleToEdit) {
+      updateRoleMutation.mutate(
+        {
+          id: roleToEdit.id,
+          payload: {
+            name: data.name,
+            description: data.description,
+          },
         },
-      },
-      {
-        onSuccess: () => {
-          closeAndReset();
+        {
+          onSuccess: () => closeAndReset(),
         },
-      },
-    );
+      );
+    } else {
+      createRoleMutation.mutate(
+        {
+          payload: {
+            name: data.name,
+            description: data.description,
+          },
+        },
+        {
+          onSuccess: () => closeAndReset(),
+        },
+      );
+    }
   };
+
+  const isLoading = isCreating || isUpdating;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) {
-          closeAndReset();
-        } else {
-          onOpenChange(next);
-        }
+        if (!next) closeAndReset();
+        else onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm [&>button]:hidden">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
-            <DialogTitle>Create New Role</DialogTitle>
+            <DialogTitle>
+              {isEditMode ? "Edit Role Info" : "Create New Role"}
+            </DialogTitle>
             <DialogDescription>
-              Create a new role and assign permissions later.
+              {isEditMode
+                ? "Update the name and description of this role."
+                : "Create a new role and assign permissions later."}
             </DialogDescription>
           </DialogHeader>
 
@@ -102,14 +138,12 @@ export default function CreateRoleDialog({
               <Label htmlFor="name">
                 Role Name <span className="text-red-500">*</span>
               </Label>
-
               <Input
                 id="name"
                 placeholder="e.g. Content Auditor"
                 className="bg-slate-50"
                 {...register("name")}
               />
-
               {errors.name && (
                 <p className="mt-1 text-sm text-red-500">
                   {errors.name.message}
@@ -119,7 +153,6 @@ export default function CreateRoleDialog({
 
             <Field>
               <Label htmlFor="description">Description</Label>
-
               <textarea
                 id="description"
                 rows={4}
@@ -127,7 +160,6 @@ export default function CreateRoleDialog({
                 className="w-full rounded-md border bg-slate-50 p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                 {...register("description")}
               />
-
               {errors.description && (
                 <p className="mt-1 text-sm text-red-500">
                   {errors.description.message}
@@ -137,16 +169,27 @@ export default function CreateRoleDialog({
           </FieldGroup>
 
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={closeAndReset}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeAndReset}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
 
             <Button
               type="submit"
-              disabled={isCreating || !isValid}
+              disabled={isLoading || !isValid}
               className="cursor-pointer"
             >
-              {isCreating ? "Creating..." : "Create Role"}
+              {isLoading
+                ? isEditMode
+                  ? "Saving..."
+                  : "Creating..."
+                : isEditMode
+                  ? "Save Changes"
+                  : "Create Role"}
             </Button>
           </DialogFooter>
         </form>
