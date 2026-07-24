@@ -52,8 +52,6 @@ export class PermissionsService {
       ),
     );
 
-    console.log(permissions);
-
     return permissions;
   }
 }

@@ -4,7 +4,7 @@ import { RoleService } from "../services/role.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "@/app/utils/error.util";
 
-export const useRole = (page?: number, limit?: number) => {
+export const useRole = (page?: number, limit?: number, all?: boolean) => {
   const qc = useQueryClient();
 
   const createRole = useMutation({
@@ -45,7 +45,7 @@ export const useRole = (page?: number, limit?: number) => {
       return RoleService.deleteRoles(roleIds);
     },
     onSuccess: async () => {
-      toast.success("Role updated successfully");
+      toast.success("Roles deleted");
 
       await qc.invalidateQueries({ queryKey: ["roles"] });
     },
@@ -62,7 +62,8 @@ export const useRole = (page?: number, limit?: number) => {
     refetch,
   } = useQuery({
     queryKey: ["roles", page, limit],
-    queryFn: () => RoleService.findAllRoles(page, limit),
+    queryFn: () => RoleService.findAllRoles(page, limit, all),
+    placeholderData: (prev) => prev,
   });
 
   return {

@@ -1,7 +1,12 @@
 import { ConfigService } from '@nestjs/config';
-import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+
+interface RoleWithPermissions {
+  name: string;
+  permissions: { name: string }[];
+}
 
 @Injectable()
 export class JwtUtils {
@@ -10,15 +15,31 @@ export class JwtUtils {
     private jwtService: JwtService,
     private prisma: PrismaService,
   ) {}
+
   async generateTokens(
     userId: string,
     email: string,
+    username: string,
+    roles: RoleWithPermissions[],
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = {
+    const roleNames = roles.map((role) => role.name);
+    const permissions = Array.from(
+      new Set(roles.flatMap((role) => role.permissions.map((p) => p.name))),
+    );
+
+    const accessPayload = {
       sub: userId,
       email,
+      username,
+      roles: roleNames,
+      permissions,
+    };
+
+    // refresh token nên gọn nhất có thể, không cần permissions
+    const refreshPayload = {
+      sub: userId,
     };
 
     const jwtSecret = this.configService.get<string>('config.jwt.secret') || '';
@@ -27,12 +48,12 @@ export class JwtUtils {
     const refreshExpiresIn =
       this.configService.get('config.jwt.refreshExpiresIn', '7d') ?? '7d';
 
-    const accessToken = this.jwtService.sign(payload, {
+    const accessToken = this.jwtService.sign(accessPayload, {
       secret: jwtSecret,
       expiresIn: this.configService.get('config.jwt.expiresIn', '15m'),
     });
 
-    const refreshToken = this.jwtService.sign(payload, {
+    const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: refreshSecret,
       expiresIn: refreshExpiresIn,
     });
