@@ -5,6 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -192,6 +193,11 @@ export class AuthService {
     const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
+      user.username,
+      user.userRoles.map((ur) => ({
+        name: ur.role.name,
+        permissions: ur.role.rolePermissions.map((rp) => rp.permission),
+      })),
       userAgent,
       ipAddress,
     );
@@ -291,6 +297,11 @@ export class AuthService {
     const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
+      user.username,
+      user.userRoles.map((ur) => ({
+        name: ur.role.name,
+        permissions: ur.role.rolePermissions.map((rp) => rp.permission),
+      })),
       userAgent,
       ipAddress,
     );
@@ -374,6 +385,11 @@ export class AuthService {
     const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
+      user.username,
+      user.userRoles.map((ur) => ({
+        name: ur.role.name,
+        permissions: ur.role.rolePermissions.map((rp) => rp.permission),
+      })),
       tokenDoc.userAgent ?? undefined,
       tokenDoc.ipAddress ?? undefined,
     );
@@ -412,13 +428,31 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return this.otherUtils.transformUser(user);
+    return {
+      user: this.otherUtils.transformUser(user),
+      roles: this.otherUtils.transformRoles(user),
+    };
   }
 
   async updateProfile(
@@ -946,11 +980,28 @@ export class AuthService {
     return this.otherUtils.transformUser(user);
   }
 
+  private readonly userWithRolesInclude = {
+    userRoles: {
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    },
+  } as const;
+
   async googleLogin(googleUser: any, ipAddress: string, userAgent: string) {
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: googleUser.email }],
       },
+      include: this.userWithRolesInclude,
     });
 
     if (user && user.status !== UserStatus.ACTIVE) {
@@ -976,6 +1027,7 @@ export class AuthService {
       });
     }
 
+    // User đã tồn tại và đã link Google -> login bình thường
     if (user && user.googleId) {
       if (
         googleUser.picture &&
@@ -988,12 +1040,18 @@ export class AuthService {
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: { avatarUrl },
+          include: this.userWithRolesInclude,
         });
       }
 
       const tokens = await this.jwtUtils.generateTokens(
         user.id,
         user.email,
+        user.username,
+        user.userRoles.map((ur) => ({
+          name: ur.role.name,
+          permissions: ur.role.rolePermissions.map((rp) => rp.permission),
+        })),
         userAgent,
         ipAddress,
       );
@@ -1010,6 +1068,7 @@ export class AuthService {
       };
     }
 
+    // User chưa tồn tại -> tạo mới, gán role mặc định
     const baseUsername = googleUser.email.split('@')[0];
     let username = baseUsername;
     let counter = 1;
@@ -1019,41 +1078,63 @@ export class AuthService {
       counter++;
     }
 
-    user = await this.prisma.user.create({
+    const defaultRole = await this.prisma.role.findUnique({
+      where: { name: 'user' },
+    });
+
+    if (!defaultRole) {
+      throw new InternalServerErrorException(
+        'Default role "user" is not configured',
+      );
+    }
+
+    let newUser = await this.prisma.user.create({
       data: {
         email: googleUser.email,
-        username: username,
+        username,
         googleId: googleUser.googleId,
         avatarUrl: null,
         verified: true,
         displayName: username,
+        userRoles: {
+          create: {
+            roleId: defaultRole.id,
+          },
+        },
       },
+      include: this.userWithRolesInclude,
     });
 
     if (googleUser.picture) {
       const avatarUrl = await this.importGoogleAvatar(
         googleUser.picture,
-        user.id,
+        newUser.id,
       );
-      user = await this.prisma.user.update({
-        where: { id: user.id },
+      newUser = await this.prisma.user.update({
+        where: { id: newUser.id },
         data: { avatarUrl },
+        include: this.userWithRolesInclude,
       });
     }
 
     const tokens = await this.jwtUtils.generateTokens(
-      user.id,
-      user.email,
+      newUser.id,
+      newUser.email,
+      newUser.username,
+      newUser.userRoles.map((ur) => ({
+        name: ur.role.name,
+        permissions: ur.role.rolePermissions.map((rp) => rp.permission),
+      })),
       userAgent,
       ipAddress,
     );
 
     return {
       user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatarUrl: user.avatarUrl,
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        avatarUrl: newUser.avatarUrl,
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

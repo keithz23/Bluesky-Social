@@ -25,10 +25,18 @@ export interface User {
   refreshToken?: string;
 }
 
+export interface Roles {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
   user: User;
+  roles: Roles[];
 }
 
 export type Login2FARequiredResponse = {

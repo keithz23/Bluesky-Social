@@ -14,4 +14,8 @@ export class RoleQueryDto {
   @IsInt()
   @Min(1)
   page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  all?: boolean;
 }

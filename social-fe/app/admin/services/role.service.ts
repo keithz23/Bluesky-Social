@@ -19,11 +19,17 @@ export const RoleService = {
     });
   },
 
-  findAllRoles: async (page: number = 1, limit: number = 20) => {
+  findAllRoles: async (
+    page: number = 1,
+    limit: number = 20,
+    all: boolean = false,
+  ) => {
     const params = new URLSearchParams();
 
     params.set("page", page.toString());
     params.set("limit", limit.toString());
+
+    if (all) params.append("all", "true");
 
     return apiClient.getPaginated(
       `${ADMIN_API_ENDPOINT.ROLES.FIND_ALL}?${params.toString()}`,
