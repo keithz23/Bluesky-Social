@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Pen, Plus, Trash, Users, ShieldAlert } from "lucide-react";
+import { Pen, Plus, Trash, Users, ShieldAlert, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { ColumnDef } from "../../interfaces/column.interface";
 import { Badge } from "@/components/ui/badge";
@@ -19,17 +19,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function UsersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const { userData, isUserLoading, deleteUsersMutation, isDeleting } = useUser(
     page,
     limit,
   );
+
   const userList = (userData?.data ?? []) as any[];
   const meta = userData?.meta ?? { total: 0, totalPages: 1 };
   const [userToEditInfo, setUserToEditInfo] = useState<any | null>(null);
@@ -48,6 +59,9 @@ export default function UsersPage() {
 
   const totalItems = meta.total;
   const totalPages = meta.totalPages;
+
+  const startItem = totalItems === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = Math.min(page * limit, totalItems);
 
   const handleSelectRow = (userId: string, checked: boolean) => {
     if (checked) {
@@ -177,6 +191,15 @@ export default function UsersPage() {
     },
   ];
 
+  const items = [
+    { label: "Select a fruit", value: null },
+    { label: "Apple", value: "apple" },
+    { label: "Banana", value: "banana" },
+    { label: "Blueberry", value: "blueberry" },
+    { label: "Grapes", value: "grapes" },
+    { label: "Pineapple", value: "pineapple" },
+  ];
+
   const changePage = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(newPage));
@@ -185,10 +208,19 @@ export default function UsersPage() {
     setSelectedUserIds([]);
   };
 
+  const changeLimit = (newLimit: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("limit", String(newLimit));
+    params.set("page", "1");
+    router.push(`${pathname}?${params}`);
+    setLimit(newLimit);
+    setPage(1);
+  };
+
   return (
     <>
       <div className="w-full h-[85vh] overflow-hidden flex flex-col bg-gray-50/50">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 shrink-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Users className="w-6 h-6 text-blue-600 shrink-0" />
@@ -221,7 +253,54 @@ export default function UsersPage() {
             )}
           </div>
         </div>
+        <Separator />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-5 shrink-0">
+          <div className="flex items-center gap-3">
+            <Select items={items}>
+              <SelectTrigger className="w-full max-w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Fruits</SelectLabel>
+                  {items.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
 
+            <Select items={items}>
+              <SelectTrigger className="w-full max-w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Fruits</SelectLabel>
+                  {items.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            <Button variant={"ghost"}>
+              <RotateCcw size={5} />
+              Clear
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Showing{" "}
+            <span className="font-medium">
+              {startItem}–{endItem}
+            </span>{" "}
+            of <span className="font-medium">{totalItems}</span> users
+          </p>
+        </div>
         <DataTable
           tableName="users"
           data={userList}
@@ -232,6 +311,7 @@ export default function UsersPage() {
           totalItems={totalItems}
           totalPages={totalPages}
           changePage={changePage}
+          changeLimit={changeLimit}
           enableSelection={canDelete}
           selectedIds={selectedUserIds}
           isAllSelected={isAllSelected}

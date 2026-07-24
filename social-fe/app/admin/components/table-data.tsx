@@ -13,6 +13,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ColumnDef } from "../interfaces/column.interface";
 import { getPaginationRange } from "@/app/utils/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DataTableProps<T> {
   data: T[];
@@ -25,6 +34,7 @@ interface DataTableProps<T> {
   totalItems: number;
   totalPages: number;
   changePage: (page: number) => void;
+  changeLimit: (limit: number) => void;
 
   enableSelection?: boolean;
   selectedIds?: string[];
@@ -46,6 +56,7 @@ export default function DataTable<T extends Record<string, any>>({
   totalItems,
   totalPages,
   changePage,
+  changeLimit,
   enableSelection = false,
   selectedIds = [],
   onSelectRow,
@@ -166,13 +177,26 @@ export default function DataTable<T extends Record<string, any>>({
 
         {/* --- PAGINATION --- */}
         <div className="flex shrink-0 flex-col sm:flex-row items-center justify-between border-t bg-white px-6 py-4 gap-4 z-20">
-          <p className="text-sm text-muted-foreground">
-            Showing{" "}
-            <span className="font-medium">
-              {startItem}–{endItem}
-            </span>{" "}
-            of <span className="font-medium">{totalItems}</span> {tableName}
-          </p>
+          <div className="flex items-center gap-x-2">
+            <span className="text-nowrap">Rows per page</span>
+            <Select
+              value={String(limit)}
+              onValueChange={(value) => {
+                changeLimit(Number(value));
+              }}
+            >
+              <SelectTrigger className="w-full max-w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
