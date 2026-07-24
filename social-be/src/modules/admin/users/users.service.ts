@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -118,8 +119,19 @@ export class UsersService {
     return safeUser;
   }
 
-  async update(userId: string, updateUserDto: UpdateUserDto) {
+  async update(
+    currentUserId: string,
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ) {
     const { username, email, dateOfBirth, roleIds, status } = updateUserDto;
+
+    if (
+      currentUserId === userId &&
+      (roleIds !== undefined || status !== undefined)
+    ) {
+      throw new ForbiddenException('Cannot change your own role or status');
+    }
 
     if (roleIds?.length) {
       const validRoleCount = await this.prisma.role.count({
@@ -166,11 +178,16 @@ export class UsersService {
     }
   }
 
-  async delete(deleteUserDto: DeleteUserDto) {
+  async delete(currentUserId: string, deleteUserDto: DeleteUserDto) {
     const { userIds } = deleteUserDto;
     if (!userIds?.length) {
       throw new BadRequestException('userIds is required');
     }
+
+    if (userIds.includes(currentUserId)) {
+      throw new ForbiddenException('Cannot delete your own account');
+    }
+
     const result = await this.prisma.user.deleteMany({
       where: { id: { in: userIds } },
     });

@@ -1,12 +1,24 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Pen, Plus, Users } from "lucide-react";
+import { Pen, Plus, Trash, Users, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { ColumnDef } from "../../interfaces/column.interface";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "../../hooks/use-user";
 import DataTable from "../../components/table-data";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useAuthStore } from "@/app/store/use-auth.store";
+import UserFormDialog from "../../components/dialogs/user-form-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function UsersPage() {
   const router = useRouter();
@@ -14,28 +26,104 @@ export default function UsersPage() {
   const pathname = usePathname();
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const { userData, isUserLoading } = useUser(page, limit);
+  const { userData, isUserLoading, deleteUsersMutation, isDeleting } = useUser(
+    page,
+    limit,
+  );
   const userList = (userData?.data ?? []) as any[];
   const meta = userData?.meta ?? { total: 0, totalPages: 1 };
+  const [userToEditInfo, setUserToEditInfo] = useState<any | null>(null);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const currentUserId = useAuthStore((state) => state.id);
+  const permissions = useAuthStore((state) => state.permissions) || [];
+
+  const canCreate = permissions?.includes("user:create") || false;
+  const canUpdate = permissions?.includes("user:update") || false;
+  const canDelete = permissions?.includes("user:delete") || false;
+
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const totalItems = meta.total;
   const totalPages = meta.totalPages;
+
+  const handleSelectRow = (userId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds((prev) => [...prev, userId]);
+    } else {
+      setSelectedUserIds((prev) => prev.filter((id) => id !== userId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    const selectablePageIds = userList
+      .map((user) => user.id)
+      .filter((id) => id !== currentUserId);
+
+    if (checked) {
+      setSelectedUserIds((prev) =>
+        Array.from(new Set([...prev, ...selectablePageIds])),
+      );
+    } else {
+      setSelectedUserIds((prev) =>
+        prev.filter((id) => !selectablePageIds.includes(id)),
+      );
+    }
+  };
+
+  const selectablePageIds = userList
+    .map((user) => user.id)
+    .filter((id) => id !== currentUserId);
+
+  const isAllSelected =
+    selectablePageIds.length > 0 &&
+    selectablePageIds.every((id) => selectedUserIds.includes(id));
+
+  const handleOpenCreate = () => {
+    setUserToEditInfo(null);
+    setIsFormDialogOpen(true);
+  };
+
+  const handleOpenEdit = (user: any) => {
+    setUserToEditInfo(user);
+    setIsFormDialogOpen(true);
+  };
+
+  const handleDelete = () => {
+    deleteUsersMutation.mutate(
+      { userIds: selectedUserIds },
+      {
+        onSuccess: () => {
+          setSelectedUserIds([]);
+          setIsDeleteDialogOpen(false);
+        },
+      },
+    );
+  };
+
   const columns: ColumnDef<any>[] = [
     {
       header: "Username",
       cell: (user) => (
-        <>
+        <div className="flex items-center gap-2">
           <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate">
             {user.username}
           </div>
-        </>
+          {user.id === currentUserId && (
+            <Badge variant="outline" className="text-xs shrink-0 bg-gray-50">
+              You
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
       header: "Email",
       className: "whitespace-nowrap",
       cell: (user) => (
-        <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate">
+        <div className="text-gray-600 max-w-50 md:max-w-xs truncate">
           {user.email}
         </div>
       ),
@@ -44,38 +132,59 @@ export default function UsersPage() {
       header: "Roles",
       className: "whitespace-nowrap",
       cell: (user) => (
-        <Badge
-          variant="secondary"
-          className="bg-blue-50 text-blue-700 border-blue-200"
-        >
-          {user.userRoles.map((ur) => ur.role.name)}
-        </Badge>
+        <div className="flex flex-wrap gap-1">
+          {user.userRoles?.map((ur: { role: { id: string; name: string } }) => (
+            <Badge
+              key={ur.role.id}
+              variant="secondary"
+              className="bg-blue-50 text-blue-700 border-blue-200 font-normal"
+            >
+              {ur.role.name}
+            </Badge>
+          ))}
+          {(!user.userRoles || user.userRoles.length === 0) && (
+            <span className="text-gray-400 text-sm italic">No roles</span>
+          )}
+        </div>
       ),
     },
     {
       header: "Actions",
       className: "text-right whitespace-nowrap",
-      cell: (user) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-gray-600 border-gray-200 hover:bg-gray-100"
-            // onClick={() => handleOpenEdit(role)}
-            title="Edit User Info"
-          >
-            <Pen className="w-4 h-4" />
-          </Button>
-        </div>
-      ),
+      cell: (user) => {
+        const isSelf = user.id === currentUserId;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            {canUpdate && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
+                disabled={isSelf}
+                onClick={() => handleOpenEdit(user)}
+                title={
+                  isSelf
+                    ? "Cannot change your own role or user info"
+                    : "Edit User Info"
+                }
+              >
+                <Pen className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
+
   const changePage = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(newPage));
     router.push(`${pathname}?${params}`);
     setPage(newPage);
+    setSelectedUserIds([]);
   };
+
   return (
     <>
       <div className="w-full h-[85vh] overflow-hidden flex flex-col bg-gray-50/50">
@@ -90,22 +199,26 @@ export default function UsersPage() {
             </p>
           </div>
           <div className="flex items-center gap-x-3">
-            {/* {selectedRoleIds.length > 0 && (
+            {canDelete && selectedUserIds.length > 0 && (
               <Button
-                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white shadow-sm rounded-md transition-all cursor-pointer"
+                variant="destructive"
+                className="w-full sm:w-auto shadow-sm cursor-pointer rounded-md transition-all"
                 onClick={() => setIsDeleteDialogOpen(true)}
+                disabled={isDeleting}
               >
                 <Trash className="w-4 h-4 mr-2 shrink-0" /> Delete (
-                {selectedRoleIds.length})
+                {selectedUserIds.length})
               </Button>
-            )} */}
+            )}
 
-            <Button
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer rounded-md"
-              //   onClick={handleOpenCreate}
-            >
-              <Plus className="w-4 h-4 mr-2 shrink-0" /> Create New User
-            </Button>
+            {canCreate && (
+              <Button
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer rounded-md"
+                onClick={handleOpenCreate}
+              >
+                <Plus className="w-4 h-4 mr-2 shrink-0" /> Create New User
+              </Button>
+            )}
           </div>
         </div>
 
@@ -114,20 +227,60 @@ export default function UsersPage() {
           data={userList}
           columns={columns}
           isLoading={isUserLoading}
-          // Pagination
           page={page}
           limit={limit}
           totalItems={totalItems}
           totalPages={totalPages}
           changePage={changePage}
-          // Select
-          enableSelection={true}
-          //   selectedIds={selectedRoleIds}
-          //   isAllSelected={isAllSelected}
-          //   onSelectRow={handleSelectRole}
-          //   onSelectAll={handleSelectAll}
+          enableSelection={canDelete}
+          selectedIds={selectedUserIds}
+          isAllSelected={isAllSelected}
+          onSelectRow={handleSelectRow}
+          onSelectAll={handleSelectAll}
+          disabledRowIds={currentUserId ? [currentUserId] : []}
         />
       </div>
+
+      <UserFormDialog
+        open={isFormDialogOpen}
+        onOpenChange={setIsFormDialogOpen}
+        userToEdit={userToEditInfo}
+      />
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5" />
+              Confirm Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the{" "}
+              <strong>{selectedUserIds.length}</strong> selected user(s)? This
+              action cannot be undone, and all associated data for these users
+              might be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

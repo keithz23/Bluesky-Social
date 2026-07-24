@@ -25,7 +25,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      setAuth(res.accessToken, res.user.username, res.user.email ?? "");
+      const roleNames = res.roles.map((role) => role.name);
+      const allPermissions = Array.from(
+        new Set(res.roles.flatMap((role) => role.permissions)),
+      );
+
+      setAuth(
+        res.accessToken,
+        res.user.id,
+        res.user.username,
+        res.user.email ?? "",
+        roleNames,
+        allPermissions,
+      );
       queryClient.setQueryData(["me"], res.user);
     } catch {
       clearAuth();

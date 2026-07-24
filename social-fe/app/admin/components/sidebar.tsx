@@ -9,7 +9,6 @@ import {
   Flag,
   Gavel,
   Home,
-  KeyRound,
   ListChecks,
   LucideIcon,
   MessageSquareWarning,
@@ -19,11 +18,13 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import { useAuthStore } from "@/app/store/use-auth.store";
 
 export interface AdminNavItem {
   icon: LucideIcon;
   label: string;
   href: string;
+  permission?: string | string[];
 }
 
 export interface AdminNavGroup {
@@ -36,23 +37,58 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "Overview",
     items: [
       { icon: Home, label: "Dashboard", href: "/admin/dashboard" },
-      { icon: BarChart3, label: "Analytics", href: "/admin/analytics" },
+      {
+        icon: BarChart3,
+        label: "Analytics",
+        href: "/admin/analytics",
+        permission: "system:read",
+      },
     ],
   },
   {
     label: "Community",
     items: [
-      { icon: UsersRound, label: "Users", href: "/admin/users" },
-      { icon: MessageSquareWarning, label: "Posts", href: "/admin/posts" },
-      { icon: Flag, label: "Reports", href: "/admin/reports" },
-      { icon: Gavel, label: "Moderation", href: "/admin/moderation" },
+      {
+        icon: UsersRound,
+        label: "Users",
+        href: "/admin/users",
+        permission: "user:read",
+      },
+      {
+        icon: MessageSquareWarning,
+        label: "Posts",
+        href: "/admin/posts",
+        permission: "post:read",
+      },
+      {
+        icon: Flag,
+        label: "Reports",
+        href: "/admin/reports",
+        permission: "report:read",
+      },
+      {
+        icon: Gavel,
+        label: "Moderation",
+        href: "/admin/moderation",
+        permission: "report:resolve",
+      },
     ],
   },
   {
     label: "Policy",
     items: [
-      { icon: BookOpenCheck, label: "Rules", href: "/admin/rules" },
-      { icon: FileWarning, label: "Keywords", href: "/admin/keywords" },
+      {
+        icon: BookOpenCheck,
+        label: "Rules",
+        href: "/admin/rules",
+        permission: "system:update",
+      },
+      {
+        icon: FileWarning,
+        label: "Keywords",
+        href: "/admin/keywords",
+        permission: "system:update",
+      },
     ],
   },
   {
@@ -62,15 +98,49 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         icon: ShieldCheck,
         label: "Roles & Permissions",
         href: "/admin/roles-permissions",
+        permission: "role:read",
       },
-      { icon: ScrollText, label: "Audit logs", href: "/admin/audit-logs" },
-      { icon: Settings, label: "Settings", href: "/admin/settings" },
+      {
+        icon: ScrollText,
+        label: "Audit logs",
+        href: "/admin/audit-logs",
+        permission: "system:read",
+      },
+      {
+        icon: Settings,
+        label: "Settings",
+        href: "/admin/settings",
+        permission: "system:update",
+      },
     ],
   },
 ];
 
 const isActivePath = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
+
+function hasPermission(
+  item: AdminNavItem,
+  permissions: string[] = [],
+): boolean {
+  if (!item.permission) return true;
+  const required = Array.isArray(item.permission)
+    ? item.permission
+    : [item.permission];
+  return required.every((p) => permissions.includes(p));
+}
+
+function filterNavGroupsByPermissions(
+  groups: AdminNavGroup[],
+  permissions: string[],
+): AdminNavGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasPermission(item, permissions)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
 
 function AdminLogo() {
   return (
@@ -123,10 +193,12 @@ function SidebarNavLink({
 
 function SidebarPanel({
   pathname,
+  navGroups,
   onNavigate,
   onClose,
 }: {
   pathname: string;
+  navGroups: AdminNavGroup[];
   onNavigate: () => void;
   onClose: () => void;
 }) {
@@ -146,7 +218,7 @@ function SidebarPanel({
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <div className="flex flex-col gap-5">
-          {ADMIN_NAV_GROUPS.map((group) => (
+          {navGroups.map((group) => (
             <div key={group.label} className="space-y-1.5">
               <p className="px-3 text-[11px] font-semibold uppercase text-slate-400">
                 {group.label}
@@ -187,12 +259,16 @@ export default function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname() || "";
+  const permissions = useAuthStore((state) => state.permissions);
+
+  const navGroups = filterNavGroupsByPermissions(ADMIN_NAV_GROUPS, permissions);
 
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-200 lg:block">
         <SidebarPanel
           pathname={pathname}
+          navGroups={navGroups}
           onNavigate={onClose}
           onClose={onClose}
         />
@@ -214,6 +290,7 @@ export default function Sidebar({
       >
         <SidebarPanel
           pathname={pathname}
+          navGroups={navGroups}
           onNavigate={onClose}
           onClose={onClose}
         />

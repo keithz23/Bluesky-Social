@@ -1,38 +1,74 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 interface AuthState {
-    accessToken: string | null;
-    username: string | null;
-    email: string | null;
-    isAuthenticated: boolean;
-    setAuth: (token: string, username: string, email: string) => void;
-    clearAuth: () => void;
+  accessToken: string | null;
+  id: string | null;
+  username: string | null;
+  email: string | null;
+  isAuthenticated: boolean;
+  roles: string[];
+  permissions: string[];
+  setAuth: (
+    token: string,
+    id: string,
+    username: string,
+    email: string,
+    roles: string[],
+    permissions: string[],
+  ) => void;
+  clearAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
-    persist(
-        (set) => ({
-            accessToken: null,
-            username: null,
-            email: null,
-            isAuthenticated: false,
+  persist(
+    (set) => ({
+      accessToken: null,
+      id: null,
+      username: null,
+      email: null,
+      isAuthenticated: false,
+      roles: [],
+      permissions: [],
 
-            setAuth: (token, username, email) =>
-                set({ accessToken: token, username, email, isAuthenticated: true }),
-
-            clearAuth: () =>
-                set({ accessToken: null, username: null, email: null, isAuthenticated: false }),
+      setAuth: (token, id, username, email, roles, permissions) =>
+        set({
+          accessToken: token,
+          id,
+          username,
+          email,
+          isAuthenticated: true,
+          roles,
+          permissions,
         }),
-        {
-            name: 'auth-storage',
-            storage: createJSONStorage(() => localStorage),
-            // Chỉ lưu username và email vào LocalStorage, KHÔNG lưu accessToken
-            partialize: (state) => ({
-                username: state.username,
-                email: state.email,
-                isAuthenticated: state.isAuthenticated
-            }),
-        }
-    )
+
+      clearAuth: () =>
+        set({
+          accessToken: null,
+          id: null,
+          username: null,
+          email: null,
+          isAuthenticated: false,
+          roles: [],
+          permissions: [],
+        }),
+    }),
+    {
+      name: "auth-storage",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        id: state.id,
+        username: state.username,
+        email: state.email,
+        isAuthenticated: state.isAuthenticated,
+        roles: state.roles,
+        permissions: state.permissions,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<AuthState>),
+      }),
+    },
+  ),
 );

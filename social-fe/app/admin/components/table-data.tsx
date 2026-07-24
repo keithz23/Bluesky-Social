@@ -33,6 +33,7 @@ interface DataTableProps<T> {
   isAllSelected?: boolean;
 
   getRowId?: (row: T) => string;
+  disabledRowIds?: string[];
 }
 
 export default function DataTable<T extends Record<string, any>>({
@@ -50,6 +51,7 @@ export default function DataTable<T extends Record<string, any>>({
   onSelectRow,
   onSelectAll,
   isAllSelected = false,
+  disabledRowIds = [],
   getRowId = (row) => row.id as string,
 }: DataTableProps<T>) {
   const startItem = totalItems === 0 ? 0 : (page - 1) * limit + 1;
@@ -67,6 +69,12 @@ export default function DataTable<T extends Record<string, any>>({
                   <th className="sticky top-0 z-10 w-12.5 whitespace-nowrap bg-gray-50/90 pl-6 pr-2 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     <Checkbox
                       aria-label={`Select all ${tableName}`}
+                      disabled={
+                        data.length === 0 ||
+                        data.every((row) =>
+                          disabledRowIds.includes(getRowId(row)),
+                        )
+                      }
                       checked={isAllSelected}
                       onCheckedChange={onSelectAll}
                     />
@@ -141,7 +149,6 @@ export default function DataTable<T extends Record<string, any>>({
                           key={colIndex}
                           className={`py-4 px-6 ${col.className || ""}`}
                         >
-                          {/* Ưu tiên gọi hàm custom cell(), nếu không có thì in ra text thuần từ accessorKey */}
                           {col.cell
                             ? col.cell(row)
                             : col.accessorKey

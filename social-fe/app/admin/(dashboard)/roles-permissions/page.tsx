@@ -37,8 +37,10 @@ import { PermissionManager } from "../../components/permission-manager";
 import RoleFormDialog from "../../components/dialogs/role-form-dialog";
 import DataTable from "../../components/table-data";
 import { ColumnDef } from "../../interfaces/column.interface";
+import { useAuthStore } from "@/app/store/use-auth.store";
 
 export default function RolesManagementPage() {
+  const currentUserRoles = useAuthStore((state) => state.roles);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +48,8 @@ export default function RolesManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roleToEditInfo, setRoleToEditInfo] = useState<any | null>(null);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+
+  const isOwnRole = (role: any) => (currentUserRoles ?? []).includes(role.name);
 
   const handleOpenCreate = () => {
     setRoleToEditInfo(null);
@@ -66,6 +70,9 @@ export default function RolesManagementPage() {
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
 
   const handleSelectRole = (roleId: string, checked: boolean) => {
+    const role = rolesList.find((r) => r.id === roleId);
+    if (role && isOwnRole(role)) return;
+
     if (checked) {
       setSelectedRoleIds((prev) => [...prev, roleId]);
     } else {
@@ -219,8 +226,13 @@ export default function RolesManagementPage() {
       header: "Role Details",
       cell: (role) => (
         <>
-          <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate">
+          <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate flex items-center gap-2">
             {role.name}
+            {isOwnRole(role) && (
+              <Badge variant="outline" className="text-xs shrink-0">
+                Your role
+              </Badge>
+            )}
           </div>
           <div className="text-sm text-gray-500 mt-1 max-w-50 md:max-w-xs truncate">
             {role.description}
@@ -253,28 +265,39 @@ export default function RolesManagementPage() {
     {
       header: "Actions",
       className: "text-right whitespace-nowrap",
-      cell: (role) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-gray-600 border-gray-200 hover:bg-gray-100"
-            onClick={() => handleOpenEdit(role)}
-            title="Edit Role Info"
-          >
-            <Pen className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-            onClick={() => openEditSheet(role)}
-            title="Manage Permissions"
-          >
-            <ShieldAlert className="w-4 h-4" />
-          </Button>
-        </div>
-      ),
+      cell: (role) => {
+        const disabled = isOwnRole(role);
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-gray-600 border-gray-200 hover:bg-gray-100"
+              onClick={() => handleOpenEdit(role)}
+              disabled={disabled}
+              title={
+                disabled ? "Cannot edit your current role " : "Edit Role Info"
+              }
+            >
+              <Pen className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => openEditSheet(role)}
+              disabled={disabled}
+              title={
+                disabled
+                  ? "Cannot edit permissions of your current role"
+                  : "Manage Permissions"
+              }
+            >
+              <ShieldAlert className="w-4 h-4" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -317,18 +340,17 @@ export default function RolesManagementPage() {
         data={rolesList}
         columns={columns}
         isLoading={isLoading}
-        // Pagination
         page={page}
         limit={limit}
         totalItems={totalItems}
         totalPages={totalPages}
         changePage={changePage}
-        // Select
         enableSelection={true}
         selectedIds={selectedRoleIds}
         isAllSelected={isAllSelected}
         onSelectRow={handleSelectRole}
         onSelectAll={handleSelectAll}
+        disabledRowIds={rolesList.filter(isOwnRole).map((r) => r.id)}
       />
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

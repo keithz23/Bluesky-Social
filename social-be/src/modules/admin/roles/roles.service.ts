@@ -7,13 +7,14 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { RoleQueryDto } from './dto/role-query,dto';
+import { RoleQueryDto } from './dto/role-query.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { DeleteRoleDto } from './dto/delete-role.dto';
 
 @Injectable()
 export class RolesService {
   constructor(private prisma: PrismaService) {}
+  private readonly PROTECTED_ROLE_NAMES = ['super_admin', 'admin', 'user'];
 
   async create(createRoleDto: CreateRoleDto) {
     const { name, description } = createRoleDto;
@@ -36,29 +37,44 @@ export class RolesService {
   async findAll(roleQueryDto: RoleQueryDto) {
     const limit = roleQueryDto.limit ?? 20;
     const page = roleQueryDto.page ?? 1;
+    const all = roleQueryDto.all ?? false;
 
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(Math.max(1, limit), 50);
     const skip = PaginationUtil.getSkip(safePage, safeLimit);
+
+    const roleInclude = {
+      _count: {
+        select: {
+          userRoles: true,
+          rolePermissions: true,
+        },
+      },
+      rolePermissions: {
+        include: {
+          permission: true,
+        },
+      },
+    };
+
+    if (all || limit === -1) {
+      const rolesData = await this.prisma.role.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: roleInclude,
+      });
+
+      return PaginationUtil.paginate(rolesData, rolesData.length, {
+        page: 1,
+        limit: rolesData.length || 1,
+      });
+    }
 
     const [rolesData, total] = await Promise.all([
       this.prisma.role.findMany({
         skip,
         take: safeLimit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: {
-              userRoles: true,
-              rolePermissions: true,
-            },
-          },
-          rolePermissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
+        include: roleInclude,
       }),
       this.prisma.role.count(),
     ]);
@@ -70,24 +86,23 @@ export class RolesService {
   }
 
   async findOne(roleId: string) {
-    return await this.prisma.$transaction(async (tx) => {
-      const role = await tx.role.findUnique({
-        where: { id: roleId },
-        include: {
-          rolePermissions: true,
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        rolePermissions: {
+          include: { permission: true },
         },
-      });
-
-      const permissionIds = role?.rolePermissions.map((rp) => rp.permissionId);
-
-      const permissions = await tx.permission.findMany({
-        where: {
-          id: { in: permissionIds },
-        },
-      });
-
-      return { role, permissions };
+      },
     });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return {
+      ...role,
+      permissions: role.rolePermissions.map((rp) => rp.permission),
+    };
   }
 
   async update(roleId: string, updateRoleDto: UpdateRoleDto) {
@@ -113,6 +128,28 @@ export class RolesService {
 
   async delete(deleteRoleDto: DeleteRoleDto) {
     const { roleIds } = deleteRoleDto;
+
+    const roles = await this.prisma.role.findMany({
+      where: { id: { in: roleIds } },
+      include: { _count: { select: { userRoles: true } } },
+    });
+
+    const protectedRole = roles.find((r) =>
+      this.PROTECTED_ROLE_NAMES.includes(r.name),
+    );
+    if (protectedRole) {
+      throw new ConflictException(
+        `Cannot delete system role "${protectedRole.name}"`,
+      );
+    }
+
+    const roleInUse = roles.find((r) => r._count.userRoles > 0);
+    if (roleInUse) {
+      throw new ConflictException(
+        `Role "${roleInUse.name}" is still assigned to users`,
+      );
+    }
+
     return await this.prisma.role.deleteMany({
       where: { id: { in: roleIds } },
     });
