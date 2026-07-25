@@ -29,9 +29,16 @@ export function useAuth() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
-  const applyAuthenticatedSession = async (data: AuthResponse) => {
+  const applyAuthenticatedSession = async (data: Partial<AuthResponse>) => {
     clearAuthLogoutLock();
-    setAuth(data.accessToken, data.user.username, data.user.email || "");
+    setAuth(
+      data.accessToken!,
+      data.user!.id,
+      data.user!.username,
+      data.user!.email || "",
+      (data.roles ?? []).map((role) => role.name),
+      (data.roles ?? []).flatMap((role) => role.permissions),
+    );
     qc.setQueryData(["me"], data.user);
     await qc.invalidateQueries({ queryKey: ["me"] });
   };
@@ -178,12 +185,15 @@ export function useAuth() {
         updateProfileData.avatarFile || updateProfileData.coverFile,
       );
       setProfileUploadProgress(hasUpload ? 0 : null);
-      const res = await AuthService.updateProfile(updateProfileData, (event) => {
-        if (!event.total) return;
-        setProfileUploadProgress(
-          Math.min(99, Math.round((event.loaded / event.total) * 100)),
-        );
-      });
+      const res = await AuthService.updateProfile(
+        updateProfileData,
+        (event) => {
+          if (!event.total) return;
+          setProfileUploadProgress(
+            Math.min(99, Math.round((event.loaded / event.total) * 100)),
+          );
+        },
+      );
       setProfileUploadProgress(hasUpload ? 100 : null);
       return res;
     },
