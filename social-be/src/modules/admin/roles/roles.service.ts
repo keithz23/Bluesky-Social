@@ -34,10 +34,10 @@ export class RolesService {
     }
   }
 
-  async findAll(roleQueryDto: RoleQueryDto) {
-    const limit = roleQueryDto.limit ?? 20;
-    const page = roleQueryDto.page ?? 1;
-    const all = roleQueryDto.all ?? false;
+  async findAll(query: RoleQueryDto) {
+    const limit = query.limit ?? 20;
+    const page = query.page ?? 1;
+    const sort = query.sort ?? 'all';
 
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(Math.max(1, limit), 100);
@@ -57,9 +57,26 @@ export class RolesService {
       },
     };
 
-    if (all || limit === -1) {
+    const where: Prisma.RoleWhereInput = {};
+    if (query.search) {
+      where.name = {
+        contains: query.search,
+        mode: 'insensitive',
+      };
+    }
+
+    let orderBy: Prisma.RoleOrderByWithRelationInput = { createdAt: 'desc' };
+
+    if (query.sort === 'asc') {
+      orderBy = { name: 'asc' }; // A-Z
+    } else if (query.sort === 'desc') {
+      orderBy = { name: 'desc' }; // Z-A
+    }
+
+    if (sort === 'all' || limit === -1) {
       const rolesData = await this.prisma.role.findMany({
-        orderBy: { createdAt: 'desc' },
+        where,
+        orderBy,
         include: roleInclude,
       });
 
@@ -71,12 +88,15 @@ export class RolesService {
 
     const [rolesData, total] = await Promise.all([
       this.prisma.role.findMany({
+        where,
         skip,
         take: safeLimit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: roleInclude,
       }),
-      this.prisma.role.count(),
+      this.prisma.role.count({
+        where,
+      }),
     ]);
 
     return PaginationUtil.paginate(rolesData, total, {

@@ -7,7 +7,6 @@ import { extractErrMsg } from "@/app/utils/error.util";
 export const useRole = (
   page?: number,
   limit?: number,
-  all?: boolean,
   search?: string,
   sort?: string,
 ) => {
@@ -68,7 +67,7 @@ export const useRole = (
     refetch,
   } = useQuery({
     queryKey: ["roles", page, limit, search, sort],
-    queryFn: () => RoleService.findAll(page, limit, search, sort),
+    queryFn: () => RoleService.findAllRoles(page, limit, search, sort),
     placeholderData: (prev) => prev,
   });
 

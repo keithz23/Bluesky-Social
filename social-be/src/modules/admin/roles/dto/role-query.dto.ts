@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class RoleQueryDto {
   @IsOptional()
@@ -16,6 +23,15 @@ export class RoleQueryDto {
   page?: number = 1;
 
   @IsOptional()
+  @IsString()
+  sort?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
   @Type(() => Boolean)
+  @IsBoolean()
   all?: boolean;
 }

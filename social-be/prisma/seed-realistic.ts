@@ -16,7 +16,7 @@ const envInt = (name: string, fallback: number) => {
 
 const config = {
   runId: process.env.REALISTIC_RUN_ID ?? Date.now().toString(36),
-  users: envInt('REALISTIC_USERS', 5000),
+  users: envInt('REALISTIC_USERS', 10),
   postsPerUser: envInt('REALISTIC_POSTS_PER_USER', 20),
   followsPerUser: envInt('REALISTIC_FOLLOWS_PER_USER', 10),
   batchSize: envInt('REALISTIC_BATCH_SIZE', 500),

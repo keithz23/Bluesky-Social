@@ -1,9 +1,8 @@
 Client (Next.js) ←→ REST API (NestJS Controller) ←→ Service ←→ Prisma ←→ PostgreSQL
-       ↕                                                ↑
-  Socket.IO Client ←→ WebSocket Gateway (NestJS) ———————┘
+↕ ↑
+Socket.IO Client ←→ WebSocket Gateway (NestJS) ———————┘
 
-Client emit 'send-message'  →  Gateway nhận  →  Service tạo DB record  →  Gateway broadcast 'new-message'
-
+Client emit 'send-message' → Gateway nhận → Service tạo DB record → Gateway broadcast 'new-message'
 
 Nguyên tắc thiết kế:
 
@@ -20,54 +19,53 @@ MessageDeletedFor: Cho phép xóa tin nhắn chỉ cho 1 user mà không ảnh h
 
 // Transaction pattern: nhiều operations phải atomic
 await this.prisma.$transaction(async (tx) => {
-  // 1. Tạo message
-  const message = await tx.message.create({ ... });
-  // 2. Update lastMessage trên conversation
-  await tx.conversation.update({ ... });
-  // 3. Increment unreadCount cho participants khác
-  await tx.conversationParticipant.updateMany({ ... });
-  return message;
+// 1. Tạo message
+const message = await tx.message.create({ ... });
+// 2. Update lastMessage trên conversation
+await tx.conversation.update({ ... });
+// 3. Increment unreadCount cho participants khác
+await tx.conversationParticipant.updateMany({ ... });
+return message;
 });
 
 const conversations = await this.prisma.conversation.findMany({
-  where: {
-    ...(query.cursor && { id: { lt: query.cursor } }),  // cursor condition
-  },
-  take: limit + 1,  // Lấy thêm 1 để biết hasMore
+where: {
+...(query.cursor && { id: { lt: query.cursor } }), // cursor condition
+},
+take: limit + 1, // Lấy thêm 1 để biết hasMore
 });
 const hasMore = conversations.length > limit;
-if (hasMore) conversations.pop();  // Bỏ item thừa
+if (hasMore) conversations.pop(); // Bỏ item thừa
 const nextCursor = hasMore ? conversations[conversations.length - 1].id : null;
-
 
 // Thêm message mới vào cache ngay lập tức (optimistic-like)
 queryClient.setQueryData(["messages", conversationId], (old) => {
-  const pages = [...old.pages];
-  pages[0] = { ...pages[0], messages: [newMessage, ...pages[0].messages] };
-  return { ...old, pages };
+const pages = [...old.pages];
+pages[0] = { ...pages[0], messages: [newMessage, ...pages[0].messages] };
+return { ...old, pages };
 });
 
 function useChatSocket(options: {
-  onNewMessage?: (data) => void;
-  onUserTyping?: (data) => void;
-  // ...
+onNewMessage?: (data) => void;
+onUserTyping?: (data) => void;
+// ...
 }) {
-  const socketRef = useRef<Socket | null>(null);
+const socketRef = useRef<Socket | null>(null);
 
-  useEffect(() => {
-    // Connect + register listeners
-    const socket = io(`${SERVER_URL}/chat`, { auth: { token } });
-    socket.on('new-message', options.onNewMessage);
-    socketRef.current = socket;
-    return () => { socket.disconnect(); };
-  }, []);
+useEffect(() => {
+// Connect + register listeners
+const socket = io(`${SERVER_URL}/chat`, { auth: { token } });
+socket.on('new-message', options.onNewMessage);
+socketRef.current = socket;
+return () => { socket.disconnect(); };
+}, []);
 
-  // Return emit methods
-  const sendMessage = useCallback((data) => {
-    socketRef.current?.emit('send-message', data);
-  }, []);
+// Return emit methods
+const sendMessage = useCallback((data) => {
+socketRef.current?.emit('send-message', data);
+}, []);
 
-  return { sendMessage, markRead, editMessage, ... };
+return { sendMessage, markRead, editMessage, ... };
 }
 Callbacks qua options: Component truyền handlers (update cache, update typing state)
 Emit methods qua return: Component gọi khi user action
@@ -77,13 +75,13 @@ useCallback cho emit methods: stable reference, tránh re-render children
 // MessageInput
 const typingTimeout = useRef<NodeJS.Timeout>();
 const handleChange = () => {
-  onTyping();  // Emit 'typing'
-  clearTimeout(typingTimeout.current);
-  typingTimeout.current = setTimeout(() => onStopTyping(), 3000);  // Auto stop sau 3s
+onTyping(); // Emit 'typing'
+clearTimeout(typingTimeout.current);
+typingTimeout.current = setTimeout(() => onStopTyping(), 3000); // Auto stop sau 3s
 };
 
 Backend: data → TransformInterceptor → { statusCode, message, data, timestamp }
-Axios:   response → interceptor (response.data) → { statusCode, message, data, timestamp }
+Axios: response → interceptor (response.data) → { statusCode, message, data, timestamp }
 Service: response → .data → actual payload
 
 Backend wrap trong { data }, Axios unwrap 1 lớp → Service phải .data lần nữa
@@ -96,11 +94,26 @@ Soft-delete: không xóa thật data — isDeleted, leftAt, MessageDeletedFor
 Transaction: create message + update counts phải atomic
 DTO validation: class-validator validate mọi input ở boundary
 
-
 Lessons Learned
-Vấn đề	Giải pháp
+Vấn đề Giải pháp
 Cannot read properties of undefined khi flatMap pages: Response wrapper { data } — service cần extract .data
-Duplicate React keys trong infinite scroll:	Deduplicate by ID sau flatMap
-markRead không trigger:	useEffect dependency phải gồm lastMessageId, không chỉ conversation.id
-Typing indicator hiện userId thay vì username:	Query username từ DB khi socket connect, lưu vào client.data
-Unread badge không mất sau read:	invalidateQueries(["conversations"]) sau khi markRead
+Duplicate React keys trong infinite scroll: Deduplicate by ID sau flatMap
+markRead không trigger: useEffect dependency phải gồm lastMessageId, không chỉ conversation.id
+Typing indicator hiện userId thay vì username: Query username từ DB khi socket connect, lưu vào client.data
+Unread badge không mất sau read: invalidateQueries(["conversations"]) sau khi markRead
+
+docker exec -it social-db psql -U root -d threads-clone
+
+```bash
+docker cp users.csv social-db:/tmp/users.csv
+```
+
+```bash
+docker cp /g/WorkSpace/Social/social-be/users.csv social-db:/tmp/users.csv
+```
+
+```sql
+\copy users (id, username, display_name, email, verified, is_private, is_online, followers_count, following_count, posts_count, status, two_factor_enabled, created_at, updated_at)
+FROM '/tmp/users.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"');
+```

@@ -11,7 +11,6 @@ import appConfig from './config/app.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 import { PostsModule } from './modules/posts/posts.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { FollowsModule } from './modules/follows/follows.module';
@@ -120,10 +119,6 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: CustomThrottlerGuard,
-    // },
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard,

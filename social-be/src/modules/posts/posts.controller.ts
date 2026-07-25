@@ -9,6 +9,7 @@ import {
   UploadedFiles,
   UseInterceptors,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
@@ -22,12 +23,15 @@ import { CreateReplyDto } from './dto/create-reply.dto';
 import { SearchPostsDto } from './dto/search-posts.dto';
 import { PinPostQueryDto } from './dto/pin-post-query.dto';
 import 'multer';
+import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
+import { RateLimit } from 'src/rate-limit/token.decorator';
 
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post('create-post')
+  @RateLimit({ capacity: 100, refillRate: 10 / 60 })
   @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   async create(
     @Body() createPostDto: CreatePostDto,
@@ -48,6 +52,7 @@ export class PostsController {
   }
 
   @Get('/users/:username')
+  @RateLimit({ capacity: 300, refillRate: 100 / 60 })
   getPostByUsername(
     @CurrentUser('id') userId: string,
     @Param('username') username: string,
@@ -57,6 +62,7 @@ export class PostsController {
   }
 
   @Get('search')
+  @RateLimit({ capacity: 500, refillRate: 100 / 60 })
   searchPosts(
     @CurrentUser('id') userId: string,
     @Query() query: SearchPostsDto,
@@ -65,6 +71,7 @@ export class PostsController {
   }
 
   @Get('post-detail/:postId')
+  @RateLimit({ capacity: 300, refillRate: 100 / 60 })
   getPostDetail(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,
@@ -73,6 +80,7 @@ export class PostsController {
   }
 
   @Patch('/update-post/:postId')
+  @RateLimit({ capacity: 300, refillRate: 100 / 60 })
   @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   update(
     @CurrentUser('id') userId: string,
@@ -90,11 +98,13 @@ export class PostsController {
   }
 
   @Delete('/delete-post/:postId')
+  @RateLimit({ capacity: 100, refillRate: 100 / 60 })
   delete(@CurrentUser('id') userId: string, @Param('postId') postId: string) {
     return this.postsService.delete(userId, postId);
   }
 
   @Post(':postId/replies')
+  @RateLimit({ capacity: 500, refillRate: 100 / 60 })
   @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   createReply(
     @CurrentUser('id') userId: string,
@@ -117,6 +127,7 @@ export class PostsController {
   }
 
   @Get(':postId/replies')
+  @RateLimit({ capacity: 500, refillRate: 100 / 60 })
   getReplies(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,
@@ -127,6 +138,7 @@ export class PostsController {
   }
 
   @Get('/users/pin-post/:username')
+  @RateLimit({ capacity: 300, refillRate: 100 / 60 })
   async getPinPost(
     @Param('username') username: string,
     @CurrentUser('id') userId: string,
@@ -143,6 +155,7 @@ export class PostsController {
   }
 
   @Delete(':postId/unpin')
+  @RateLimit({ capacity: 100, refillRate: 100 / 60 })
   async unpinPost(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,

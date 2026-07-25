@@ -81,7 +81,7 @@ export default function UsersPage() {
     searchQuery,
   );
 
-  const { roles: rolesResponse } = useRole(1, 10, true);
+  const { roles: rolesResponse } = useRole(1, 10, undefined, "all");
   const rolesList = (rolesResponse?.data ?? []) as any[];
 
   const userList = (userData?.data ?? []) as any[];
