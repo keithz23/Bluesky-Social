@@ -3,6 +3,7 @@ import { PermissionsService } from './permissions.service';
 import { PermissionsController } from './permissions.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { RateLimitModule } from 'src/rate-limit/rate-limit.module';
 
 @Module({
   imports: [PrismaModule],

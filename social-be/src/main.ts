@@ -17,7 +17,11 @@ import { ServerOptions } from 'socket.io';
 import { createRedisOptions } from './config/redis-options';
 
 class RedisIoAdapter extends IoAdapter {
+<<<<<<< HEAD
+  private adapterConstructor!: ReturnType<typeof createAdapter>;
+=======
   private adapterConstructor: ReturnType<typeof createAdapter>;
+>>>>>>> origin/feat/add-staging
 
   constructor(private app: INestApplicationContext) {
     super(app);
@@ -47,6 +51,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+<<<<<<< HEAD
+  app.enableShutdownHooks();
+
+=======
+>>>>>>> origin/feat/add-staging
   // Security
   app.use(helmet());
   app.enableCors({

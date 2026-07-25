@@ -11,7 +11,10 @@ import appConfig from './config/app.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+<<<<<<< HEAD
+=======
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
+>>>>>>> origin/feat/add-staging
 import { PostsModule } from './modules/posts/posts.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { FollowsModule } from './modules/follows/follows.module';
@@ -31,6 +34,11 @@ import { ModerationModule } from './modules/moderation/moderation.module';
 import { createRedisOptions } from './config/redis-options';
 import { DevDataModule } from './modules/dev-data/dev-data.module';
 import { AdminModule } from './modules/admin/admin.module';
+<<<<<<< HEAD
+import { RateLimitGuard } from './rate-limit/rate-limit.guard';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
+=======
+>>>>>>> origin/feat/add-staging
 
 @Module({
   imports: [
@@ -50,6 +58,11 @@ import { AdminModule } from './modules/admin/admin.module';
     // Redis Cache
     CacheModule,
 
+<<<<<<< HEAD
+    RateLimitModule,
+
+=======
+>>>>>>> origin/feat/add-staging
     // Bull Queue (for background jobs)
     BullModule.forRootAsync({
       inject: [ConfigService],
@@ -118,7 +131,11 @@ import { AdminModule } from './modules/admin/admin.module';
     },
     {
       provide: APP_GUARD,
+<<<<<<< HEAD
+      useClass: RateLimitGuard,
+=======
       useClass: CustomThrottlerGuard,
+>>>>>>> origin/feat/add-staging
     },
   ],
 })

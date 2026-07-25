@@ -52,8 +52,11 @@ export class PermissionsService {
       ),
     );
 
+<<<<<<< HEAD
+=======
     console.log(permissions);
 
+>>>>>>> origin/feat/add-staging
     return permissions;
   }
 }

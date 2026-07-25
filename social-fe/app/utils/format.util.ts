@@ -36,3 +36,14 @@ export const formatCount = (count: number, label: string) => {
   if (count <= 0) return null;
   return `${count.toLocaleString()} ${label}${count === 1 ? "" : "s"}`;
 };
+
+export function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+export function formatWithSeparator(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
+}

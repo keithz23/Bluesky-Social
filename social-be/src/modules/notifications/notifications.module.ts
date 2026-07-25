@@ -3,7 +3,7 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { SocketModule } from '../socket/socket.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
-import { EventEmitterModule } from '@nestjs/event-emitter';
+import { RateLimitModule } from 'src/rate-limit/rate-limit.module';
 
 @Module({
   imports: [SocketModule, PrismaModule],

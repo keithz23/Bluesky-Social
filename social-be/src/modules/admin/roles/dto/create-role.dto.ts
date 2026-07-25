@@ -9,6 +9,9 @@ export class CreateRoleDto {
 
   @ApiPropertyOptional()
   @IsString()
+<<<<<<< HEAD
+=======
   @IsNotEmpty()
+>>>>>>> origin/feat/add-staging
   description?: string;
 }

@@ -16,9 +16,15 @@ const envInt = (name: string, fallback: number) => {
 
 const config = {
   runId: process.env.REALISTIC_RUN_ID ?? Date.now().toString(36),
+<<<<<<< HEAD
+  users: envInt('REALISTIC_USERS', 10),
+  postsPerUser: envInt('REALISTIC_POSTS_PER_USER', 20),
+  followsPerUser: envInt('REALISTIC_FOLLOWS_PER_USER', 10),
+=======
   users: envInt('REALISTIC_USERS', 5000),
   postsPerUser: envInt('REALISTIC_POSTS_PER_USER', 20),
   followsPerUser: envInt('REALISTIC_FOLLOWS_PER_USER', 100),
+>>>>>>> origin/feat/add-staging
   batchSize: envInt('REALISTIC_BATCH_SIZE', 500),
   timelinePostsPerFollow: envInt('REALISTIC_TIMELINE_POSTS_PER_FOLLOW', 3),
   maxTimelineRows: envInt('REALISTIC_MAX_TIMELINE_ROWS', 1_000_000),

@@ -1,6 +1,16 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,8 +30,8 @@ import {
   Pen,
   ShieldAlert,
   Trash,
+  RotateCcw,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -31,25 +41,17 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import CreateRoleDialog from "../../components/dialogs/role-form-dialog";
 import { useRole } from "../../hooks/use-role";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "../../hooks/use-permissions";
 import { PermissionManager } from "../../components/permission-manager";
-import { Checkbox } from "@/components/ui/checkbox";
 import RoleFormDialog from "../../components/dialogs/role-form-dialog";
+import DataTable from "../../components/table-data";
+import { ColumnDef } from "../../interfaces/column.interface";
+import { useAuthStore } from "@/app/store/use-auth.store";
 
 export default function RolesManagementPage() {
-  const [isOpenCreateRoleDialog, setIsOpenCreateRoleDialog] = useState(false);
+  const currentUserRoles = useAuthStore((state) => state.roles);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +59,8 @@ export default function RolesManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roleToEditInfo, setRoleToEditInfo] = useState<any | null>(null);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+
+  const isOwnRole = (role: any) => (currentUserRoles ?? []).includes(role.name);
 
   const handleOpenCreate = () => {
     setRoleToEditInfo(null);
@@ -72,11 +76,40 @@ export default function RolesManagementPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
+
+  // --- LOGIC SEARCH & FILTER CHO ROLE ---
+  const roleSearchParam = searchParams.get("search") || "";
+  const sortFilter = searchParams.get("sort") || "all";
+
+  const [roleSearchTerm, setRoleSearchTerm] = useState(roleSearchParam);
+
+  const updateURLParams = (key: string, value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value && value !== "all") {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    if (key !== "page") params.set("page", "1");
+
+    router.push(`${pathname}?${params}`);
+  };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      updateURLParams("search", roleSearchTerm);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [roleSearchTerm]);
 
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
 
   const handleSelectRole = (roleId: string, checked: boolean) => {
+    const role = rolesList.find((r) => r.id === roleId);
+    if (role && isOwnRole(role)) return;
+
     if (checked) {
       setSelectedRoleIds((prev) => [...prev, roleId]);
     } else {
@@ -98,33 +131,59 @@ export default function RolesManagementPage() {
     }
   };
 
-  const changePage = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", String(newPage));
-    router.push(`${pathname}?${params}`);
-    setPage(newPage);
-
-    setSelectedRoleIds([]);
+  const scrollToTop = () => {
+    const tableContainer = document.querySelector(".table-scroll-container");
+    if (tableContainer) {
+      tableContainer.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
+
+  const changePage = (newPage: number) => {
+    updateURLParams("page", String(newPage));
+    setPage(newPage);
+    setSelectedRoleIds([]);
+    scrollToTop();
+  };
+
+  const changeLimit = (newLimit: number) => {
+    updateURLParams("limit", String(newLimit));
+    setLimit(newLimit);
+    setPage(1);
+    setSelectedRoleIds([]);
+    scrollToTop();
+  };
+
+  const handleClearFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("search");
+    params.delete("sort");
+    params.set("page", "1");
+    router.push(`${pathname}?${params}`);
+
+    setPage(1);
+    setSelectedRoleIds([]);
+    setRoleSearchTerm("");
+    scrollToTop();
+  };
+
+  const hasActiveFilters = roleSearchParam !== "" || sortFilter !== "all";
 
   const {
     roles: rolesResponse,
     deleteRolesMutation,
     isDeleting,
     isLoading,
-  } = useRole(page, limit);
-  const {
-    permissionGroup,
-    permissionGroupLoading,
-    syncPermissionsMutation,
-    isSyncing,
-  } = usePermissions();
+  } = useRole(page, limit, roleSearchParam, sortFilter);
+
+  const { permissionGroup, syncPermissionsMutation, isSyncing } =
+    usePermissions();
 
   const rolesList = (rolesResponse?.data ?? []) as any[];
   const meta = rolesResponse?.meta ?? { total: 0, totalPages: 1 };
 
   const totalItems = meta.total;
   const totalPages = meta.totalPages;
+
   const startItem = totalItems === 0 ? 0 : (page - 1) * limit + 1;
   const endItem = Math.min(page * limit, totalItems);
 
@@ -231,10 +290,90 @@ export default function RolesManagementPage() {
     );
   };
 
+  const columns: ColumnDef<any>[] = [
+    {
+      header: "Role Details",
+      cell: (role) => (
+        <>
+          <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate flex items-center gap-2">
+            {role.name}
+            {isOwnRole(role) && (
+              <Badge variant="outline" className="text-xs shrink-0 bg-gray-50">
+                Your role
+              </Badge>
+            )}
+          </div>
+          <div className="text-sm text-gray-500 mt-1 max-w-50 md:max-w-xs truncate">
+            {role.description}
+          </div>
+        </>
+      ),
+    },
+    {
+      header: "Attached Permissions",
+      className: "whitespace-nowrap",
+      cell: (role) => (
+        <Badge
+          variant="secondary"
+          className="bg-blue-50 text-blue-700 border-blue-200 font-normal"
+        >
+          {role._count?.rolePermissions || role.rolePermissions?.length || 0}{" "}
+          policies
+        </Badge>
+      ),
+    },
+    {
+      header: "Users",
+      className: "whitespace-nowrap",
+      cell: (role) => (
+        <div className="flex items-center gap-2 text-gray-600">
+          <Users className="w-4 h-4" /> {role._count?.userRoles || 0}
+        </div>
+      ),
+    },
+    {
+      header: "Actions",
+      className: "text-right whitespace-nowrap",
+      cell: (role) => {
+        const disabled = isOwnRole(role);
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
+              onClick={() => handleOpenEdit(role)}
+              disabled={disabled}
+              title={
+                disabled ? "Cannot edit your current role " : "Edit Role Info"
+              }
+            >
+              <Pen className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-blue-600 border-blue-200 hover:bg-blue-50 cursor-pointer"
+              onClick={() => openEditSheet(role)}
+              disabled={disabled}
+              title={
+                disabled
+                  ? "Cannot edit permissions of your current role"
+                  : "Manage Permissions"
+              }
+            >
+              <ShieldAlert className="w-4 h-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="w-full h-[85vh] overflow-hidden flex flex-col bg-gray-50/50">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Shield className="w-6 h-6 text-blue-600 shrink-0" />
@@ -247,8 +386,10 @@ export default function RolesManagementPage() {
         <div className="flex items-center gap-x-3">
           {selectedRoleIds.length > 0 && (
             <Button
-              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white shadow-sm rounded-md transition-all cursor-pointer"
+              variant="destructive"
+              className="w-full sm:w-auto shadow-sm rounded-md transition-all cursor-pointer"
               onClick={() => setIsDeleteDialogOpen(true)}
+              disabled={isDeleting}
             >
               <Trash className="w-4 h-4 mr-2 shrink-0" /> Delete (
               {selectedRoleIds.length})
@@ -264,193 +405,84 @@ export default function RolesManagementPage() {
         </div>
       </div>
 
+      {/* --- THANH CÔNG CỤ TÌM KIẾM & LỌC --- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-5 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {/* SEARCH INPUT */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search role name..."
+              value={roleSearchTerm}
+              onChange={(e) => setRoleSearchTerm(e.target.value)}
+              className="pl-9 bg-white"
+            />
+          </div>
+
+          {/* FILTER: SORT BY */}
+          <Select
+            value={sortFilter}
+            onValueChange={(val) => {
+              updateURLParams("sort", val);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-48 bg-white">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Sort By</SelectLabel>
+                <SelectItem value="all">Default (Newest)</SelectItem>
+                <SelectItem value="asc">Name (A-Z)</SelectItem>
+                <SelectItem value="desc">Name (Z-A)</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          {/* CLEAR FILTERS BUTTON */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              onClick={handleClearFilters}
+              className="text-gray-500 hover:text-gray-900 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Clear
+            </Button>
+          )}
+        </div>
+
+        <p className="text-sm text-muted-foreground whitespace-nowrap">
+          Showing{" "}
+          <span className="font-medium">
+            {startItem}–{endItem}
+          </span>{" "}
+          of <span className="font-medium">{totalItems}</span> roles
+        </p>
+      </div>
+
       {/* Main Table */}
-      <Card className="rounded-xl border bg-white py-0 shadow-sm flex-1 flex flex-col overflow-hidden">
-        <CardContent className="p-0 flex flex-col flex-1 min-h-0">
-          <div className="flex-1 min-h-0 overflow-auto relative w-full">
-            <table className="w-full border-collapse text-left min-w-200">
-              <thead className="shadow-sm">
-                <tr className="border-b-2 bg-gray-100 text-sm uppercase tracking-wider text-gray-500">
-                  <th className="sticky top-0 z-10 w-12.5 whitespace-nowrap bg-gray-50/90 pl-6 pr-2 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    <Checkbox
-                      aria-label="Select all roles"
-                      checked={isAllSelected}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Role Details
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Attached Permissions
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Users
-                  </th>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-gray-50/90 px-6 py-4 text-right font-semibold backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+      <DataTable
+        tableName="roles"
+        data={rolesList}
+        columns={columns}
+        isLoading={isLoading}
+        page={page}
+        limit={limit}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        changePage={changePage}
+        changeLimit={changeLimit}
+        enableSelection={true}
+        selectedIds={selectedRoleIds}
+        isAllSelected={isAllSelected}
+        onSelectRow={handleSelectRole}
+        onSelectAll={handleSelectAll}
+        disabledRowIds={rolesList.filter(isOwnRole).map((r) => r.id)}
+      />
 
-              <tbody>
-                {isLoading || permissionGroupLoading ? (
-                  Array.from({ length: limit }).map((_, i) => (
-                    <tr key={`skeleton-${i}`} className="border-b">
-                      <td className="py-4 pl-6 pr-2 w-12.5">
-                        <Skeleton className="h-4 w-4 rounded-xs" />
-                      </td>
-                      <td className="py-4 px-6">
-                        <Skeleton className="h-4 w-40 mb-2" />
-                        <Skeleton className="h-3 w-64" />
-                      </td>
-                      <td className="py-4 px-6">
-                        <Skeleton className="h-6 w-24 rounded-full" />
-                      </td>
-                      <td className="py-4 px-6">
-                        <Skeleton className="h-4 w-16" />
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <Skeleton className="h-8 w-8 rounded ml-auto" />
-                      </td>
-                    </tr>
-                  ))
-                ) : rolesList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="py-10 px-6 text-center text-gray-500"
-                    >
-                      No roles found.
-                    </td>
-                  </tr>
-                ) : (
-                  rolesList.map((role) => (
-                    <tr
-                      key={role.id}
-                      className="border-b hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 pl-6 pr-2 w-12.5">
-                        <Checkbox
-                          aria-label={`Select ${role.name}`}
-                          checked={selectedRoleIds.includes(role.id)}
-                          onCheckedChange={(checked: boolean) =>
-                            handleSelectRole(role.id, checked)
-                          }
-                        />
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="font-semibold text-gray-900 max-w-50 md:max-w-xs truncate">
-                          {role.name}
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1 max-w-50 md:max-w-xs truncate">
-                          {role.description}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">
-                        <Badge
-                          variant="secondary"
-                          className="bg-blue-50 text-blue-700 border-blue-200"
-                        >
-                          {role._count?.rolePermissions ||
-                            role.rolePermissions?.length ||
-                            0}{" "}
-                          policies
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Users className="w-4 h-4" />{" "}
-                          {role._count?.userRoles || 0}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
-                            title="Edit Role Info"
-                            onClick={() => handleOpenEdit(role)}
-                          >
-                            <Pen className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50 cursor-pointer"
-                            onClick={() => openEditSheet(role)}
-                            title="Manage Permissions"
-                          >
-                            <ShieldAlert className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex shrink-0 flex-col sm:flex-row items-center justify-between border-t bg-white px-6 py-4 gap-4 z-20">
-            <p className="text-sm text-muted-foreground">
-              Showing{" "}
-              <span className="font-medium">
-                {startItem}–{endItem}
-              </span>{" "}
-              of <span className="font-medium">{totalItems}</span> roles
-            </p>
-            <Pagination className="justify-end">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (page > 1) changePage(page - 1);
-                    }}
-                    className={
-                      page <= 1 ? "pointer-events-none opacity-50" : ""
-                    }
-                  />
-                </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (p) => (
-                    <PaginationItem key={p}>
-                      <PaginationLink
-                        href="#"
-                        isActive={p === page}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          changePage(p);
-                        }}
-                      >
-                        {p}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ),
-                )}
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (page < totalPages) changePage(page + 1);
-                    }}
-                    className={
-                      page >= totalPages ? "pointer-events-none opacity-50" : ""
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Permissions Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
           className="w-full sm:max-w-md md:max-w-2xl flex flex-col p-0 border-l-0 shadow-lg"
@@ -466,7 +498,7 @@ export default function RolesManagementPage() {
           </SheetHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-5 bg-gray-50/30">
-            {/* Search Bar */}
+            {/* Search Bar for Permissions */}
             <div className="relative shrink-0">
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -518,6 +550,7 @@ export default function RolesManagementPage() {
         </SheetContent>
       </Sheet>
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
@@ -537,22 +570,24 @@ export default function RolesManagementPage() {
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
 
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
               disabled={isDeleting}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
                 handleDelete();
                 setIsDeleteDialogOpen(false);
               }}
             >
-              {isDeleting ? "Deleting" : "Delete"}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Form Dialog */}
       <RoleFormDialog
         open={isFormDialogOpen}
         onOpenChange={setIsFormDialogOpen}

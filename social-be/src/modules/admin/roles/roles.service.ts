@@ -7,13 +7,21 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+<<<<<<< HEAD
+import { RoleQueryDto } from './dto/role-query.dto';
+=======
 import { RoleQueryDto } from './dto/role-query,dto';
+>>>>>>> origin/feat/add-staging
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { DeleteRoleDto } from './dto/delete-role.dto';
 
 @Injectable()
 export class RolesService {
   constructor(private prisma: PrismaService) {}
+<<<<<<< HEAD
+  private readonly PROTECTED_ROLE_NAMES = ['super_admin', 'admin', 'user'];
+=======
+>>>>>>> origin/feat/add-staging
 
   async create(createRoleDto: CreateRoleDto) {
     const { name, description } = createRoleDto;
@@ -33,6 +41,71 @@ export class RolesService {
     }
   }
 
+<<<<<<< HEAD
+  async findAll(query: RoleQueryDto) {
+    const limit = query.limit ?? 20;
+    const page = query.page ?? 1;
+    const sort = query.sort ?? 'all';
+
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), 100);
+    const skip = PaginationUtil.getSkip(safePage, safeLimit);
+
+    const roleInclude = {
+      _count: {
+        select: {
+          userRoles: true,
+          rolePermissions: true,
+        },
+      },
+      rolePermissions: {
+        include: {
+          permission: true,
+        },
+      },
+    };
+
+    const where: Prisma.RoleWhereInput = {};
+    if (query.search) {
+      where.name = {
+        contains: query.search,
+        mode: 'insensitive',
+      };
+    }
+
+    let orderBy: Prisma.RoleOrderByWithRelationInput = { createdAt: 'desc' };
+
+    if (query.sort === 'asc') {
+      orderBy = { name: 'asc' }; // A-Z
+    } else if (query.sort === 'desc') {
+      orderBy = { name: 'desc' }; // Z-A
+    }
+
+    if (sort === 'all' || limit === -1) {
+      const rolesData = await this.prisma.role.findMany({
+        where,
+        orderBy,
+        include: roleInclude,
+      });
+
+      return PaginationUtil.paginate(rolesData, rolesData.length, {
+        page: 1,
+        limit: rolesData.length || 1,
+      });
+    }
+
+    const [rolesData, total] = await Promise.all([
+      this.prisma.role.findMany({
+        where,
+        skip,
+        take: safeLimit,
+        orderBy,
+        include: roleInclude,
+      }),
+      this.prisma.role.count({
+        where,
+      }),
+=======
   async findAll(roleQueryDto: RoleQueryDto) {
     const limit = roleQueryDto.limit ?? 20;
     const page = roleQueryDto.page ?? 1;
@@ -61,6 +134,7 @@ export class RolesService {
         },
       }),
       this.prisma.role.count(),
+>>>>>>> origin/feat/add-staging
     ]);
 
     return PaginationUtil.paginate(rolesData, total, {
@@ -70,6 +144,25 @@ export class RolesService {
   }
 
   async findOne(roleId: string) {
+<<<<<<< HEAD
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        rolePermissions: {
+          include: { permission: true },
+        },
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return {
+      ...role,
+      permissions: role.rolePermissions.map((rp) => rp.permission),
+    };
+=======
     return await this.prisma.$transaction(async (tx) => {
       const role = await tx.role.findUnique({
         where: { id: roleId },
@@ -88,6 +181,7 @@ export class RolesService {
 
       return { role, permissions };
     });
+>>>>>>> origin/feat/add-staging
   }
 
   async update(roleId: string, updateRoleDto: UpdateRoleDto) {
@@ -113,6 +207,31 @@ export class RolesService {
 
   async delete(deleteRoleDto: DeleteRoleDto) {
     const { roleIds } = deleteRoleDto;
+<<<<<<< HEAD
+
+    const roles = await this.prisma.role.findMany({
+      where: { id: { in: roleIds } },
+      include: { _count: { select: { userRoles: true } } },
+    });
+
+    const protectedRole = roles.find((r) =>
+      this.PROTECTED_ROLE_NAMES.includes(r.name),
+    );
+    if (protectedRole) {
+      throw new ConflictException(
+        `Cannot delete system role "${protectedRole.name}"`,
+      );
+    }
+
+    const roleInUse = roles.find((r) => r._count.userRoles > 0);
+    if (roleInUse) {
+      throw new ConflictException(
+        `Role "${roleInUse.name}" is still assigned to users`,
+      );
+    }
+
+=======
+>>>>>>> origin/feat/add-staging
     return await this.prisma.role.deleteMany({
       where: { id: { in: roleIds } },
     });
@@ -167,11 +286,17 @@ export class RolesService {
   // Sync Permissions
   async syncPermissions(roleId: string, permissionIds: string[]) {
     return await this.prisma.$transaction(async (tx) => {
+<<<<<<< HEAD
+      const role = await tx.role.findUnique({ where: { id: roleId } });
+      if (!role) throw new NotFoundException('Role not found');
+
+=======
       // 1. Kiểm tra Role có tồn tại không
       const role = await tx.role.findUnique({ where: { id: roleId } });
       if (!role) throw new NotFoundException('Role not found');
 
       // 2. Kiểm tra xem các permissionIds gửi lên có hợp lệ không (chỉ check nếu mảng có data)
+>>>>>>> origin/feat/add-staging
       if (permissionIds.length > 0) {
         const permissions = await tx.permission.findMany({
           where: { id: { in: permissionIds } },
@@ -181,6 +306,22 @@ export class RolesService {
         }
       }
 
+<<<<<<< HEAD
+      await tx.rolePermission.deleteMany({
+        where: {
+          roleId: roleId,
+          permissionId: { notIn: permissionIds },
+        },
+      });
+
+      if (permissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+          skipDuplicates: true,
+        });
+      }
+
+=======
       // 3. XÓA CÁC QUYỀN THỪA: Xóa các quyền cũ của Role mà không có trong mảng permissionIds mới
       await tx.rolePermission.deleteMany({
         where: {
@@ -198,6 +339,7 @@ export class RolesService {
       }
 
       // 5. Trả về kết quả mới nhất
+>>>>>>> origin/feat/add-staging
       return tx.role.findUnique({
         where: { id: roleId },
         include: { rolePermissions: { include: { permission: true } } },
