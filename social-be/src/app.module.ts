@@ -31,6 +31,8 @@ import { ModerationModule } from './modules/moderation/moderation.module';
 import { createRedisOptions } from './config/redis-options';
 import { DevDataModule } from './modules/dev-data/dev-data.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { RateLimitGuard } from './rate-limit/rate-limit.guard';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { AdminModule } from './modules/admin/admin.module';
 
     // Redis Cache
     CacheModule,
+
+    RateLimitModule,
 
     // Bull Queue (for background jobs)
     BullModule.forRootAsync({
@@ -116,9 +120,13 @@ import { AdminModule } from './modules/admin/admin.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: CustomThrottlerGuard,
+    // },
     {
       provide: APP_GUARD,
-      useClass: CustomThrottlerGuard,
+      useClass: RateLimitGuard,
     },
   ],
 })

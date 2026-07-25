@@ -17,18 +17,21 @@ import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 import { UserQueryDto } from './dto/user-query.dto';
 import { DeleteUserDto } from './dto/delete-usr.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { RateLimit } from 'src/rate-limit/token.decorator';
 
 @UseGuards(PermissionsGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @RateLimit({ capacity: 100, refillRate: 10 / 60 })
   @Post()
   @Permissions('user:create')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
+  @RateLimit({ capacity: 200, refillRate: 10 / 60 })
   @Get()
   @Permissions('user:read')
   findAll(@Query() query: UserQueryDto) {

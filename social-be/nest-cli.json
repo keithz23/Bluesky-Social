@@ -5,7 +5,12 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "assets": [
-      "**/*.hbs"
+      "**/*.hbs",
+      {
+        "include": "**/*.lua",
+        "outDir": "dist/src",
+        "watchAssets": true
+      }
     ],
     "watchAssets": true
   }

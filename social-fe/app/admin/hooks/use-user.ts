@@ -4,7 +4,13 @@ import { CreateUserData, UpdateUserData } from "../interfaces/user.interface";
 import { toast } from "sonner";
 import { extractErrMsg } from "@/app/utils/error.util";
 
-export const useUser = (page?: number, limit?: number) => {
+export const useUser = (
+  page?: number,
+  limit?: number,
+  roleIds?: string[],
+  status?: string,
+  search?: string,
+) => {
   const qc = useQueryClient();
 
   const {
@@ -14,8 +20,8 @@ export const useUser = (page?: number, limit?: number) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["users", page, limit],
-    queryFn: () => UserService.findAll(page, limit),
+    queryKey: ["users", page, limit, roleIds, status, search],
+    queryFn: () => UserService.findAll(page, limit, roleIds, status, search),
     placeholderData: (prev) => prev,
   });
 

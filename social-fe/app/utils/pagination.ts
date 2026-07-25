@@ -4,7 +4,9 @@ export function getPaginationRange(
   siblingCount = 1,
 ) {
   const totalNumbers = siblingCount * 2 + 5; // first, last, current, 2 ellipsis
-  if (total <= totalNumbers) {
+  const totalBlocks = totalNumbers;
+
+  if (total <= totalBlocks) {
     return Array.from({ length: total }, (_, i) => i + 1);
   }
 
@@ -14,14 +16,27 @@ export function getPaginationRange(
   const showLeftDots = leftSibling > 2;
   const showRightDots = rightSibling < total - 1;
 
-  const range: (number | "dots")[] = [1];
+  const firstPage = 1;
+  const lastPage = total;
 
-  if (showLeftDots) range.push("dots");
-  for (let i = leftSibling; i <= rightSibling; i++) {
-    if (i !== 1 && i !== total) range.push(i);
+  if (!showLeftDots && showRightDots) {
+    const leftItemCount = 3 + 2 * siblingCount;
+    const leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
+    return [...leftRange, "dots", lastPage];
   }
-  if (showRightDots) range.push("dots");
 
-  range.push(total);
-  return range;
+  if (showLeftDots && !showRightDots) {
+    const rightItemCount = 3 + 2 * siblingCount;
+    const rightRange = Array.from(
+      { length: rightItemCount },
+      (_, i) => total - rightItemCount + i + 1,
+    );
+    return [firstPage, "dots", ...rightRange];
+  }
+
+  const middleRange = Array.from(
+    { length: rightSibling - leftSibling + 1 },
+    (_, i) => leftSibling + i,
+  );
+  return [firstPage, "dots", ...middleRange, "dots", lastPage];
 }

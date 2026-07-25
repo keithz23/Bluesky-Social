@@ -4,7 +4,13 @@ import { RoleService } from "../services/role.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "@/app/utils/error.util";
 
-export const useRole = (page?: number, limit?: number, all?: boolean) => {
+export const useRole = (
+  page?: number,
+  limit?: number,
+  all?: boolean,
+  search?: string,
+  sort?: string,
+) => {
   const qc = useQueryClient();
 
   const createRole = useMutation({
@@ -61,8 +67,8 @@ export const useRole = (page?: number, limit?: number, all?: boolean) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["roles", page, limit],
-    queryFn: () => RoleService.findAllRoles(page, limit, all),
+    queryKey: ["roles", page, limit, search, sort],
+    queryFn: () => RoleService.findAll(page, limit, search, sort),
     placeholderData: (prev) => prev,
   });
 

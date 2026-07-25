@@ -17,7 +17,7 @@ import { ServerOptions } from 'socket.io';
 import { createRedisOptions } from './config/redis-options';
 
 class RedisIoAdapter extends IoAdapter {
-  private adapterConstructor: ReturnType<typeof createAdapter>;
+  private adapterConstructor!: ReturnType<typeof createAdapter>;
 
   constructor(private app: INestApplicationContext) {
     super(app);

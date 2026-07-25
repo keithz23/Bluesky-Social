@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Pagination,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
@@ -18,10 +17,13 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  formatCompactNumber,
+  formatWithSeparator,
+} from "@/app/utils/format.util";
 
 interface DataTableProps<T> {
   data: T[];
@@ -46,7 +48,7 @@ interface DataTableProps<T> {
   disabledRowIds?: string[];
 }
 
-export default function DataTable<T extends Record<string, any>>({
+function DataTable<T extends Record<string, any>>({
   data,
   columns,
   isLoading,
@@ -65,13 +67,10 @@ export default function DataTable<T extends Record<string, any>>({
   disabledRowIds = [],
   getRowId = (row) => row.id as string,
 }: DataTableProps<T>) {
-  const startItem = totalItems === 0 ? 0 : (page - 1) * limit + 1;
-  const endItem = Math.min(page * limit, totalItems);
-
   return (
     <Card className="rounded-xl border bg-white py-0 shadow-sm flex-1 flex flex-col overflow-hidden">
       <CardContent className="p-0 flex flex-col flex-1 min-h-0">
-        <div className="flex-1 min-h-0 overflow-auto relative w-full">
+        <div className="flex-1 min-h-0 overflow-auto relative w-full table-scroll-container">
           <table className="w-full border-collapse text-left min-w-200">
             {/* --- HEADER --- */}
             <thead className="shadow-sm">
@@ -197,7 +196,7 @@ export default function DataTable<T extends Record<string, any>>({
               </SelectContent>
             </Select>
           </div>
-          <PaginationContent>
+          <PaginationContent className="gap-x-5">
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -209,12 +208,22 @@ export default function DataTable<T extends Record<string, any>>({
               />
             </PaginationItem>
 
-            {getPaginationRange(page, totalPages).map((p, idx) =>
-              p === "dots" ? (
-                <PaginationItem key={`dots-${idx}`}>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              ) : (
+            {getPaginationRange(page, totalPages).map((p, idx, arr) => {
+              if (p === "dots") {
+                return (
+                  <PaginationItem key={`dots-${idx}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                );
+              }
+
+              const isEdgeAnchor = idx === 0 || idx === arr.length - 1;
+              const label =
+                isEdgeAnchor && (p as number) >= 1000
+                  ? formatCompactNumber(p as number)
+                  : formatWithSeparator(p as number);
+
+              return (
                 <PaginationItem key={p}>
                   <PaginationLink
                     href="#"
@@ -224,12 +233,11 @@ export default function DataTable<T extends Record<string, any>>({
                       changePage(p as number);
                     }}
                   >
-                    {p}
+                    {label}
                   </PaginationLink>
                 </PaginationItem>
-              ),
-            )}
-
+              );
+            })}
             <PaginationItem>
               <PaginationNext
                 href="#"
@@ -248,3 +256,4 @@ export default function DataTable<T extends Record<string, any>>({
     </Card>
   );
 }
+export default React.memo(DataTable);

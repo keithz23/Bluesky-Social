@@ -44,5 +44,5 @@ export async function seedAdmin() {
     },
   });
 
-  console.log('✅ Admin seeded');
+  console.log('Admin seeded');
 }

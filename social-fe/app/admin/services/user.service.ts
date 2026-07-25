@@ -22,10 +22,21 @@ export const UserService = {
     });
   },
 
-  findAll: (page: number = 1, limit: number = 10) => {
+  findAll: (
+    page: number = 1,
+    limit: number = 10,
+    roleIds?: string[],
+    status?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
     if (page) params.set("page", String(page));
     if (limit) params.set("limit", String(limit));
+
+    if (roleIds) params.append("roleIds", roleIds.join(","));
+    if (status) params.append("status", status);
+
+    if (search) params.append("search", search);
 
     return apiClient.getPaginated(
       `${ADMIN_API_ENDPOINT.USERS.FIND_ALL}?${params.toString()}`,

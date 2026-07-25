@@ -40,7 +40,7 @@ export class RolesService {
     const all = roleQueryDto.all ?? false;
 
     const safePage = Math.max(1, page);
-    const safeLimit = Math.min(Math.max(1, limit), 50);
+    const safeLimit = Math.min(Math.max(1, limit), 100);
     const skip = PaginationUtil.getSkip(safePage, safeLimit);
 
     const roleInclude = {

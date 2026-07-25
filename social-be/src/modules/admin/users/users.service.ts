@@ -50,6 +50,7 @@ export class UsersService {
           passwordHash,
           displayName: username,
           dateOfBirth,
+          verified: true,
           status: 'DEACTIVATED',
           ...(roleIds?.length
             ? {
@@ -78,14 +79,42 @@ export class UsersService {
   async findAll(query: UserQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
+    const isAll = query.all ?? false;
     const safePage = Math.max(1, page);
-    const safeLimit = Math.min(Math.max(1, limit), 50);
+    const safeLimit = Math.min(Math.max(1, limit), 100);
     const skip = PaginationUtil.getSkip(safePage, safeLimit);
+
+    const where: Prisma.UserWhereInput = {};
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.roleIds && query.roleIds.length > 0) {
+      where.userRoles = {
+        some: {
+          roleId: {
+            in: query.roleIds,
+          },
+        },
+      };
+    }
+
+    if (query.search) {
+      const search = query.search.trim();
+      if (search) {
+        where.OR = [
+          { username: { contains: search, mode: 'insensitive' } },
+          { displayName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+    }
 
     const [usersData, total] = await Promise.all([
       this.prisma.user.findMany({
-        skip,
-        take: safeLimit,
+        where,
+        ...(isAll ? {} : { skip, take: safeLimit }),
         orderBy: { createdAt: 'desc' },
         include: {
           userRoles: {
@@ -95,7 +124,7 @@ export class UsersService {
           },
         },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     const safeUsersData = usersData.map(
@@ -103,8 +132,8 @@ export class UsersService {
     );
 
     return PaginationUtil.paginate(safeUsersData, total, {
-      page: safePage,
-      limit: safeLimit,
+      page: isAll ? 1 : safePage,
+      limit: isAll ? total : safeLimit,
     });
   }
 
