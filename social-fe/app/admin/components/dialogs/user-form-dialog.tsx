@@ -71,8 +71,7 @@ export default function UserFormDialog({
   const { roles: rolesResponse, isLoading: isLoadingRoles } = useRole(
     1,
     10,
-    undefined,
-    "all",
+    true,
   );
   const rolesList = (rolesResponse?.data ?? []) as any[];
 
