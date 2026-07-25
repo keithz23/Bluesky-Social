@@ -104,13 +104,14 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
       throw new Error("Auth refresh skipped during logout.");
     }
 
-    useAuthStore
-      .getState()
-      .setAuth(
-        session.accessToken,
-        session.user.username,
-        session.user.email ?? "",
-      );
+    useAuthStore.getState().setAuth(
+      session.accessToken,
+      session.user.username,
+      session.user.id,
+      session.user.email ?? "",
+      session.roles.map((role) => role.name),
+      session.roles.flatMap((role) => role.permissions),
+    );
     processQueue(null, session);
 
     return session;
