@@ -6,17 +6,24 @@ import {
   Patch,
   Post,
   Query,
+<<<<<<< HEAD
   UseGuards,
+=======
+>>>>>>> origin/feat/add-staging
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { NotificationQueryDto } from './dto/notification-query.dto';
+<<<<<<< HEAD
 import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
 
 // @UseGuards(RateLimitGuard)
 // @RateLimit({ capacity: 1000, refillRate: 100 / 30 })
+=======
+
+>>>>>>> origin/feat/add-staging
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

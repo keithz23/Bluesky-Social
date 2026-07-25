@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
+<<<<<<< HEAD
+=======
+import { CreatePostDto } from './dto/create-post.dto';
+>>>>>>> origin/feat/add-staging
 import { UpdatePostDto } from './dto/update-post.dto';
 
 @Injectable()
 export class PostsService {
+<<<<<<< HEAD
+=======
+  create(createPostDto: CreatePostDto) {
+    return 'This action adds a new post';
+  }
+
+>>>>>>> origin/feat/add-staging
   findAll() {
     return `This action returns all posts`;
   }

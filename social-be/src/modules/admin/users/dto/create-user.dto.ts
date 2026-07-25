@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -36,3 +37,6 @@ export class CreateUserDto {
   @IsOptional()
   roleIds!: string[];
 }
+=======
+export class CreateUserDto {}
+>>>>>>> origin/feat/add-staging

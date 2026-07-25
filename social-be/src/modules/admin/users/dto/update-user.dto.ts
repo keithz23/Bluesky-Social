@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -37,3 +38,9 @@ export class UpdateUserDto {
   @IsOptional()
   roleIds?: string[];
 }
+=======
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateUserDto } from './create-user.dto';
+
+export class UpdateUserDto extends PartialType(CreateUserDto) {}
+>>>>>>> origin/feat/add-staging

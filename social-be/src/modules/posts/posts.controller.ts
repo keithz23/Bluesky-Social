@@ -9,7 +9,10 @@ import {
   UploadedFiles,
   UseInterceptors,
   Query,
+<<<<<<< HEAD
   UseGuards,
+=======
+>>>>>>> origin/feat/add-staging
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
@@ -23,15 +26,21 @@ import { CreateReplyDto } from './dto/create-reply.dto';
 import { SearchPostsDto } from './dto/search-posts.dto';
 import { PinPostQueryDto } from './dto/pin-post-query.dto';
 import 'multer';
+<<<<<<< HEAD
 import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
+=======
+>>>>>>> origin/feat/add-staging
 
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post('create-post')
+<<<<<<< HEAD
   @RateLimit({ capacity: 100, refillRate: 10 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   async create(
     @Body() createPostDto: CreatePostDto,
@@ -52,7 +61,10 @@ export class PostsController {
   }
 
   @Get('/users/:username')
+<<<<<<< HEAD
   @RateLimit({ capacity: 300, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   getPostByUsername(
     @CurrentUser('id') userId: string,
     @Param('username') username: string,
@@ -62,7 +74,10 @@ export class PostsController {
   }
 
   @Get('search')
+<<<<<<< HEAD
   @RateLimit({ capacity: 500, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   searchPosts(
     @CurrentUser('id') userId: string,
     @Query() query: SearchPostsDto,
@@ -71,7 +86,10 @@ export class PostsController {
   }
 
   @Get('post-detail/:postId')
+<<<<<<< HEAD
   @RateLimit({ capacity: 300, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   getPostDetail(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,
@@ -80,7 +98,10 @@ export class PostsController {
   }
 
   @Patch('/update-post/:postId')
+<<<<<<< HEAD
   @RateLimit({ capacity: 300, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   update(
     @CurrentUser('id') userId: string,
@@ -98,13 +119,19 @@ export class PostsController {
   }
 
   @Delete('/delete-post/:postId')
+<<<<<<< HEAD
   @RateLimit({ capacity: 100, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   delete(@CurrentUser('id') userId: string, @Param('postId') postId: string) {
     return this.postsService.delete(userId, postId);
   }
 
   @Post(':postId/replies')
+<<<<<<< HEAD
   @RateLimit({ capacity: 500, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   @UseInterceptors(FilesInterceptor('images', IMAGE_UPLOAD.MAX_POST_IMAGES))
   createReply(
     @CurrentUser('id') userId: string,
@@ -127,7 +154,10 @@ export class PostsController {
   }
 
   @Get(':postId/replies')
+<<<<<<< HEAD
   @RateLimit({ capacity: 500, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   getReplies(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,
@@ -138,7 +168,10 @@ export class PostsController {
   }
 
   @Get('/users/pin-post/:username')
+<<<<<<< HEAD
   @RateLimit({ capacity: 300, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   async getPinPost(
     @Param('username') username: string,
     @CurrentUser('id') userId: string,
@@ -155,7 +188,10 @@ export class PostsController {
   }
 
   @Delete(':postId/unpin')
+<<<<<<< HEAD
   @RateLimit({ capacity: 100, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   async unpinPost(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,

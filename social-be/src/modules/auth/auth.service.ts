@@ -5,7 +5,10 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+<<<<<<< HEAD
   InternalServerErrorException,
+=======
+>>>>>>> origin/feat/add-staging
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -193,11 +196,14 @@ export class AuthService {
     const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
+<<<<<<< HEAD
       user.username,
       user.userRoles.map((ur) => ({
         name: ur.role.name,
         permissions: ur.role.rolePermissions.map((rp) => rp.permission),
       })),
+=======
+>>>>>>> origin/feat/add-staging
       userAgent,
       ipAddress,
     );
@@ -297,11 +303,14 @@ export class AuthService {
     const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
+<<<<<<< HEAD
       user.username,
       user.userRoles.map((ur) => ({
         name: ur.role.name,
         permissions: ur.role.rolePermissions.map((rp) => rp.permission),
       })),
+=======
+>>>>>>> origin/feat/add-staging
       userAgent,
       ipAddress,
     );
@@ -385,11 +394,14 @@ export class AuthService {
     const tokens = await this.jwtUtils.generateTokens(
       user.id,
       user.email,
+<<<<<<< HEAD
       user.username,
       user.userRoles.map((ur) => ({
         name: ur.role.name,
         permissions: ur.role.rolePermissions.map((rp) => rp.permission),
       })),
+=======
+>>>>>>> origin/feat/add-staging
       tokenDoc.userAgent ?? undefined,
       tokenDoc.ipAddress ?? undefined,
     );
@@ -428,6 +440,7 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+<<<<<<< HEAD
       include: {
         userRoles: {
           include: {
@@ -443,16 +456,22 @@ export class AuthService {
           },
         },
       },
+=======
+>>>>>>> origin/feat/add-staging
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
+<<<<<<< HEAD
     return {
       user: this.otherUtils.transformUser(user),
       roles: this.otherUtils.transformRoles(user),
     };
+=======
+    return this.otherUtils.transformUser(user);
+>>>>>>> origin/feat/add-staging
   }
 
   async updateProfile(
@@ -980,6 +999,7 @@ export class AuthService {
     return this.otherUtils.transformUser(user);
   }
 
+<<<<<<< HEAD
   private readonly userWithRolesInclude = {
     userRoles: {
       include: {
@@ -996,12 +1016,17 @@ export class AuthService {
     },
   } as const;
 
+=======
+>>>>>>> origin/feat/add-staging
   async googleLogin(googleUser: any, ipAddress: string, userAgent: string) {
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: googleUser.email }],
       },
+<<<<<<< HEAD
       include: this.userWithRolesInclude,
+=======
+>>>>>>> origin/feat/add-staging
     });
 
     if (user && user.status !== UserStatus.ACTIVE) {
@@ -1027,7 +1052,10 @@ export class AuthService {
       });
     }
 
+<<<<<<< HEAD
     // User đã tồn tại và đã link Google -> login bình thường
+=======
+>>>>>>> origin/feat/add-staging
     if (user && user.googleId) {
       if (
         googleUser.picture &&
@@ -1040,18 +1068,24 @@ export class AuthService {
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: { avatarUrl },
+<<<<<<< HEAD
           include: this.userWithRolesInclude,
+=======
+>>>>>>> origin/feat/add-staging
         });
       }
 
       const tokens = await this.jwtUtils.generateTokens(
         user.id,
         user.email,
+<<<<<<< HEAD
         user.username,
         user.userRoles.map((ur) => ({
           name: ur.role.name,
           permissions: ur.role.rolePermissions.map((rp) => rp.permission),
         })),
+=======
+>>>>>>> origin/feat/add-staging
         userAgent,
         ipAddress,
       );
@@ -1068,7 +1102,10 @@ export class AuthService {
       };
     }
 
+<<<<<<< HEAD
     // User chưa tồn tại -> tạo mới, gán role mặc định
+=======
+>>>>>>> origin/feat/add-staging
     const baseUsername = googleUser.email.split('@')[0];
     let username = baseUsername;
     let counter = 1;
@@ -1078,6 +1115,7 @@ export class AuthService {
       counter++;
     }
 
+<<<<<<< HEAD
     const defaultRole = await this.prisma.role.findUnique({
       where: { name: 'user' },
     });
@@ -1092,10 +1130,17 @@ export class AuthService {
       data: {
         email: googleUser.email,
         username,
+=======
+    user = await this.prisma.user.create({
+      data: {
+        email: googleUser.email,
+        username: username,
+>>>>>>> origin/feat/add-staging
         googleId: googleUser.googleId,
         avatarUrl: null,
         verified: true,
         displayName: username,
+<<<<<<< HEAD
         userRoles: {
           create: {
             roleId: defaultRole.id,
@@ -1103,21 +1148,33 @@ export class AuthService {
         },
       },
       include: this.userWithRolesInclude,
+=======
+      },
+>>>>>>> origin/feat/add-staging
     });
 
     if (googleUser.picture) {
       const avatarUrl = await this.importGoogleAvatar(
         googleUser.picture,
+<<<<<<< HEAD
         newUser.id,
       );
       newUser = await this.prisma.user.update({
         where: { id: newUser.id },
         data: { avatarUrl },
         include: this.userWithRolesInclude,
+=======
+        user.id,
+      );
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { avatarUrl },
+>>>>>>> origin/feat/add-staging
       });
     }
 
     const tokens = await this.jwtUtils.generateTokens(
+<<<<<<< HEAD
       newUser.id,
       newUser.email,
       newUser.username,
@@ -1125,16 +1182,27 @@ export class AuthService {
         name: ur.role.name,
         permissions: ur.role.rolePermissions.map((rp) => rp.permission),
       })),
+=======
+      user.id,
+      user.email,
+>>>>>>> origin/feat/add-staging
       userAgent,
       ipAddress,
     );
 
     return {
       user: {
+<<<<<<< HEAD
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
         avatarUrl: newUser.avatarUrl,
+=======
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+>>>>>>> origin/feat/add-staging
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

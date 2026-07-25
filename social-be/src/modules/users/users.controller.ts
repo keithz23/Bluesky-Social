@@ -2,14 +2,20 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { SearchUserDto } from './dto/search-user.dto';
+<<<<<<< HEAD
 import { RateLimit } from 'src/rate-limit/token.decorator';
+=======
+>>>>>>> origin/feat/add-staging
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('search')
+<<<<<<< HEAD
   @RateLimit({ capacity: 1000, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   searchUser(
     @CurrentUser('id') userId: string,
     @Query() searchUserDto: SearchUserDto,
@@ -18,7 +24,10 @@ export class UsersController {
   }
 
   @Get(':username')
+<<<<<<< HEAD
   @RateLimit({ capacity: 100, refillRate: 100 / 60 })
+=======
+>>>>>>> origin/feat/add-staging
   getProfile(
     @Param('username') username: string,
     @CurrentUser('id') userId: string,
