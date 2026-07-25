@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import {
   Controller,
   Get,
@@ -16,13 +15,6 @@ import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
 
 // @RateLimit({ capacity: 500, refillRate: 100 / 60 })
-=======
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { PermissionsService } from './permissions.service';
-import { CreatePermissionDto } from './dto/create-permission.dto';
-import { UpdatePermissionDto } from './dto/update-permission.dto';
-
->>>>>>> origin/feat/add-staging
 @Controller('permissions')
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
@@ -43,14 +35,10 @@ export class PermissionsController {
   }
 
   @Patch(':id')
-<<<<<<< HEAD
   update(
     @Param('id') id: string,
     @Body() updatePermissionDto: UpdatePermissionDto,
   ) {
-=======
-  update(@Param('id') id: string, @Body() updatePermissionDto: UpdatePermissionDto) {
->>>>>>> origin/feat/add-staging
     return this.permissionsService.update(+id, updatePermissionDto);
   }
 

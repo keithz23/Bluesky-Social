@@ -1,5 +1,4 @@
 import { ConfigService } from '@nestjs/config';
-<<<<<<< HEAD
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -9,12 +8,6 @@ interface RoleWithPermissions {
   permissions: { name: string }[];
 }
 
-=======
-import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-
->>>>>>> origin/feat/add-staging
 @Injectable()
 export class JwtUtils {
   constructor(
@@ -22,7 +15,6 @@ export class JwtUtils {
     private jwtService: JwtService,
     private prisma: PrismaService,
   ) {}
-<<<<<<< HEAD
 
   async generateTokens(
     userId: string,
@@ -48,17 +40,6 @@ export class JwtUtils {
     // refresh token nên gọn nhất có thể, không cần permissions
     const refreshPayload = {
       sub: userId,
-=======
-  async generateTokens(
-    userId: string,
-    email: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = {
-      sub: userId,
-      email,
->>>>>>> origin/feat/add-staging
     };
 
     const jwtSecret = this.configService.get<string>('config.jwt.secret') || '';
@@ -67,20 +48,12 @@ export class JwtUtils {
     const refreshExpiresIn =
       this.configService.get('config.jwt.refreshExpiresIn', '7d') ?? '7d';
 
-<<<<<<< HEAD
     const accessToken = this.jwtService.sign(accessPayload, {
-=======
-    const accessToken = this.jwtService.sign(payload, {
->>>>>>> origin/feat/add-staging
       secret: jwtSecret,
       expiresIn: this.configService.get('config.jwt.expiresIn', '15m'),
     });
 
-<<<<<<< HEAD
     const refreshToken = this.jwtService.sign(refreshPayload, {
-=======
-    const refreshToken = this.jwtService.sign(payload, {
->>>>>>> origin/feat/add-staging
       secret: refreshSecret,
       expiresIn: refreshExpiresIn,
     });
