@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
   const otpValue = useWatch({ control, name: "otp" });
 
   const completeAdminLogin = () => {
-    router.replace("/admin");
+    router.replace("/admin/dashboard");
     router.refresh();
   };
 

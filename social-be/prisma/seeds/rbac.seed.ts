@@ -88,7 +88,6 @@ export async function seedRBAC() {
       action: 'delete',
     },
 
-    // Role & Permission — khớp đúng với @Permissions() trong RolesController
     {
       group: 'Role',
       name: 'role:read',
@@ -229,16 +228,15 @@ export async function seedRBAC() {
     });
   }
 
-  // Chỉ lấy permission vừa seed trong lần chạy này, tránh dính permission rác từ lần seed trước
   const allPermissions = await prisma.permission.findMany({
     where: { name: { in: permissions.map((p) => p.name) } },
   });
 
   const baseRoles = [
-    { name: 'super_admin', description: 'System Owner' },
-    { name: 'admin', description: 'Administrator' },
-    { name: 'moderator', description: 'Moderator' },
-    { name: 'user', description: 'Default User' },
+    { name: 'super_admin', description: 'System Owner', level: 0 },
+    { name: 'admin', description: 'Administrator', level: 10 },
+    { name: 'moderator', description: 'Moderator', level: 50 },
+    { name: 'user', description: 'Default User', level: 1000 },
   ];
 
   const roleNames = new Set(baseRoles.map((r) => r.name));
@@ -254,6 +252,7 @@ export async function seedRBAC() {
       roles.push({
         name: fakeRoleName,
         description: faker.person.jobTitle(),
+        level: 500,
       });
     }
   }
@@ -277,7 +276,6 @@ export async function seedRBAC() {
     'report:read',
     'report:resolve',
   ];
-  // admin & super_admin: gắn TOÀN BỘ permission hiện có (bao gồm role:*, permission:read)
   const adminPermissions = allPermissions.map((p) => p.name);
 
   const rolePermissionsMap = new Map<string, string[]>([

@@ -225,4 +225,16 @@ export class UsersService {
     }
     return result;
   }
+
+  // User utils
+  async getUserMinRoleLevel(userId: string): Promise<number> {
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId },
+      include: { role: true },
+    });
+
+    if (userRoles.length === 0) return Infinity;
+
+    return Math.min(...userRoles.map((ur) => ur.role.level));
+  }
 }

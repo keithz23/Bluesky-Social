@@ -96,6 +96,7 @@ export class OtherUtils {
     return user.userRoles.map(({ role }) => ({
       id: role.id,
       name: role.name,
+      level: role.level,
       permissions: role.rolePermissions.map(
         ({ permission }) => permission.name,
       ),

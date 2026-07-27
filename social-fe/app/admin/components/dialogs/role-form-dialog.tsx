@@ -24,6 +24,11 @@ const roleSchema = z.object({
     .min(1, "Role name is required.")
     .max(50, "Role name must be 50 characters or less."),
 
+  level: z
+    .int()
+    .min(1, "Level is required")
+    .max(100000, "Level must be lower than 100000"),
+
   description: z
     .string()
     .trim()
@@ -35,7 +40,12 @@ type RoleFormValues = z.infer<typeof roleSchema>;
 interface RoleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  roleToEdit?: { id: string; name: string; description: string } | null;
+  roleToEdit?: {
+    id: string;
+    name: string;
+    level: number;
+    description: string;
+  } | null;
 }
 
 export default function RoleFormDialog({
@@ -68,13 +78,13 @@ export default function RoleFormDialog({
         reset({
           name: roleToEdit.name,
           description: roleToEdit.description || "",
+          level: roleToEdit.level || 100,
         });
       } else {
-        reset({ name: "", description: "" });
+        reset({ name: "", description: "", level: 100 });
       }
     }
   }, [open, roleToEdit, reset]);
-  // ====================================================================
 
   const closeAndReset = () => {
     reset({ name: "", description: "" });
@@ -101,6 +111,7 @@ export default function RoleFormDialog({
           payload: {
             name: data.name,
             description: data.description,
+            level: Number(data.level),
           },
         },
         {
@@ -147,6 +158,23 @@ export default function RoleFormDialog({
               {errors.name && (
                 <p className="mt-1 text-sm text-red-500">
                   {errors.name.message}
+                </p>
+              )}
+            </Field>
+
+            <Field>
+              <Label htmlFor="level">
+                Role level <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="level"
+                placeholder="Role level"
+                className="bg-slate-50"
+                {...register("level", { valueAsNumber: true })}
+              />
+              {errors.level && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.level.message}
                 </p>
               )}
             </Field>

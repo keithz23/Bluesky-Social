@@ -104,6 +104,8 @@ model Role {
   name        String  @unique
   description String?
 
+  level Int @default(100)
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

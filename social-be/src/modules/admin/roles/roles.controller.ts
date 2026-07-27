@@ -19,6 +19,7 @@ import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 import { RoleQueryDto } from './dto/role-query.dto';
 import { assignPermissionsDto } from './dto/assign-permissions.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @UseGuards(PermissionsGuard)
 @Controller('roles')
@@ -27,8 +28,11 @@ export class RolesController {
 
   @Post()
   @Permissions('role:create')
-  create(@Body() createRoleDto: CreateRoleDto) {
-    return this.rolesService.create(createRoleDto);
+  create(
+    @CurrentUser('id') userId: string,
+    @Body() createRoleDto: CreateRoleDto,
+  ) {
+    return this.rolesService.create(userId, createRoleDto);
   }
 
   @Get()
@@ -53,16 +57,20 @@ export class RolesController {
   @Patch(':roleId')
   @Permissions('role:update')
   update(
+    @CurrentUser('id') userId: string,
     @Param('roleId') roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
-    return this.rolesService.update(roleId, updateRoleDto);
+    return this.rolesService.update(userId, roleId, updateRoleDto);
   }
 
   @Delete()
   @Permissions('role:delete')
-  delete(@Body() deleteRoleDto: DeleteRoleDto) {
-    return this.rolesService.delete(deleteRoleDto);
+  delete(
+    @CurrentUser('id') userId: string,
+    @Body() deleteRoleDto: DeleteRoleDto,
+  ) {
+    return this.rolesService.delete(userId, deleteRoleDto);
   }
 
   // Assign permissions
