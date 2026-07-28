@@ -23,11 +23,11 @@ export async function seedRBAC() {
   const baseGroups = [
     { name: 'User', description: 'User management' },
     { name: 'Role', description: 'Role & permission management' },
+    { name: 'Rule', description: 'Rule management' },
     { name: 'Post', description: 'Post management' },
     { name: 'Report', description: 'Report management' },
     { name: 'System', description: 'System management' },
   ];
-
   const groupNames = new Set(baseGroups.map((g) => g.name));
   const groups = [...baseGroups];
 
@@ -177,6 +177,36 @@ export async function seedRBAC() {
       action: 'update',
     },
 
+    // Rule
+    {
+      group: 'Rule',
+      name: 'rule:read',
+      displayName: 'View Rules',
+      resource: 'rule',
+      action: 'read',
+    },
+    {
+      group: 'Rule',
+      name: 'rule:create',
+      displayName: 'Create Rule',
+      resource: 'rule',
+      action: 'create',
+    },
+    {
+      group: 'Rule',
+      name: 'rule:update',
+      displayName: 'Update Rule',
+      resource: 'rule',
+      action: 'update',
+    },
+    {
+      group: 'Rule',
+      name: 'rule:delete',
+      displayName: 'Delete Rule',
+      resource: 'rule',
+      action: 'delete',
+    },
+
     // System
     {
       group: 'System',
@@ -275,6 +305,7 @@ export async function seedRBAC() {
     'post:delete',
     'report:read',
     'report:resolve',
+    'rule:read',
   ];
   const adminPermissions = allPermissions.map((p) => p.name);
 

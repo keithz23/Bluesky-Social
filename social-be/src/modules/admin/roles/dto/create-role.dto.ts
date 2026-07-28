@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator';
 
 export class CreateRoleDto {
   @ApiProperty()
@@ -13,5 +13,7 @@ export class CreateRoleDto {
 
   @ApiProperty()
   @IsInt()
-  level!: number;
+  @Min(1)
+  @Max(100000)
+  level: number;
 }

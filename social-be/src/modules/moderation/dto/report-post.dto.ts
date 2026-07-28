@@ -1,12 +1,11 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { ReportReason } from '@prisma/client';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class ReportPostDto {
-  @IsEnum(ReportReason)
-  reason!: ReportReason;
+  @IsString()
+  @IsNotEmpty()
+  ruleId: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(1000)
   details?: string;
 }

@@ -21,4 +21,9 @@ export const ADMIN_API_ENDPOINT = {
     UPDATE_USER: (id: string) => `/admin/users/${id}`,
     FIND_ONE: (id: string) => `/admin/users/${id}`,
   },
+  RULES: {
+    BASE: "/admin/rules",
+    ACTIVE: "/admin/rules/active",
+    DETAIL: (ruleId: string) => `/admin/rules/${ruleId}`,
+  },
 };
