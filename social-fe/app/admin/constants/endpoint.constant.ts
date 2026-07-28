@@ -26,4 +26,8 @@ export const ADMIN_API_ENDPOINT = {
     ACTIVE: "/admin/rules/active",
     DETAIL: (ruleId: string) => `/admin/rules/${ruleId}`,
   },
+  KEYWORDS: {
+    BASE: "/admin/keywords",
+    DETAIL: (keywordId: string) => `/admin/keywords/${keywordId}`,
+  },
 };

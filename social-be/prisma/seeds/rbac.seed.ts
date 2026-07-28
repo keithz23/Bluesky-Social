@@ -26,6 +26,7 @@ export async function seedRBAC() {
     { name: 'Rule', description: 'Rule management' },
     { name: 'Post', description: 'Post management' },
     { name: 'Report', description: 'Report management' },
+    { name: 'Keyword', description: 'Keyword management' },
     { name: 'System', description: 'System management' },
   ];
   const groupNames = new Set(baseGroups.map((g) => g.name));
@@ -204,6 +205,36 @@ export async function seedRBAC() {
       name: 'rule:delete',
       displayName: 'Delete Rule',
       resource: 'rule',
+      action: 'delete',
+    },
+
+    // Keyword
+    {
+      group: 'Keyword',
+      name: 'keyword:read',
+      displayName: 'View Keyword',
+      resource: 'keyword',
+      action: 'read',
+    },
+    {
+      group: 'Keyword',
+      name: 'keyword:create',
+      displayName: 'Create Keyword',
+      resource: 'keyword',
+      action: 'create',
+    },
+    {
+      group: 'Keyword',
+      name: 'keyword:update',
+      displayName: 'Update Keyword',
+      resource: 'keyword',
+      action: 'update',
+    },
+    {
+      group: 'Keyword',
+      name: 'keyword:delete',
+      displayName: 'Delete Keyword',
+      resource: 'keyword',
       action: 'delete',
     },
 

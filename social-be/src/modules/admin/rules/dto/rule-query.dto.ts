@@ -1,4 +1,11 @@
-import { IsOptional, IsInt, Min, IsEnum } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  Min,
+  IsEnum,
+  IsString,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { RuleSeverity } from '@prisma/client';
 
@@ -17,4 +24,12 @@ export class RuleQueryDto {
   @IsOptional()
   @IsEnum(RuleSeverity)
   severity?: RuleSeverity;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  all?: boolean;
 }

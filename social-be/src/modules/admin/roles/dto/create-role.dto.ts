@@ -15,5 +15,5 @@ export class CreateRoleDto {
   @IsInt()
   @Min(1)
   @Max(100000)
-  level: number;
+  level!: number;
 }

@@ -1,5 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useForm, Controller, type Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
 import {
   Dialog,
   DialogContent,
@@ -21,6 +25,19 @@ import {
 } from "@/components/ui/select";
 import { useRuleMutations } from "../../hooks/use-rules";
 
+const ruleSchema = z.object({
+  title: z.string().min(1, "Rule Title is required"),
+  description: z.string().min(1, "Description is required"),
+  severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  isActive: z.boolean().default(true),
+  displayOrder: z.coerce
+    .number()
+    .min(0, "Display order must be 0 or greater")
+    .default(0),
+});
+
+type RuleFormValues = z.infer<typeof ruleSchema>;
+
 interface RuleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,62 +49,56 @@ export default function RuleFormDialog({
   onOpenChange,
   ruleToEdit,
 }: RuleFormDialogProps) {
-  const isEditing = !!ruleToEdit;
-
+  const isEditMode = !!ruleToEdit;
   const { createRuleMutation, updateRuleMutation } = useRuleMutations();
 
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    severity: "LOW",
-    isActive: true,
-    displayOrder: 0,
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm<RuleFormValues>({
+    resolver: zodResolver(ruleSchema) as Resolver<RuleFormValues>,
+    defaultValues: {
+      title: "",
+      description: "",
+      severity: "LOW",
+      isActive: true,
+      displayOrder: 0,
+    },
   });
 
   useEffect(() => {
-    if (open && ruleToEdit) {
-      setFormData({
-        title: ruleToEdit.title || "",
-        description: ruleToEdit.description || "",
-        severity: ruleToEdit.severity || "LOW",
-        isActive: ruleToEdit.isActive ?? true,
-        displayOrder: ruleToEdit.displayOrder || 0,
-      });
-    } else if (open && !ruleToEdit) {
-      // Reset form khi tạo mới
-      setFormData({
-        title: "",
-        description: "",
-        severity: "LOW",
-        isActive: true,
-        displayOrder: 0,
-      });
+    if (open) {
+      if (ruleToEdit) {
+        reset({
+          title: ruleToEdit.title || "",
+          description: ruleToEdit.description || "",
+          severity: ruleToEdit.severity || "LOW",
+          isActive: ruleToEdit.isActive ?? true,
+          displayOrder: ruleToEdit.displayOrder || 0,
+        });
+      } else {
+        reset({
+          title: "",
+          description: "",
+          severity: "LOW",
+          isActive: true,
+          displayOrder: 0,
+        });
+      }
     }
-  }, [open, ruleToEdit]);
+  }, [open, ruleToEdit, reset]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "displayOrder" ? Number(value) : value,
-    }));
-  };
-
-  const handleSelectChange = (value: string, name: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isEditing) {
+  const onSubmit = (data: RuleFormValues) => {
+    if (isEditMode) {
       updateRuleMutation.mutate(
-        { id: ruleToEdit.id, data: formData },
+        { ruleId: ruleToEdit.id, payload: data },
         { onSuccess: () => onOpenChange(false) },
       );
     } else {
-      createRuleMutation.mutate(formData, {
+      createRuleMutation.mutate(data, {
         onSuccess: () => onOpenChange(false),
       });
     }
@@ -98,14 +109,14 @@ export default function RuleFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="sm:max-w-125">
+        <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Edit Rule" : "Create New Rule"}
+              {isEditMode ? "Edit Rule" : "Create New Rule"}
             </DialogTitle>
             <DialogDescription>
-              {isEditing
+              {isEditMode
                 ? "Update the details of the selected rule."
                 : "Add a new rule to the community guidelines."}
             </DialogDescription>
@@ -119,12 +130,14 @@ export default function RuleFormDialog({
               </label>
               <Input
                 id="title"
-                name="title"
                 placeholder="e.g. No hate speech"
-                value={formData.title}
-                onChange={handleChange}
-                required
+                {...register("title")}
               />
+              {errors.title && (
+                <span className="text-xs text-red-500">
+                  {errors.title.message}
+                </span>
+              )}
             </div>
 
             {/* Description */}
@@ -134,33 +147,43 @@ export default function RuleFormDialog({
               </label>
               <Textarea
                 id="description"
-                name="description"
                 placeholder="Explain the rule in detail..."
-                value={formData.description}
-                onChange={handleChange}
                 rows={4}
-                required
+                {...register("description")}
               />
+              {errors.description && (
+                <span className="text-xs text-red-500">
+                  {errors.description.message}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               {/* Severity */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">Severity</label>
-                <Select
-                  value={formData.severity}
-                  onValueChange={(val) => handleSelectChange(val, "severity")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select severity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="CRITICAL">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="severity"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select severity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOW">Low</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="CRITICAL">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.severity && (
+                  <span className="text-xs text-red-500">
+                    {errors.severity.message}
+                  </span>
+                )}
               </div>
 
               {/* Display Order */}
@@ -170,12 +193,15 @@ export default function RuleFormDialog({
                 </label>
                 <Input
                   id="displayOrder"
-                  name="displayOrder"
                   type="number"
                   min="0"
-                  value={formData.displayOrder}
-                  onChange={handleChange}
+                  {...register("displayOrder")}
                 />
+                {errors.displayOrder && (
+                  <span className="text-xs text-red-500">
+                    {errors.displayOrder.message}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -187,11 +213,15 @@ export default function RuleFormDialog({
                   Enable or disable this rule immediately.
                 </p>
               </div>
-              <Switch
-                checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, isActive: checked }))
-                }
+              <Controller
+                control={control}
+                name="isActive"
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
               />
             </div>
           </div>
@@ -207,9 +237,15 @@ export default function RuleFormDialog({
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
             >
-              {isLoading ? "Saving..." : "Save"}
+              {isLoading
+                ? isEditMode
+                  ? "Saving..."
+                  : "Creating..."
+                : isEditMode
+                  ? "Save Changes"
+                  : "Create Role"}
             </Button>
           </DialogFooter>
         </form>

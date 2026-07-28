@@ -35,18 +35,25 @@ export class RulesService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const safePage = Math.max(1, page);
+    const isAll = query.all ?? false;
     const safeLimit = Math.min(Math.max(1, limit), 50);
     const skip = PaginationUtil.getSkip(safePage, safeLimit);
 
-    const where: Prisma.RuleWhereInput = query.severity
-      ? { severity: query.severity }
-      : {};
+    const where: Prisma.RuleWhereInput = {};
+
+    if (query.severity) {
+      where.severity = query.severity;
+    }
+
+    if (query.status) {
+      where.isActive = query.status === 'active';
+    }
 
     const [rulesData, total] = await Promise.all([
       this.prisma.rule.findMany({
         where,
         skip,
-        take: safeLimit,
+        ...(isAll ? {} : { skip, take: safeLimit }),
         orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
         include: {
           _count: { select: { reports: true, keywords: true } },

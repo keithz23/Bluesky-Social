@@ -18,11 +18,13 @@ export const RulesService = {
     search?: string,
     severity?: string,
     status?: string,
+    all?: boolean,
   ) => {
-    const params: Record<string, string | number> = { page, limit };
+    const params: Record<string, string | number | boolean> = { page, limit };
     if (search) params.search = search;
     if (severity && severity !== "all") params.severity = severity;
     if (status && status !== "all") params.status = status;
+    if (all) params.all = all;
 
     return apiClient.getPaginated<RuleListResponse>(
       ADMIN_API_ENDPOINT.RULES.BASE,

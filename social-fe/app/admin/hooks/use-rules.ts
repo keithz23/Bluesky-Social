@@ -78,10 +78,12 @@ export function useRules(
   search?: string,
   severity?: string,
   status?: string,
+  all?: boolean,
 ) {
   const rulesQuery = useQuery({
-    queryKey: ["rules", "list", page, limit, search, severity, status],
-    queryFn: () => RulesService.getAll(page, limit, search, severity, status),
+    queryKey: ["rules", "list", page, limit, search, severity, status, all],
+    queryFn: () =>
+      RulesService.getAll(page, limit, search, severity, status, all),
   });
 
   return {

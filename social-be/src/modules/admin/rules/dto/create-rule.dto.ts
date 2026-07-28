@@ -12,14 +12,14 @@ import { RuleSeverity } from '@prisma/client';
 export class CreateRuleDto {
   @IsString()
   @IsNotEmpty()
-  title: string;
+  title!: string;
 
   @IsString()
   @IsNotEmpty()
-  description: string;
+  description!: string;
 
   @IsEnum(RuleSeverity)
-  severity: RuleSeverity;
+  severity!: RuleSeverity;
 
   @IsOptional()
   @IsBoolean()
