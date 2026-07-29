@@ -235,8 +235,12 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
-  async getProfile(@CurrentUser('id') userId: string) {
-    return this.authService.getProfile(userId);
+  async getProfile(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.getProfile(userId, ipAddress, userAgent);
   }
 
   // ============= PROFILE ROUTES =============
@@ -254,6 +258,8 @@ export class AuthController {
   async updateProfile(
     @CurrentUser('id') userId: string,
     @Body() updateDto: UpdateProfileDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
     @UploadedFiles(
       new ImageValidationPipe(
         IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
@@ -268,6 +274,8 @@ export class AuthController {
     return this.authService.updateProfile(
       userId,
       updateDto,
+      ipAddress,
+      userAgent,
       files?.avatar,
       files?.cover,
     );

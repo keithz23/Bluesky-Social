@@ -54,6 +54,7 @@ import { JwtUtils } from './utils/jwt.util';
 import { MailUtils } from './utils/mail.util';
 import { TwoFactorUtils } from './utils/two-factor.util';
 import { OtherUtils } from './utils/other.util';
+import { createAuditLogData } from 'src/common/utils/audit-log.util';
 
 @Injectable()
 export class AuthService {
@@ -69,7 +70,11 @@ export class AuthService {
     private otherUtils: OtherUtils,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<User> {
+  async register(
+    registerDto: RegisterDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<User> {
     const { email, username, password, dateOfBirth } = registerDto;
 
     // Check if email exists
@@ -120,6 +125,15 @@ export class AuthService {
       );
 
       return user;
+    });
+
+    await this.prisma.auditLog.create({
+      data: createAuditLogData({
+        userId: newUser.id,
+        action: 'REGISTER',
+        ipAddress,
+        userAgent,
+      }),
     });
 
     return newUser;
@@ -206,6 +220,15 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: { updatedAt: new Date() },
+    });
+
+    await this.prisma.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: 'LOGIN',
+        ipAddress,
+        userAgent,
+      }),
     });
 
     return {
@@ -425,7 +448,7 @@ export class AuthService {
     return { message: 'Logged out from all devices' };
   }
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string, ipAddress?: string, userAgent?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -449,6 +472,15 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    await this.prisma.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: 'GET_PROFILE',
+        ipAddress,
+        userAgent,
+      }),
+    });
+
     return {
       user: this.otherUtils.transformUser(user),
       roles: this.otherUtils.transformRoles(user),
@@ -458,13 +490,13 @@ export class AuthService {
   async updateProfile(
     userId: string,
     updateDto: UpdateProfileDto,
+    ipAddress?: string,
+    userAgent?: string,
     avatar?: Express.Multer.File[],
     cover?: Express.Multer.File[],
   ) {
     const uploadedKeys: string[] = [];
-
     try {
-      // Upload avatar
       if (avatar?.length) {
         const results = await this.s3Service
           .uploadImages(avatar, `public/avatar/${userId}`, {
@@ -475,12 +507,10 @@ export class AuthService {
             this.logger.error('Error uploading avatar', error);
             throw new BadRequestException('Failed to upload avatar');
           });
-
         uploadedKeys.push(...results.map((r) => r.key));
         updateDto.avatarUrl = results[0].url;
       }
 
-      // Upload cover
       if (cover?.length) {
         const results = await this.s3Service
           .uploadImages(cover, `public/cover/${userId}`, {
@@ -491,26 +521,27 @@ export class AuthService {
             this.logger.error('Error uploading cover', error);
             throw new BadRequestException('Failed to upload cover');
           });
-
         uploadedKeys.push(...results.map((r) => r.key));
         updateDto.coverUrl = results[0].url;
       }
 
-      // Get old image before update to delete later
-      const oldUser = uploadedKeys.length
-        ? await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { avatarUrl: true, coverUrl: true },
-          })
-        : null;
+      const oldUser = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          avatarUrl: true,
+          coverUrl: true,
+          username: true,
+          displayName: true,
+          bio: true,
+        },
+      });
 
       const user = await this.prisma.user.update({
         where: { id: userId },
         data: updateDto,
       });
 
-      // Deleted old image after update db
-      if (oldUser) {
+      if (uploadedKeys.length && oldUser) {
         const oldKeys = [
           updateDto.avatarUrl && oldUser.avatarUrl
             ? this.s3Service.extractKeyFromUrl(oldUser.avatarUrl)
@@ -519,7 +550,6 @@ export class AuthService {
             ? this.s3Service.extractKeyFromUrl(oldUser.coverUrl)
             : null,
         ].filter(Boolean);
-
         if (oldKeys.length) {
           this.otherUtils
             .scheduleCleanup(oldKeys as string[], 'replaced_by_new_upload')
@@ -528,6 +558,31 @@ export class AuthService {
             );
         }
       }
+
+      await this.prisma.auditLog.create({
+        data: createAuditLogData({
+          userId,
+          action: 'UPDATE_PROFILE',
+          ipAddress,
+          userAgent,
+          metadata: {
+            oldProfile: {
+              username: oldUser?.username ?? null,
+              displayName: oldUser?.displayName ?? null,
+              bio: oldUser?.bio ?? null,
+              avatarUrl: oldUser?.avatarUrl ?? null,
+              coverUrl: oldUser?.coverUrl ?? null,
+            },
+            newProfile: {
+              username: user?.username ?? null,
+              displayName: user?.displayName ?? null,
+              bio: user?.bio ?? null,
+              avatarUrl: user?.avatarUrl ?? null,
+              coverUrl: user?.coverUrl ?? null,
+            },
+          },
+        }),
+      });
 
       return this.otherUtils.transformUser(user);
     } catch (error) {
