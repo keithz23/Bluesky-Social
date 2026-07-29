@@ -8,5 +8,6 @@ import { PermissionsModule } from 'src/modules/permissions/permissions.module';
   imports: [PrismaModule, PermissionsModule],
   controllers: [KeywordsController],
   providers: [KeywordsService],
+  exports: [KeywordsService],
 })
 export class KeywordsModule {}

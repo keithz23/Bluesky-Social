@@ -4,6 +4,7 @@ import { RulesService } from "@/app/admin/services/rules.service";
 import { extractErrMsg } from "@/app/utils/error.util";
 import {
   CreateRulePayload,
+  RuleListResponse,
   UpdateRulePayload,
 } from "../interfaces/rule.interface";
 
@@ -84,6 +85,7 @@ export function useRules(
     queryKey: ["rules", "list", page, limit, search, severity, status, all],
     queryFn: () =>
       RulesService.getAll(page, limit, search, severity, status, all),
+    placeholderData: (prev) => prev,
   });
 
   return {

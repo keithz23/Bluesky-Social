@@ -2,18 +2,37 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Keyword } from '@prisma/client';
 import { CreateKeywordDto } from './dto/create-keyword.dto';
 import { UpdateKeywordDto } from './dto/update-keyword.dto';
 import { KeywordQueryDto } from './dto/keyword-query.dto';
 import { DeleteKeywordDto } from './dto/delete-keyword.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 
+type KeywordWithRule = Keyword & {
+  rule: { id: string; title: string; severity: string };
+};
+
 @Injectable()
-export class KeywordsService {
+export class KeywordsService implements OnModuleInit {
+  private keywordCache: KeywordWithRule[] = [];
+
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.refreshCache();
+  }
+
+  private async refreshCache() {
+    this.keywordCache = await this.prisma.keyword.findMany({
+      include: {
+        rule: { select: { id: true, title: true, severity: true } },
+      },
+    });
+  }
 
   async create(createKeywordDto: CreateKeywordDto) {
     const rule = await this.prisma.rule.findUnique({
@@ -25,7 +44,7 @@ export class KeywordsService {
     }
 
     try {
-      return await this.prisma.keyword.create({
+      const created = await this.prisma.keyword.create({
         data: {
           word: createKeywordDto.word.trim().toLowerCase(),
           ruleId: createKeywordDto.ruleId,
@@ -35,6 +54,8 @@ export class KeywordsService {
           rule: { select: { id: true, title: true, severity: true } },
         },
       });
+      await this.refreshCache();
+      return created;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -110,7 +131,7 @@ export class KeywordsService {
     }
 
     try {
-      return await this.prisma.keyword.update({
+      const updated = await this.prisma.keyword.update({
         where: { id: keywordId },
         data: {
           ...updateKeywordDto,
@@ -122,6 +143,8 @@ export class KeywordsService {
           rule: { select: { id: true, title: true, severity: true } },
         },
       });
+      await this.refreshCache();
+      return updated;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
@@ -143,20 +166,18 @@ export class KeywordsService {
     if (result.count === 0) {
       throw new NotFoundException('No keywords found to delete');
     }
+    await this.refreshCache();
     return result;
   }
 
-  async scanContent(content: string) {
+  scanContent(content: string) {
     const normalized = content.toLowerCase();
-
-    const keywords = await this.prisma.keyword.findMany({
-      include: { rule: { select: { id: true, title: true, severity: true } } },
-    });
-
-    const matched = keywords.filter((k) => normalized.includes(k.word));
+    const matched = this.keywordCache.filter((k) =>
+      normalized.includes(k.word),
+    );
 
     if (matched.length === 0) {
-      return { matched: false, action: null, matches: [] };
+      return { matched: false as const, action: null, matches: [] };
     }
 
     const actionPriority: Record<string, number> = {
@@ -164,13 +185,12 @@ export class KeywordsService {
       WARN: 2,
       FLAG: 1,
     };
-
     const strongestMatch = matched.reduce((a, b) =>
       actionPriority[a.action] >= actionPriority[b.action] ? a : b,
     );
 
     return {
-      matched: true,
+      matched: true as const,
       action: strongestMatch.action,
       matches: matched.map((m) => ({
         word: m.word,

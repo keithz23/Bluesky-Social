@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useKeywordsMutation } from "../../hooks/use-keywords";
 import { useRules } from "../../hooks/use-rules";
+import { Rule } from "../../interfaces/rule.interface";
 
 const keywordSchema = z.object({
   word: z.string().min(1, "Word is required"),
@@ -56,7 +57,7 @@ export default function KeywordFormDialog({
     true,
   );
 
-  const rulesList: Rule[] = rulesResponse?.data ?? [];
+  const rulesList: Rule[] = (rulesResponse?.data ?? []) as any[];
 
   const {
     register,

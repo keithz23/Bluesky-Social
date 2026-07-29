@@ -128,7 +128,7 @@ export default function RulesManagementPage() {
   const { deleteRulesMutation } = useRuleMutations();
   const isDeleting = deleteRulesMutation.isPending;
 
-  const rulesList: Rule[] = rulesResponse?.data ?? [];
+  const rulesList: Rule[] = (rulesResponse?.data ?? []) as any[];
   const meta = rulesResponse?.meta ?? { total: 0, totalPages: 1 };
   const totalItems = meta.total;
   const totalPages = meta.totalPages;

@@ -43,8 +43,4 @@ export const ModerationService = {
       { ruleId, details },
     );
   },
-
-  getActiveRules: async () => {
-    return apiClient.get<Rule[]>(API_ENDPOINT.RULES.ACTIVE);
-  },
 };
