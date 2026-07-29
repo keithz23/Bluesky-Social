@@ -40,8 +40,8 @@ locals {
     { name = "GOOGLE_CALLBACK_URL", value = "https://${var.api_domain_name}/api/v1/auth/google/callback" },
     { name = "DEV_POST_BOTS_ENABLED", value = var.dev_post_bots_enabled },
     { name = "DEV_POST_BOTS_INTERVAL_MS", value = var.dev_post_bots_interval_ms },
-    { name = "ADMIN_EMAIL", value=var.admin_email}
-    { name = "ADMIN_PASSWORD", value=var.admin_password}
+    { name = "ADMIN_EMAIL", value=var.admin_email},
+    { name = "ADMIN_PASSWORD", value=var.admin_password},
     { name = "MAIL_HOST", value = var.mail_host },
     { name = "MAIL_PORT", value = var.mail_port },
     { name = "MAIL_SECURE", value = var.mail_secure },
