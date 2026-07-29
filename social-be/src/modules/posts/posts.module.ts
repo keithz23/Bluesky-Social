@@ -8,7 +8,7 @@ import { S3Service } from 'src/uploads/s3.service';
 import { SocketModule } from '../socket/socket.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
-import { RateLimitModule } from 'src/rate-limit/rate-limit.module';
+import { KeywordsModule } from '../admin/keywords/keywords.module';
 
 @Module({
   imports: [
@@ -16,6 +16,7 @@ import { RateLimitModule } from 'src/rate-limit/rate-limit.module';
     UploadModule,
     SocketModule,
     NotificationsModule,
+    KeywordsModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.FEED_FANOUT,
     }),

@@ -52,23 +52,26 @@ export default function KeywordsManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
 
-  const [keywordToEditInfo, setKeywordToEditInfo] = useState<Rule | null>(null);
+  const [keywordToEditInfo, setKeywordToEditInfo] = useState<Keyword | null>(
+    null,
+  );
 
   const searchParam = searchParams.get("search") || "";
 
   const actionFilter = (searchParams.get("action") || "all") as
     KeywordAction | "all";
-  const ruleFilter = searchParams.get("ruleId") || "";
+  const ruleFilter = searchParams.get("ruleId") || "all";
   const [searchTerm, setSearchTerm] = useState(searchParam);
 
   const updateURLParams = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value && value !== "all") {
-      params.set(key, value);
-    } else {
-      params.delete(key);
+    if (value && value !== "all") params.set(key, value);
+    else params.delete(key);
+    if (key !== "page") {
+      params.set("page", "1");
+      setPage(1);
+      setSelectedKeywordIds([]);
     }
-    if (key !== "page") params.set("page", "1");
     router.push(`${pathname}?${params}`);
   };
 
@@ -130,8 +133,8 @@ export default function KeywordsManagementPage() {
     page,
     limit,
     searchParam,
-    actionFilter,
-    ruleFilter,
+    actionFilter === "all" ? undefined : actionFilter,
+    ruleFilter === "all" ? undefined : ruleFilter,
   );
 
   const { deleteKeywordsMutation, isDeleting } = useKeywordsMutation();
