@@ -32,4 +32,5 @@ export interface KeywordsResponse {
   timestamp?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface UpdateKeywordData extends Partial<CreateKeywordData> {}
