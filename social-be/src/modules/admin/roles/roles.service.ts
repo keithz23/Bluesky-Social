@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,18 +11,31 @@ import { Prisma } from '@prisma/client';
 import { RoleQueryDto } from './dto/role-query.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { DeleteRoleDto } from './dto/delete-role.dto';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class RolesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private usersService: UsersService,
+  ) {}
   private readonly PROTECTED_ROLE_NAMES = ['super_admin', 'admin', 'user'];
 
-  async create(createRoleDto: CreateRoleDto) {
-    const { name, description } = createRoleDto;
+  async create(userId: string, createRoleDto: CreateRoleDto) {
+    const { name, description, level } = createRoleDto;
+
+    const currentUserLevel =
+      await this.usersService.getUserMinRoleLevel(userId);
+
+    if (currentUserLevel === undefined || level < currentUserLevel) {
+      throw new ForbiddenException(
+        `Cannot create a role with equal or higher privilege than your own level`,
+      );
+    }
 
     try {
       return await this.prisma.role.create({
-        data: { name, description },
+        data: { name, description, level },
       });
     } catch (error) {
       if (
@@ -125,13 +139,27 @@ export class RolesService {
     };
   }
 
-  async update(roleId: string, updateRoleDto: UpdateRoleDto) {
-    const { name, description } = updateRoleDto;
+  async update(userId: string, roleId: string, updateRoleDto: UpdateRoleDto) {
+    const { name, description, level } = updateRoleDto;
+
+    const currentUserLevel =
+      await this.usersService.getUserMinRoleLevel(userId);
+
+    const targetRole = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!targetRole) throw new NotFoundException('Role not found');
+
+    if (currentUserLevel > targetRole.level)
+      throw new ForbiddenException(
+        `Cannot delete a role with equal or higher privilege than your own level`,
+      );
 
     try {
       return await this.prisma.role.update({
         where: { id: roleId },
-        data: { name, description },
+        data: { name, description, level },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -146,8 +174,10 @@ export class RolesService {
     }
   }
 
-  async delete(deleteRoleDto: DeleteRoleDto) {
+  async delete(userId: string, deleteRoleDto: DeleteRoleDto) {
     const { roleIds } = deleteRoleDto;
+    const currentUserLevel =
+      await this.usersService.getUserMinRoleLevel(userId);
 
     const roles = await this.prisma.role.findMany({
       where: { id: { in: roleIds } },
@@ -162,6 +192,13 @@ export class RolesService {
         `Cannot delete system role "${protectedRole.name}"`,
       );
     }
+
+    roles.flatMap((r) => {
+      if (currentUserLevel > r.level)
+        throw new ForbiddenException(
+          'Cannot delete a role with equal or higher privilege than your own level',
+        );
+    });
 
     const roleInUse = roles.find((r) => r._count.userRoles > 0);
     if (roleInUse) {

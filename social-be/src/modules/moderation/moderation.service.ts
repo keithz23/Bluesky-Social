@@ -71,7 +71,6 @@ export class ModerationService {
     await this.prisma.block.deleteMany({
       where: { blockerId, blockedId },
     });
-
     return { blocked: false, userId: blockedId };
   }
 
@@ -95,19 +94,34 @@ export class ModerationService {
     await this.prisma.mute.deleteMany({
       where: { muterId, mutedId },
     });
-
     return { muted: false, userId: mutedId };
   }
 
   async reportPost(reporterId: string, postId: string, dto: ReportPostDto) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId, isDeleted: false },
-      select: { id: true, userId: true },
-    });
+    const [post, rule] = await Promise.all([
+      this.prisma.post.findFirst({
+        where: { id: postId, isDeleted: false },
+        select: { id: true, userId: true },
+      }),
+      this.prisma.rule.findUnique({
+        where: { id: dto.ruleId },
+        select: { id: true, isActive: true },
+      }),
+    ]);
 
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId === reporterId) {
       throw new BadRequestException('You cannot report your own post');
+    }
+    if (!rule || !rule.isActive) {
+      throw new BadRequestException('Invalid or inactive report rule');
+    }
+
+    const existingReport = await this.prisma.report.findFirst({
+      where: { reporterId, postId, status: { not: 'DISMISSED' } },
+    });
+    if (existingReport) {
+      throw new BadRequestException('You have already reported this post');
     }
 
     const report = await this.prisma.report.create({
@@ -115,14 +129,14 @@ export class ModerationService {
         reporterId,
         postId,
         userId: post.userId,
-        reason: dto.reason,
+        ruleId: dto.ruleId,
         details: dto.details,
       },
       select: {
         id: true,
-        reason: true,
         status: true,
         createdAt: true,
+        rule: { select: { id: true, title: true, severity: true } },
       },
     });
 
@@ -135,12 +149,10 @@ export class ModerationService {
         'You cannot perform this action on yourself',
       );
     }
-
     const target = await this.prisma.user.findUnique({
       where: { id: targetUserId },
       select: { id: true },
     });
-
     if (!target) throw new NotFoundException('User not found');
   }
 }

@@ -36,6 +36,9 @@ export async function seedAdmin() {
         userId: admin.id,
         roleId: role.id,
       },
+      role: {
+        level: 1,
+      },
     },
     update: {},
     create: {

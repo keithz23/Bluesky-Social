@@ -1,9 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  ModerationService,
-  ReportReason,
-} from "@/app/services/moderation.service";
+import { ModerationService } from "@/app/services/moderation.service";
 import { extractErrMsg } from "../utils/error.util";
 
 export const useModeration = () => {
@@ -24,6 +21,15 @@ export const useModeration = () => {
     onError: (error) => toast.error(extractErrMsg(error)),
   });
 
+  const unblockUser = useMutation({
+    mutationFn: ModerationService.unblockUser,
+    onSuccess: () => {
+      toast.success("Account unblocked");
+      refreshSocialCaches();
+    },
+    onError: (error) => toast.error(extractErrMsg(error)),
+  });
+
   const muteUser = useMutation({
     mutationFn: ModerationService.muteUser,
     onSuccess: () => {
@@ -33,10 +39,19 @@ export const useModeration = () => {
     onError: (error) => toast.error(extractErrMsg(error)),
   });
 
+  const unmuteUser = useMutation({
+    mutationFn: ModerationService.unmuteUser,
+    onSuccess: () => {
+      toast.success("Account unmuted");
+      refreshSocialCaches();
+    },
+    onError: (error) => toast.error(extractErrMsg(error)),
+  });
+
   const reportPost = useMutation({
     mutationFn: (payload: {
       postId: string;
-      reason: ReportReason;
+      ruleId: string;
       details?: string;
     }) => ModerationService.reportPost(payload),
     onSuccess: () => toast.success("Report submitted"),
@@ -45,9 +60,15 @@ export const useModeration = () => {
 
   return {
     blockUser,
+    unblockUser,
     muteUser,
+    unmuteUser,
     reportPost,
     isModerating:
-      blockUser.isPending || muteUser.isPending || reportPost.isPending,
+      blockUser.isPending ||
+      unblockUser.isPending ||
+      muteUser.isPending ||
+      unmuteUser.isPending ||
+      reportPost.isPending,
   };
 };

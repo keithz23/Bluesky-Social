@@ -1,5 +1,6 @@
 export interface CreateRoleData {
   name: string;
+  level: number;
   description?: string;
 }
 

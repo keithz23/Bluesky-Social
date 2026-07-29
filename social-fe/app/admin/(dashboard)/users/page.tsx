@@ -410,7 +410,7 @@ export default function UsersPage() {
                       key={role.id}
                       checked={isSelected}
                       onCheckedChange={() => handleRoleToggle(role.id)}
-                      onSelect={(e) => e.preventDefault()} // Giữ menu mở khi click chọn nhiều cái
+                      onSelect={(e) => e.preventDefault()}
                     >
                       {role.name}
                     </DropdownMenuCheckboxItem>

@@ -405,7 +405,6 @@ export default function RolesManagementPage() {
         </div>
       </div>
 
-      {/* --- THANH CÔNG CỤ TÌM KIẾM & LỌC --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-5 shrink-0">
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           {/* SEARCH INPUT */}

@@ -104,6 +104,8 @@ model Role {
   name        String  @unique
   description String?
 
+  level Int @default(100)
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -181,6 +183,38 @@ model UserRole {
 
   @@unique([userId, roleId])
   @@map("user_roles")
+}
+
+model Rule {
+  id           String       @id @default(cuid())
+  title        String       @unique()
+  description  String       @db.Text
+  severity     RuleSeverity @default(LOW)
+  isActive     Boolean      @default(true) @map("is_active")
+  displayOrder Int          @default(0) @map("display_order")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  reports  Report[]
+  keywords Keyword[]
+
+  @@index([isActive, displayOrder])
+  @@map("rules")
+}
+
+model Keyword {
+  id        String        @id @default(cuid())
+  word      String
+  ruleId    String        @map("rule_id")
+  action    KeywordAction @default(FLAG)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  rule Rule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([word])
+  @@index([ruleId])
+  @@map("keywords")
 }
 
 model AppPassword {
@@ -819,7 +853,7 @@ model Report {
   reporterId String       @map("reporter_id")
   postId     String?      @map("post_id")
   userId     String?      @map("user_id")
-  reason     ReportReason
+  ruleId     String       @map("rule_id")
   details    String?      @db.Text
   status     ReportStatus @default(PENDING)
   createdAt  DateTime     @default(now()) @map("created_at")
@@ -828,11 +862,13 @@ model Report {
   reporter User  @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   post     Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
   user     User? @relation("ReportedUser", fields: [userId], references: [id], onDelete: Cascade)
+  rule     Rule  @relation(fields: [ruleId], references: [id])
 
   @@index([status])
   @@index([reporterId])
   @@index([postId])
   @@index([userId])
+  @@index([ruleId])
   @@map("reports")
 }
 
@@ -979,4 +1015,17 @@ enum ReplyPolicy {
 enum TwoFactorMethod {
   TOTP
   EMAIL
+}
+
+enum RuleSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum KeywordAction {
+  FLAG
+  AUTO_HIDE
+  WARN
 }

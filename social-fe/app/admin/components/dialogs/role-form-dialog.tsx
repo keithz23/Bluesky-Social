@@ -24,10 +24,17 @@ const roleSchema = z.object({
     .min(1, "Role name is required.")
     .max(50, "Role name must be 50 characters or less."),
 
+  level: z
+    .number()
+    .int()
+    .min(1, "Level is required")
+    .max(100000, "Level must be lower than 100000"),
+
   description: z
     .string()
     .trim()
-    .max(100, "Description must be 100 characters or less."),
+    .max(100, "Description must be 100 characters or less.")
+    .optional(),
 });
 
 type RoleFormValues = z.infer<typeof roleSchema>;
@@ -35,7 +42,12 @@ type RoleFormValues = z.infer<typeof roleSchema>;
 interface RoleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  roleToEdit?: { id: string; name: string; description: string } | null;
+  roleToEdit?: {
+    id: string;
+    name: string;
+    level: number;
+    description: string;
+  } | null;
 }
 
 export default function RoleFormDialog({
@@ -56,6 +68,7 @@ export default function RoleFormDialog({
     defaultValues: {
       name: "",
       description: "",
+      level: 100,
     },
   });
 
@@ -68,16 +81,16 @@ export default function RoleFormDialog({
         reset({
           name: roleToEdit.name,
           description: roleToEdit.description || "",
+          level: roleToEdit.level ?? 100,
         });
       } else {
-        reset({ name: "", description: "" });
+        reset({ name: "", description: "", level: 100 });
       }
     }
   }, [open, roleToEdit, reset]);
-  // ====================================================================
 
   const closeAndReset = () => {
-    reset({ name: "", description: "" });
+    reset({ name: "", description: "", level: 100 });
     onOpenChange(false);
   };
 
@@ -89,6 +102,7 @@ export default function RoleFormDialog({
           payload: {
             name: data.name,
             description: data.description,
+            level: Number(data.level),
           },
         },
         {
@@ -101,6 +115,7 @@ export default function RoleFormDialog({
           payload: {
             name: data.name,
             description: data.description,
+            level: Number(data.level),
           },
         },
         {
@@ -128,7 +143,7 @@ export default function RoleFormDialog({
             </DialogTitle>
             <DialogDescription>
               {isEditMode
-                ? "Update the name and description of this role."
+                ? "Update the name, level, and description of this role."
                 : "Create a new role and assign permissions later."}
             </DialogDescription>
           </DialogHeader>
@@ -147,6 +162,28 @@ export default function RoleFormDialog({
               {errors.name && (
                 <p className="mt-1 text-sm text-red-500">
                   {errors.name.message}
+                </p>
+              )}
+            </Field>
+
+            <Field>
+              <Label htmlFor="level">
+                Role level <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="level"
+                type="number"
+                placeholder="Role level"
+                className="bg-slate-50"
+                {...register("level", { valueAsNumber: true })}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Lower number = higher privilege. You can only create or edit
+                roles weaker than your own.
+              </p>
+              {errors.level && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.level.message}
                 </p>
               )}
             </Field>
