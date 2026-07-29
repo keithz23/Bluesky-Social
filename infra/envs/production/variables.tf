@@ -264,3 +264,15 @@ variable "mail_from" {
   sensitive = true
   default   = ""
 }
+
+variable "admin_email" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "admin_password" {
+  type      = string
+  sensitive = true
+  default   = ""
+}

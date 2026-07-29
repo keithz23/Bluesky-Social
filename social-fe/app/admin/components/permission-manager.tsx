@@ -11,14 +11,12 @@ import { ChevronDownIcon } from "lucide-react";
 import {
   PermissionGroups,
   Permissions,
-  RolePermissions,
 } from "../interfaces/permission.interface";
 
 interface PermissionManagerProps {
   permissionGroups: PermissionGroups[];
-  rolePermissions: string[]; // (Hoặc RolePermissions nếu bạn định nghĩa alias là string[])
+  rolePermissions: string[];
   onToggle: (id: string) => void;
-  // THÊM PROPS MỚI: Xử lý bật/tắt toàn bộ group
   onToggleGroup: (ids: string[], isSelected: boolean) => void;
 }
 
@@ -31,7 +29,6 @@ export function PermissionManager({
   return (
     <>
       {permissionGroups.map((group: PermissionGroups) => {
-        // Kiểm tra xem TOÀN BỘ quyền trong group này đã được tick chưa?
         const isAllSelected =
           group.permissions.length > 0 &&
           group.permissions.every((p) => rolePermissions?.includes(p.id));
@@ -61,7 +58,6 @@ export function PermissionManager({
             </CollapsibleTrigger>
 
             <CollapsibleContent className="flex flex-col gap-2 p-4 pt-2 border-t">
-              {/* === NÚT CHỌN TẤT CẢ (SELECT ALL) === */}
               {group.permissions.length > 1 && (
                 <div className="flex items-center justify-between space-x-2 rounded-md border border-blue-100 bg-blue-50 p-3 mb-2">
                   <Label
@@ -74,7 +70,6 @@ export function PermissionManager({
                     id={`group-${group.id}-all`}
                     checked={isAllSelected}
                     onCheckedChange={(checked) => {
-                      // Gom toàn bộ ID của group này thành 1 mảng và gửi lên
                       const allIds = group.permissions.map((p) => p.id);
                       onToggleGroup(allIds, checked);
                     }}

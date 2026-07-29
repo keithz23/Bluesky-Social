@@ -46,6 +46,8 @@ locals {
     { name = "MAIL_USER", value = var.mail_user },
     { name = "MAIL_PASSWORD", value = var.mail_password },
     { name = "MAIL_FROM", value = var.mail_from },
+    { name = "ADMIN_EMAIL", value=var.admin_email},
+    { name = "ADMIN_PASSWORD", value=var.admin_password},
   ]
 
   frontend_environment = [
