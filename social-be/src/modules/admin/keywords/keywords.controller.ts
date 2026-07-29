@@ -1,34 +1,57 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { KeywordsService } from './keywords.service';
 import { CreateKeywordDto } from './dto/create-keyword.dto';
 import { UpdateKeywordDto } from './dto/update-keyword.dto';
+import { KeywordQueryDto } from './dto/keyword-query.dto';
+import { DeleteKeywordDto } from './dto/delete-keyword.dto';
+import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 
+@UseGuards(PermissionsGuard)
 @Controller('keywords')
 export class KeywordsController {
   constructor(private readonly keywordsService: KeywordsService) {}
 
   @Post()
+  @Permissions('keyword:create')
   create(@Body() createKeywordDto: CreateKeywordDto) {
     return this.keywordsService.create(createKeywordDto);
   }
 
   @Get()
-  findAll() {
-    return this.keywordsService.findAll();
+  @Permissions('keyword:read')
+  findAll(@Query() query: KeywordQueryDto) {
+    return this.keywordsService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.keywordsService.findOne(+id);
+  @Get(':keywordId')
+  @Permissions('keyword:read')
+  findOne(@Param('keywordId') keywordId: string) {
+    return this.keywordsService.findOne(keywordId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateKeywordDto: UpdateKeywordDto) {
-    return this.keywordsService.update(+id, updateKeywordDto);
+  @Patch(':keywordId')
+  @Permissions('keyword:update')
+  update(
+    @Param('keywordId') keywordId: string,
+    @Body() updateKeywordDto: UpdateKeywordDto,
+  ) {
+    return this.keywordsService.update(keywordId, updateKeywordDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.keywordsService.remove(+id);
+  @Delete()
+  @Permissions('keyword:delete')
+  delete(@Body() deleteKeywordDto: DeleteKeywordDto) {
+    return this.keywordsService.delete(deleteKeywordDto);
   }
 }

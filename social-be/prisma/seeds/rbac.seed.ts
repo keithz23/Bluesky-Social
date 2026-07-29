@@ -23,11 +23,12 @@ export async function seedRBAC() {
   const baseGroups = [
     { name: 'User', description: 'User management' },
     { name: 'Role', description: 'Role & permission management' },
+    { name: 'Rule', description: 'Rule management' },
     { name: 'Post', description: 'Post management' },
     { name: 'Report', description: 'Report management' },
+    { name: 'Keyword', description: 'Keyword management' },
     { name: 'System', description: 'System management' },
   ];
-
   const groupNames = new Set(baseGroups.map((g) => g.name));
   const groups = [...baseGroups];
 
@@ -88,7 +89,6 @@ export async function seedRBAC() {
       action: 'delete',
     },
 
-    // Role & Permission — khớp đúng với @Permissions() trong RolesController
     {
       group: 'Role',
       name: 'role:read',
@@ -178,6 +178,66 @@ export async function seedRBAC() {
       action: 'update',
     },
 
+    // Rule
+    {
+      group: 'Rule',
+      name: 'rule:read',
+      displayName: 'View Rules',
+      resource: 'rule',
+      action: 'read',
+    },
+    {
+      group: 'Rule',
+      name: 'rule:create',
+      displayName: 'Create Rule',
+      resource: 'rule',
+      action: 'create',
+    },
+    {
+      group: 'Rule',
+      name: 'rule:update',
+      displayName: 'Update Rule',
+      resource: 'rule',
+      action: 'update',
+    },
+    {
+      group: 'Rule',
+      name: 'rule:delete',
+      displayName: 'Delete Rule',
+      resource: 'rule',
+      action: 'delete',
+    },
+
+    // Keyword
+    {
+      group: 'Keyword',
+      name: 'keyword:read',
+      displayName: 'View Keyword',
+      resource: 'keyword',
+      action: 'read',
+    },
+    {
+      group: 'Keyword',
+      name: 'keyword:create',
+      displayName: 'Create Keyword',
+      resource: 'keyword',
+      action: 'create',
+    },
+    {
+      group: 'Keyword',
+      name: 'keyword:update',
+      displayName: 'Update Keyword',
+      resource: 'keyword',
+      action: 'update',
+    },
+    {
+      group: 'Keyword',
+      name: 'keyword:delete',
+      displayName: 'Delete Keyword',
+      resource: 'keyword',
+      action: 'delete',
+    },
+
     // System
     {
       group: 'System',
@@ -229,16 +289,15 @@ export async function seedRBAC() {
     });
   }
 
-  // Chỉ lấy permission vừa seed trong lần chạy này, tránh dính permission rác từ lần seed trước
   const allPermissions = await prisma.permission.findMany({
     where: { name: { in: permissions.map((p) => p.name) } },
   });
 
   const baseRoles = [
-    { name: 'super_admin', description: 'System Owner' },
-    { name: 'admin', description: 'Administrator' },
-    { name: 'moderator', description: 'Moderator' },
-    { name: 'user', description: 'Default User' },
+    { name: 'super_admin', description: 'System Owner', level: 0 },
+    { name: 'admin', description: 'Administrator', level: 10 },
+    { name: 'moderator', description: 'Moderator', level: 50 },
+    { name: 'user', description: 'Default User', level: 1000 },
   ];
 
   const roleNames = new Set(baseRoles.map((r) => r.name));
@@ -254,6 +313,7 @@ export async function seedRBAC() {
       roles.push({
         name: fakeRoleName,
         description: faker.person.jobTitle(),
+        level: 500,
       });
     }
   }
@@ -276,8 +336,8 @@ export async function seedRBAC() {
     'post:delete',
     'report:read',
     'report:resolve',
+    'rule:read',
   ];
-  // admin & super_admin: gắn TOÀN BỘ permission hiện có (bao gồm role:*, permission:read)
   const adminPermissions = allPermissions.map((p) => p.name);
 
   const rolePermissionsMap = new Map<string, string[]>([

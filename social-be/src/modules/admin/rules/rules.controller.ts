@@ -1,34 +1,68 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Public } from 'src/common/decorators/public.decorator';
 import { RulesService } from './rules.service';
 import { CreateRuleDto } from './dto/create-rule.dto';
 import { UpdateRuleDto } from './dto/update-rule.dto';
+import { RuleQueryDto } from './dto/rule-query.dto';
+import { DeleteRuleDto } from './dto/delete-rule.dto';
+import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 
 @Controller('rules')
 export class RulesController {
   constructor(private readonly rulesService: RulesService) {}
 
+  @Public()
+  @Get('active')
+  findActiveRulesForReport() {
+    return this.rulesService.findActiveRulesForReport();
+  }
+
+  @UseGuards(PermissionsGuard)
   @Post()
+  // @Permissions('rule:create')
   create(@Body() createRuleDto: CreateRuleDto) {
     return this.rulesService.create(createRuleDto);
   }
 
+  @UseGuards(PermissionsGuard)
   @Get()
-  findAll() {
-    return this.rulesService.findAll();
+  @Permissions('rule:read')
+  findAll(@Query() query: RuleQueryDto) {
+    return this.rulesService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.rulesService.findOne(+id);
+  @UseGuards(PermissionsGuard)
+  @Get(':ruleId')
+  @Permissions('rule:read')
+  findOne(@Param('ruleId') ruleId: string) {
+    return this.rulesService.findOne(ruleId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRuleDto: UpdateRuleDto) {
-    return this.rulesService.update(+id, updateRuleDto);
+  @UseGuards(PermissionsGuard)
+  @Patch(':ruleId')
+  @Permissions('rule:update')
+  update(
+    @Param('ruleId') ruleId: string,
+    @Body() updateRuleDto: UpdateRuleDto,
+  ) {
+    return this.rulesService.update(ruleId, updateRuleDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.rulesService.remove(+id);
+  @UseGuards(PermissionsGuard)
+  @Delete()
+  @Permissions('rule:delete')
+  delete(@Body() deleteRuleDto: DeleteRuleDto) {
+    return this.rulesService.delete(deleteRuleDto);
   }
 }

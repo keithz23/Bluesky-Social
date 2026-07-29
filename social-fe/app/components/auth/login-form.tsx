@@ -141,7 +141,7 @@ export default function LoginForm() {
       className={`w-full ${loginStep === "2fa" ? "space-y-4" : "space-y-4"}`}
     >
       {loginStep === "2fa" && (
-        <div className="space-y-2 rounded-[16px] bg-[#eef4ff] px-4 py-3 text-sm text-slate-700">
+        <div className="space-y-2 rounded-3xl bg-[#eef4ff] px-4 py-3 text-sm text-slate-700">
           <button
             type="button"
             onClick={goBackToPasswordStep}
@@ -264,7 +264,7 @@ export default function LoginForm() {
               {...register("otp", {
                 onChange: () => clearErrors("otp"),
               })}
-              className={`h-14 rounded-[16px] border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
+              className={`h-14 rounded-3xl border-none bg-[#eef3f6] px-4 text-base font-medium shadow-none placeholder:text-slate-500 focus-visible:bg-white focus-visible:ring-blue-600/35
                 ${errors.otp ? "bg-red-50 ring-2 ring-red-500 focus-visible:ring-red-500/30" : ""}
               `}
             />

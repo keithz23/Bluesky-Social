@@ -22,11 +22,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useModeration } from "@/app/hooks/use-moderation";
-import { ReportReason } from "@/app/services/moderation.service";
 import { useRequireAuthAction } from "@/app/hooks/use-require-auth-action";
 import EditPostDialog from "../dialog/edit-post-dialog";
 import { Pencil } from "lucide-react";
 import { usePinPost } from "@/app/hooks/use-pin-post";
+import { useActiveRules } from "@/app/admin/hooks/use-rules";
 
 interface PostDropDownProps {
   post: Feed;
@@ -45,12 +45,13 @@ export default function PostDropDown({
   const qc = useQueryClient();
   const { deletePost, isDeletingPost } = usePost();
   const { blockUser, muteUser, reportPost, isModerating } = useModeration();
+  const { rules, isLoading: isLoadingRules } = useActiveRules();
   const { user } = useAuth();
   const requireAuth = useRequireAuthAction();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
+  const [reportRuleId, setReportRuleId] = useState<string>("");
   const [reportDetails, setReportDetails] = useState("");
   const pathname = usePathname();
   const isOwner = user?.id === post?.user?.id;
@@ -113,7 +114,6 @@ export default function PostDropDown({
             parentPost?.user?.username ?? post.rootPost?.user?.username;
 
           if (post.parentPostId && parentUsername) {
-            // Reply → go back to parent post
             router.push(`/profile/${parentUsername}/post/${post.parentPostId}`);
           } else {
             router.push("/");
@@ -188,7 +188,6 @@ export default function PostDropDown({
       case "Show more like this":
       case "Show less like this":
       case "Mute words & tags":
-      // case "Pin to your profile":
       case "Edit interaction settings":
         toast.info("This action is not available yet");
         break;
@@ -199,17 +198,21 @@ export default function PostDropDown({
 
   const submitReport = () => {
     if (!requireAuth()) return;
+    if (!reportRuleId) {
+      toast.error("Please select a reason");
+      return;
+    }
 
     reportPost.mutate(
       {
         postId: post.id,
-        reason: reportReason,
+        ruleId: reportRuleId,
         details: reportDetails.trim() || undefined,
       },
       {
         onSuccess: () => {
           setIsReportOpen(false);
-          setReportReason("SPAM");
+          setReportRuleId("");
           setReportDetails("");
         },
       },
@@ -331,20 +334,30 @@ export default function PostDropDown({
           </DialogDescription>
 
           <div className="flex flex-col gap-2">
-            {REPORT_REASONS.map((reason) => (
-              <label
-                key={reason.value}
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 px-3 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
-              >
-                <span>{reason.label}</span>
-                <input
-                  type="radio"
-                  name={`report-${post.id}`}
-                  checked={reportReason === reason.value}
-                  onChange={() => setReportReason(reason.value)}
-                />
-              </label>
-            ))}
+            {isLoadingRules ? (
+              <div className="flex justify-center py-6">
+                <Loader2 size={20} className="animate-spin text-gray-400" />
+              </div>
+            ) : rules.length === 0 ? (
+              <p className="py-4 text-center text-sm text-gray-500">
+                No report reasons available right now.
+              </p>
+            ) : (
+              rules.map((rule) => (
+                <label
+                  key={rule.id}
+                  className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 px-3 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                >
+                  <span>{rule.title}</span>
+                  <input
+                    type="radio"
+                    name={`report-${post.id}`}
+                    checked={reportRuleId === rule.id}
+                    onChange={() => setReportRuleId(rule.id)}
+                  />
+                </label>
+              ))
+            )}
           </div>
 
           <textarea
@@ -359,7 +372,7 @@ export default function PostDropDown({
             <button
               type="button"
               onClick={submitReport}
-              disabled={isModerating}
+              disabled={isModerating || !reportRuleId}
               className="flex w-full items-center justify-center rounded-full bg-[#E42240] py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#c91d37] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isModerating ? (
@@ -383,14 +396,3 @@ export default function PostDropDown({
     </div>
   );
 }
-
-const REPORT_REASONS: Array<{ label: string; value: ReportReason }> = [
-  { label: "Spam", value: "SPAM" },
-  { label: "Harassment", value: "HARASSMENT" },
-  { label: "Hate speech", value: "HATE_SPEECH" },
-  { label: "Violence", value: "VIOLENCE" },
-  { label: "Nudity", value: "NUDITY" },
-  { label: "False information", value: "FALSE_INFORMATION" },
-  { label: "Impersonation", value: "IMPERSONATION" },
-  { label: "Other", value: "OTHER" },
-];
