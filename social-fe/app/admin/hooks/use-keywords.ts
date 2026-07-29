@@ -79,6 +79,7 @@ export function useKeywords(
   const keywordQuery = useQuery({
     queryKey: ["keywords", page, limit, search, action, ruleId],
     queryFn: () => KeywordsService.getAll(page, limit, search, action, ruleId),
+    placeholderData: (prev) => prev,
   });
 
   return {

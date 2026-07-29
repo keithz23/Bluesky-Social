@@ -274,7 +274,6 @@ export class PostsService {
         );
       }
 
-      // Chỉ fanout nếu post chưa bị auto-hide
       const postAfterScan = await this.prisma.post.findUnique({
         where: { id: fullPost.post!.id },
         select: { isDeleted: true },

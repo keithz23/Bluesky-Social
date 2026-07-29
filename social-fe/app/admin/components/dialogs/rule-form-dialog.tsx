@@ -167,7 +167,7 @@ export default function RuleFormDialog({
                   name="severity"
                   render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select severity" />
                       </SelectTrigger>
                       <SelectContent>

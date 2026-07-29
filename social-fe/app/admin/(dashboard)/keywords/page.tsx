@@ -139,8 +139,8 @@ export default function KeywordsManagementPage() {
 
   const { deleteKeywordsMutation, isDeleting } = useKeywordsMutation();
 
-  const rulesList: Rule[] = rulesResponse?.data ?? [];
-  const keywordsList: Keyword[] = keywordsResponse?.data ?? [];
+  const rulesList: Rule[] = (rulesResponse?.data ?? []) as any[];
+  const keywordsList: Keyword[] = (keywordsResponse?.data ?? []) as any[];
   const meta = keywordsResponse?.meta ?? { total: 0, totalPages: 1 };
   const totalItems = meta.total;
   const totalPages = meta.totalPages;
