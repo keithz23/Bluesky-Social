@@ -59,6 +59,8 @@ jobs:
       TF_VAR_mail_user: ${{ secrets.MAIL_USER }}
       TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
       TF_VAR_mail_from: ${{ vars.MAIL_FROM }}
+      TF_VAR_admin_email: ${{secrets.ADMIN_EMAIL}}
+      TF_VAR_admin_password: ${{secrets.ADMIN_PASSWORD}}
 
     steps:
       - name: Checkout source code
