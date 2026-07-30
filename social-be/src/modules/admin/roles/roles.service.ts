@@ -12,6 +12,24 @@ import { RoleQueryDto } from './dto/role-query.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { DeleteRoleDto } from './dto/delete-role.dto';
 import { UsersService } from '../users/users.service';
+import { RolesReponse } from './roles.interface';
+import { PaginatedResult } from 'src/common/interfaces/pagination.interface';
+
+const roleInclude = Prisma.validator<Prisma.RoleInclude>()({
+  _count: {
+    select: {
+      userRoles: true,
+      rolePermissions: true,
+    },
+  },
+  rolePermissions: {
+    include: {
+      permission: true,
+    },
+  },
+});
+
+type RoleWithRelations = Prisma.RoleGetPayload<{ include: typeof roleInclude }>;
 
 @Injectable()
 export class RolesService {
@@ -21,7 +39,37 @@ export class RolesService {
   ) {}
   private readonly PROTECTED_ROLE_NAMES = ['super_admin', 'admin', 'user'];
 
-  async create(userId: string, createRoleDto: CreateRoleDto) {
+  private toRoleResponse(role: RoleWithRelations): RolesReponse {
+    return {
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      level: role.level,
+      createdAt: role.createdAt.toISOString(),
+      updatedAt: role.updatedAt.toISOString(),
+      _count: role._count,
+      rolePermissions: role.rolePermissions.map((rp) => ({
+        id: rp.id,
+        roleId: rp.roleId,
+        permissionId: rp.permissionId,
+        createdAt: rp.createdAt.toISOString(),
+        permission: {
+          id: rp.permission.id,
+          displayName: rp.permission.displayName,
+          name: rp.permission.name,
+          description: rp.permission.description,
+          resource: rp.permission.resource,
+          action: rp.permission.action,
+          groupId: rp.permission.groupId,
+        },
+      })),
+    };
+  }
+
+  async create(
+    userId: string,
+    createRoleDto: CreateRoleDto,
+  ): Promise<RolesReponse> {
     const { name, description, level } = createRoleDto;
 
     const currentUserLevel =
@@ -34,9 +82,12 @@ export class RolesService {
     }
 
     try {
-      return await this.prisma.role.create({
+      const role = await this.prisma.role.create({
         data: { name, description, level },
+        include: roleInclude,
       });
+
+      return this.toRoleResponse(role);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -48,7 +99,7 @@ export class RolesService {
     }
   }
 
-  async findAll(query: RoleQueryDto) {
+  async findAll(query: RoleQueryDto): Promise<PaginatedResult<RolesReponse>> {
     const limit = query.limit ?? 20;
     const page = query.page ?? 1;
     const sort = query.sort ?? 'all';
@@ -56,20 +107,6 @@ export class RolesService {
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(Math.max(1, limit), 100);
     const skip = PaginationUtil.getSkip(safePage, safeLimit);
-
-    const roleInclude = {
-      _count: {
-        select: {
-          userRoles: true,
-          rolePermissions: true,
-        },
-      },
-      rolePermissions: {
-        include: {
-          permission: true,
-        },
-      },
-    };
 
     const where: Prisma.RoleWhereInput = {};
     if (query.search) {
@@ -94,9 +131,11 @@ export class RolesService {
         include: roleInclude,
       });
 
-      return PaginationUtil.paginate(rolesData, rolesData.length, {
+      const mapped = rolesData.map((r) => this.toRoleResponse(r));
+
+      return PaginationUtil.paginate<RolesReponse>(mapped, mapped.length, {
         page: 1,
-        limit: rolesData.length || 1,
+        limit: mapped.length || 1,
       });
     }
 
@@ -113,33 +152,32 @@ export class RolesService {
       }),
     ]);
 
-    return PaginationUtil.paginate(rolesData, total, {
+    const mapped = rolesData.map((r) => this.toRoleResponse(r));
+
+    return PaginationUtil.paginate<RolesReponse>(mapped, total, {
       page: safePage,
       limit: safeLimit,
     });
   }
 
-  async findOne(roleId: string) {
+  async findOne(roleId: string): Promise<RolesReponse> {
     const role = await this.prisma.role.findUnique({
       where: { id: roleId },
-      include: {
-        rolePermissions: {
-          include: { permission: true },
-        },
-      },
+      include: roleInclude,
     });
 
     if (!role) {
       throw new NotFoundException('Role not found');
     }
 
-    return {
-      ...role,
-      permissions: role.rolePermissions.map((rp) => rp.permission),
-    };
+    return this.toRoleResponse(role);
   }
 
-  async update(userId: string, roleId: string, updateRoleDto: UpdateRoleDto) {
+  async update(
+    userId: string,
+    roleId: string,
+    updateRoleDto: UpdateRoleDto,
+  ): Promise<RolesReponse> {
     const { name, description, level } = updateRoleDto;
 
     const currentUserLevel =
@@ -157,10 +195,13 @@ export class RolesService {
       );
 
     try {
-      return await this.prisma.role.update({
+      const role = await this.prisma.role.update({
         where: { id: roleId },
         data: { name, description, level },
+        include: roleInclude,
       });
+
+      return this.toRoleResponse(role);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
@@ -174,7 +215,10 @@ export class RolesService {
     }
   }
 
-  async delete(userId: string, deleteRoleDto: DeleteRoleDto) {
+  async delete(
+    userId: string,
+    deleteRoleDto: DeleteRoleDto,
+  ): Promise<Prisma.BatchPayload> {
     const { roleIds } = deleteRoleDto;
     const currentUserLevel =
       await this.usersService.getUserMinRoleLevel(userId);
@@ -193,7 +237,7 @@ export class RolesService {
       );
     }
 
-    roles.flatMap((r) => {
+    roles.forEach((r) => {
       if (currentUserLevel > r.level)
         throw new ForbiddenException(
           'Cannot delete a role with equal or higher privilege than your own level',
@@ -207,14 +251,17 @@ export class RolesService {
       );
     }
 
-    return await this.prisma.role.deleteMany({
+    return this.prisma.role.deleteMany({
       where: { id: { in: roleIds } },
     });
   }
 
   // Assign Permissions
-  async assignPermissions(roleId: string, permissionIds: string[]) {
-    return await this.prisma.$transaction(async (tx) => {
+  async assignPermissions(
+    roleId: string,
+    permissionIds: string[],
+  ): Promise<RolesReponse> {
+    return this.prisma.$transaction(async (tx) => {
       const role = await tx.role.findUnique({ where: { id: roleId } });
       if (!role) throw new NotFoundException('Role not found');
 
@@ -230,21 +277,27 @@ export class RolesService {
         skipDuplicates: true,
       });
 
-      return tx.role.findUnique({
+      const updatedRole = await tx.role.findUniqueOrThrow({
         where: { id: roleId },
-        include: { rolePermissions: { include: { permission: true } } },
+        include: roleInclude,
       });
+
+      return this.toRoleResponse(updatedRole);
     });
   }
 
   // Revoke permission
-  async revokePermission(roleId: string, permissionId: string) {
+  async revokePermission(
+    roleId: string,
+    permissionId: string,
+  ): Promise<{ roleId: string; permissionId: string }> {
     try {
-      return await this.prisma.rolePermission.delete({
+      const deleted = await this.prisma.rolePermission.delete({
         where: {
           roleId_permissionId: { roleId, permissionId },
         },
       });
+      return { roleId: deleted.roleId, permissionId: deleted.permissionId };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -259,8 +312,11 @@ export class RolesService {
   }
 
   // Sync Permissions
-  async syncPermissions(roleId: string, permissionIds: string[]) {
-    return await this.prisma.$transaction(async (tx) => {
+  async syncPermissions(
+    roleId: string,
+    permissionIds: string[],
+  ): Promise<RolesReponse> {
+    return this.prisma.$transaction(async (tx) => {
       const role = await tx.role.findUnique({ where: { id: roleId } });
       if (!role) throw new NotFoundException('Role not found');
 
@@ -282,21 +338,26 @@ export class RolesService {
 
       if (permissionIds.length > 0) {
         await tx.rolePermission.createMany({
-          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+          data: permissionIds.map((permissionId) => ({
+            roleId,
+            permissionId,
+          })),
           skipDuplicates: true,
         });
       }
 
-      return tx.role.findUnique({
+      const updatedRole = await tx.role.findUniqueOrThrow({
         where: { id: roleId },
-        include: { rolePermissions: { include: { permission: true } } },
+        include: roleInclude,
       });
+
+      return this.toRoleResponse(updatedRole);
     });
   }
 
-  // Group Permissions
+  // Group Permissions — giữ nguyên, không liên quan RolesReponse
   async findAllGroupPermissions() {
-    const result = await this.prisma.permissionGroup.findMany({
+    return this.prisma.permissionGroup.findMany({
       select: {
         id: true,
         name: true,
@@ -313,6 +374,5 @@ export class RolesService {
         },
       },
     });
-    return result;
   }
 }

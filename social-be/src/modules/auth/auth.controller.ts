@@ -62,6 +62,7 @@ import {
 } from 'src/common/utils/cookie-option.util';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateAccountPrivacyDto } from './dto/update-account-privacy.dto';
+import { RegisterUserResponse } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -81,7 +82,9 @@ export class AuthController {
   @Throttle({ default: { ttl: 3600, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({ status: 409, description: 'Username or email already exists' })
-  async signup(@Body() registerDto: RegisterDto): Promise<User> {
+  async signup(
+    @Body() registerDto: RegisterDto,
+  ): Promise<RegisterUserResponse> {
     return this.authService.register(registerDto);
   }
 

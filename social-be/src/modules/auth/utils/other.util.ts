@@ -8,6 +8,7 @@ import {
   QUEUE_NAMES,
 } from 'src/common/constants/queue.constant';
 import { AuditContext } from 'src/common/interfaces/auth.interface';
+import { AuthUserResponse } from '../interfaces/auth.interface';
 
 type UserWithRoles = Prisma.UserGetPayload<{
   include: {
@@ -68,7 +69,7 @@ export class OtherUtils {
     return value.slice(0, 10);
   }
 
-  public transformUser(user: User) {
+  public transformUser(user: User): AuthUserResponse {
     return {
       id: user.id,
       username: user.username,

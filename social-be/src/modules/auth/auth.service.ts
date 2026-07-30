@@ -55,6 +55,10 @@ import { MailUtils } from './utils/mail.util';
 import { TwoFactorUtils } from './utils/two-factor.util';
 import { OtherUtils } from './utils/other.util';
 import { createAuditLogData } from 'src/common/utils/audit-log.util';
+import {
+  AuthUserResponse,
+  RegisterUserResponse,
+} from './interfaces/auth.interface';
 
 @Injectable()
 export class AuthService {
@@ -74,10 +78,9 @@ export class AuthService {
     registerDto: RegisterDto,
     ipAddress?: string,
     userAgent?: string,
-  ): Promise<User> {
+  ): Promise<RegisterUserResponse> {
     const { email, username, password, dateOfBirth } = registerDto;
 
-    // Check if email exists
     const existingEmail = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -85,7 +88,6 @@ export class AuthService {
       throw new ConflictException(ERROR_MESSAGES.EMAIL_ALREADY_EXISTS);
     }
 
-    // Check if username exists
     const existingUsername = await this.prisma.user.findUnique({
       where: { username },
     });
@@ -93,7 +95,6 @@ export class AuthService {
       throw new ConflictException(ERROR_MESSAGES.USERNAME_ALREADY_EXISTS);
     }
 
-    // Hash password
     const passwordHash = await HashUtil.hash(password);
 
     const newUser = await this.prisma.$transaction(async (prisma) => {
@@ -112,12 +113,9 @@ export class AuthService {
       expiresAt.setHours(expiresAt.getHours() + 24);
 
       await prisma.emailVerificationToken.create({
-        data: {
-          token: verifyToken,
-          userId: user.id,
-          expiresAt: expiresAt,
-        },
+        data: { token: verifyToken, userId: user.id, expiresAt },
       });
+
       await this.mailService.sendVerifyEmail(
         user.email,
         verifyToken,

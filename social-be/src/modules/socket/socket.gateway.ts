@@ -97,14 +97,4 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitToUser(userId: string, event: string, payload: any) {
     this.server.to(`user:${userId}`).emit(event, payload);
   }
-
-  // ── Generic DB change broadcast ───────────────────────────
-
-  @OnEvent('database.changed')
-  handleDatabaseChange(payload: { model: string; action: string; data: any }) {
-    const { model, action, data } = payload;
-    const eventName = `${model}_${action}`;
-    this.logger.log(`event name::: ${eventName}`);
-    this.server.emit(eventName, data);
-  }
 }
