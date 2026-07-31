@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -54,7 +55,7 @@ import { JwtUtils } from './utils/jwt.util';
 import { MailUtils } from './utils/mail.util';
 import { TwoFactorUtils } from './utils/two-factor.util';
 import { OtherUtils } from './utils/other.util';
-import { createAuditLogData } from 'src/common/utils/audit-log.util';
+import { SettingsService } from '../admin/settings/settings.service';
 import {
   AuthUserResponse,
   RegisterUserResponse,
@@ -72,6 +73,7 @@ export class AuthService {
     private mailUtils: MailUtils,
     private twoFactorUtils: TwoFactorUtils,
     private otherUtils: OtherUtils,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async register(
@@ -79,6 +81,13 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<RegisterUserResponse> {
+    const registrationEnabled = await this.settingsService.getBoolean(
+      'account.registration_enabled',
+    );
+    if (!registrationEnabled) {
+      throw new ForbiddenException('New account registration is currently disabled');
+    }
+
     const { email, username, password, dateOfBirth } = registerDto;
 
     const existingEmail = await this.prisma.user.findUnique({
@@ -125,16 +134,14 @@ export class AuthService {
       return user;
     });
 
-    await this.prisma.auditLog.create({
-      data: createAuditLogData({
-        userId: newUser.id,
-        action: 'REGISTER',
-        ipAddress,
-        userAgent,
-      }),
-    });
-
-    return newUser;
+    return {
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+      displayName: newUser.displayName,
+      verified: newUser.verified,
+      createdAt: newUser.createdAt,
+    };
   }
 
   async login(
@@ -180,7 +187,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.verified) {
+    const requireEmailVerification = await this.settingsService.getBoolean(
+      'account.require_email_verification',
+    );
+    if (requireEmailVerification && !user.verified) {
       throw new UnauthorizedException(
         'Please check your email and verify your account before logging in.',
       );
@@ -218,15 +228,6 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: { updatedAt: new Date() },
-    });
-
-    await this.prisma.auditLog.create({
-      data: createAuditLogData({
-        userId: user.id,
-        action: 'LOGIN',
-        ipAddress,
-        userAgent,
-      }),
     });
 
     return {
@@ -329,21 +330,6 @@ export class AuthService {
 
     await this.redisService.del(redisKey);
 
-    await this.prisma.auditLog.create({
-      data: this.otherUtils.createAuditLogData({
-        userId: user.id,
-        action: 'MFA_LOGIN_SUCCESS',
-        userAgent,
-        ipAddress,
-        metadata: {
-          method:
-            method === 'recovery_code'
-              ? 'RECOVERY_CODE'
-              : 'TOTP_OR_RECOVERY_CODE',
-        },
-      }),
-    });
-
     return {
       ...tokens,
       user: this.otherUtils.transformUser(user),
@@ -352,9 +338,9 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthResponseDto> {
-    // Verify refresh token in database
+    // Refresh tokens are bearer credentials: only their digest is retained.
     const tokenDoc = await this.prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
+      where: { tokenHash: HashUtil.hashRefreshToken(refreshToken) },
       include: {
         user: {
           include: {
@@ -430,7 +416,7 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({
       where: {
         ...(userId ? { userId } : {}),
-        token: refreshToken,
+        tokenHash: HashUtil.hashRefreshToken(refreshToken),
       },
     });
 
@@ -469,15 +455,6 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
-    await this.prisma.auditLog.create({
-      data: createAuditLogData({
-        userId: user.id,
-        action: 'GET_PROFILE',
-        ipAddress,
-        userAgent,
-      }),
-    });
 
     return {
       user: this.otherUtils.transformUser(user),
@@ -557,31 +534,6 @@ export class AuthService {
         }
       }
 
-      await this.prisma.auditLog.create({
-        data: createAuditLogData({
-          userId,
-          action: 'UPDATE_PROFILE',
-          ipAddress,
-          userAgent,
-          metadata: {
-            oldProfile: {
-              username: oldUser?.username ?? null,
-              displayName: oldUser?.displayName ?? null,
-              bio: oldUser?.bio ?? null,
-              avatarUrl: oldUser?.avatarUrl ?? null,
-              coverUrl: oldUser?.coverUrl ?? null,
-            },
-            newProfile: {
-              username: user?.username ?? null,
-              displayName: user?.displayName ?? null,
-              bio: user?.bio ?? null,
-              avatarUrl: user?.avatarUrl ?? null,
-              coverUrl: user?.coverUrl ?? null,
-            },
-          },
-        }),
-      });
-
       return this.otherUtils.transformUser(user);
     } catch (error) {
       if (uploadedKeys.length) {
@@ -616,24 +568,10 @@ export class AuthService {
       return this.otherUtils.transformUser(currentUser);
     }
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { isPrivate },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_PRIVACY_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldIsPrivate: currentUser.isPrivate,
-            newIsPrivate: isPrivate,
-          },
-        }),
-      }),
-    ]);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isPrivate },
+    });
 
     return this.otherUtils.transformUser(user);
   }
@@ -661,24 +599,10 @@ export class AuthService {
       throw new ConflictException('Username already exists.');
     }
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { username: normalizedUsername, displayName: normalizedUsername },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_USERNAME_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldUsername: currentUser.username,
-            newUsername: normalizedUsername,
-          },
-        }),
-      }),
-    ]);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { username: normalizedUsername, displayName: normalizedUsername },
+    });
 
     return this.otherUtils.transformUser(user);
   }
@@ -705,26 +629,10 @@ export class AuthService {
 
     if (!currentUser) throw new NotFoundException('User not found');
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { dateOfBirth: birthDate },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_BIRTHDAY_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldDateOfBirth: this.otherUtils.formatAuditDate(
-              currentUser.dateOfBirth,
-            ),
-            newDateOfBirth: this.otherUtils.formatAuditDate(birthDate),
-          },
-        }),
-      }),
-    ]);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { dateOfBirth: birthDate },
+    });
 
     return this.otherUtils.transformUser(user);
   }
@@ -779,18 +687,6 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_PASSWORD_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: 'email_otp',
-            refreshTokensRevoked: true,
-          },
-        }),
       }),
     ]);
 
@@ -892,18 +788,6 @@ export class AuthService {
       this.prisma.passwordResetToken.updateMany({
         where: { userId: match.userId, usedAt: null, id: { not: match.id } },
         data: { usedAt: new Date() },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId: match.userId,
-          action: 'ACCOUNT_PASSWORD_RESET',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: 'forgot_password_code',
-            resetTokenId: match.id,
-          },
-        }),
       }),
     ]);
   }
@@ -1122,6 +1006,13 @@ export class AuthService {
     }
 
     // User chưa tồn tại -> tạo mới, gán role mặc định
+    const registrationEnabled = await this.settingsService.getBoolean(
+      'account.registration_enabled',
+    );
+    if (!registrationEnabled) {
+      throw new ForbiddenException('New account registration is currently disabled');
+    }
+
     const baseUsername = googleUser.email.split('@')[0];
     let username = baseUsername;
     let counter = 1;
@@ -1377,18 +1268,6 @@ export class AuthService {
       this.prisma.recoveryCode.createMany({
         data: recoveryCodeRows,
       }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'MFA_TOTP_ENABLED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: 'TOTP',
-            recoveryCodeCount: recoveryCodes.length,
-          },
-        }),
-      }),
     ]);
 
     await this.redisService.del(setupKey);
@@ -1471,18 +1350,6 @@ export class AuthService {
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'MFA_DISABLED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: user.twoFactorMethod ?? 'UNKNOWN',
-            appPasswordsRevoked: true,
-          },
-        }),
-      }),
     ]);
 
     return { message: 'Two-factor authentication disabled successfully' };
@@ -1556,19 +1423,6 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_EMAIL_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldEmail: user.email,
-            newEmail: requestUpdateEmailData.new_email,
-            refreshTokensRevoked: true,
-          },
-        }),
       }),
     ]);
 
@@ -1647,18 +1501,6 @@ export class AuthService {
       this.prisma.refreshToken.deleteMany({
         where: { userId },
       }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'DELETE_ACCOUNT',
-          userAgent,
-          ipAddress,
-          metadata: {
-            status: 'DELETED',
-            refreshTokensRevoked: true,
-          },
-        }),
-      }),
     ]);
     await this.redisService.del(redisKey);
     return { message: 'Account deleted successfully.' };
@@ -1693,18 +1535,6 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'DEACTIVATE_ACCOUNT',
-          userAgent,
-          ipAddress,
-          metadata: {
-            status: 'DEACTIVATED',
-            refreshTokensRevoked: true,
-          },
-        }),
       }),
     ]);
 

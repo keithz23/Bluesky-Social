@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { NotificationGateway } from '../socket/notification.gateway';
@@ -7,6 +7,8 @@ import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class LikesService {
+  private readonly logger = new Logger(LikesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationsService,
@@ -43,7 +45,7 @@ export class LikesService {
         actorId: userId,
         userId: post.userId,
       };
-      this.notificationService.sendNotification(data);
+      this.notifySafely(data);
     }
 
     return { liked: true };
@@ -67,5 +69,18 @@ export class LikesService {
     ]);
 
     return { liked: false };
+  }
+
+  private notifySafely(
+    data: Parameters<NotificationsService['sendNotification']>[0],
+  ) {
+    void this.notificationService
+      .sendNotification(data)
+      .catch((error: unknown) => {
+        this.logger.error(
+          'Failed to create like notification',
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
   }
 }

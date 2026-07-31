@@ -4,11 +4,12 @@ import { AuditContext } from '../interfaces/auth.interface';
 export const createAuditLogData = ({
   userId,
   action,
+  actorType,
   userAgent,
   ipAddress,
   metadata,
 }: AuditContext & {
-  userId: string;
+  userId?: string;
   action: string;
   metadata?: Prisma.InputJsonObject;
 }) => {
@@ -17,6 +18,7 @@ export const createAuditLogData = ({
     action,
     userAgent,
     ipAddress,
+    actorType,
     metadata,
   };
 };

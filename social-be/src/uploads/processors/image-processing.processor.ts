@@ -121,7 +121,7 @@ export class ImageProcessingProcessor extends WorkerHost {
     }
   }
 
-  private async scheduleCleanup(job: Job<UploadImagesJobData>) {
+  private scheduleCleanup(job: Job<UploadImagesJobData>): void {
     // TODO: Add cleanup job to queue
     this.logger.warn(`Scheduling cleanup for failed job ${job.id}`);
   }

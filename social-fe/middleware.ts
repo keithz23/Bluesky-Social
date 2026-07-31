@@ -1,22 +1,31 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtDecode } from "jwt-decode";
+import { jwtVerify, type JWTPayload } from "jose";
 
-interface AccessTokenPayload {
+interface AccessTokenPayload extends JWTPayload {
   sub: string;
   permissions: string[];
-  exp: number;
 }
 
 const authRoutes = ["/login", "/signup", "/forgot"];
+const userRoutePrefixes = [
+  "/chat",
+  "/notifications",
+  "/settings",
+  "/saved",
+  "/lists",
+  "/feeds",
+];
 
 const ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/admin/dashboard": "system:read",
   "/admin/users": "user:read",
+  "/admin/posts": "post:read",
   "/admin/roles-permissions": "role:read",
   "/admin/reports": "report:read",
   "/admin/moderation": "report:resolve",
-  "/admin/rules": "system:update",
-  "/admin/keywords": "system:update",
+  "/admin/rules": "rule:read",
+  "/admin/keywords": "keyword:read",
   "/admin/audit-logs": "system:read",
   "/admin/settings": "system:update",
   "/admin/analytics": "system:read",
@@ -30,7 +39,30 @@ function getRequiredPermission(pathname: string): string | null {
   return match ? ADMIN_ROUTE_PERMISSIONS[match] : null;
 }
 
-export function middleware(request: NextRequest) {
+async function verifyAccessToken(token: string): Promise<AccessTokenPayload> {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  const { payload } = await jwtVerify(
+    token,
+    new TextEncoder().encode(secret),
+    { algorithms: ["HS256"] },
+  );
+
+  if (
+    typeof payload.sub !== "string" ||
+    !Array.isArray(payload.permissions) ||
+    !payload.permissions.every((permission) => typeof permission === "string")
+  ) {
+    throw new Error("Invalid access token payload");
+  }
+
+  return payload as AccessTokenPayload;
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("accessToken")?.value;
   const isLoggingOut = Boolean(
@@ -39,36 +71,45 @@ export function middleware(request: NextRequest) {
 
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
   const isAdminRoute = pathname.startsWith("/admin");
+  const isProtectedUserRoute = userRoutePrefixes.some((prefix) =>
+    pathname.startsWith(prefix),
+  );
 
-  if (token && !isLoggingOut && isAuthRoute) {
+  let payload: AccessTokenPayload | null = null;
+  if (token && !isLoggingOut) {
+    try {
+      payload = await verifyAccessToken(token);
+    } catch {
+      payload = null;
+    }
+  }
+
+  if (payload && isAuthRoute) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (isAdminRoute && (!token || isLoggingOut)) {
-    if (pathname.startsWith("/admin/login")) {
-      return NextResponse.next();
-    }
+  // Avoid leaving an authenticated administrator on the login page when a
+  // stale client-side auth check briefly navigates there after sign-in.
+  if (pathname === "/admin/login" && payload) {
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+  }
 
+  if (isAdminRoute && !pathname.startsWith("/admin/login") && !payload) {
     const loginUrl = new URL("/admin/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAdminRoute && token) {
-    try {
-      const payload = jwtDecode<AccessTokenPayload>(token);
-      const requiredPermission = getRequiredPermission(pathname);
+  if (isProtectedUserRoute && !payload) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
-      if (
-        requiredPermission &&
-        !payload.permissions?.includes(requiredPermission)
-      ) {
-        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-      }
-    } catch {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+  if (isAdminRoute && payload) {
+    const requiredPermission = getRequiredPermission(pathname);
+    if (requiredPermission && !payload.permissions.includes(requiredPermission)) {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
   }
 

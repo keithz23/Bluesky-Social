@@ -1,34 +1,32 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
+import { ModerationDecisionDto } from './dto/moderation-decision.dto';
+import { ModerationQueryDto } from './dto/moderation-query.dto';
 import { ModerationService } from './moderation.service';
-import { CreateModerationDto } from './dto/create-moderation.dto';
-import { UpdateModerationDto } from './dto/update-moderation.dto';
 
+@UseGuards(PermissionsGuard)
 @Controller('moderation')
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 
-  @Post()
-  create(@Body() createModerationDto: CreateModerationDto) {
-    return this.moderationService.create(createModerationDto);
-  }
-
   @Get()
-  findAll() {
-    return this.moderationService.findAll();
+  @Permissions('report:resolve')
+  findAll(@Query() query: ModerationQueryDto) {
+    return this.moderationService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.moderationService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateModerationDto: UpdateModerationDto) {
-    return this.moderationService.update(+id, updateModerationDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.moderationService.remove(+id);
+  @Patch(':id/decision')
+  @Permissions('report:resolve')
+  decide(@Param('id') id: string, @Body() dto: ModerationDecisionDto) {
+    return this.moderationService.decide(id, dto);
   }
 }

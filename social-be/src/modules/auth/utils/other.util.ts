@@ -7,7 +7,6 @@ import {
   JOB_NAMES,
   QUEUE_NAMES,
 } from 'src/common/constants/queue.constant';
-import { AuditContext } from 'src/common/interfaces/auth.interface';
 import { AuthUserResponse } from '../interfaces/auth.interface';
 
 type UserWithRoles = Prisma.UserGetPayload<{
@@ -37,36 +36,6 @@ export class OtherUtils {
     if (user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not active');
     }
-  }
-
-  public createAuditLogData({
-    userId,
-    action,
-    userAgent,
-    ipAddress,
-    metadata,
-  }: AuditContext & {
-    userId: string;
-    action: string;
-    metadata?: Prisma.InputJsonObject;
-  }): Prisma.AuditLogUncheckedCreateInput {
-    return {
-      userId,
-      action,
-      userAgent,
-      ipAddress,
-      metadata,
-    };
-  }
-
-  public formatAuditDate(value?: Date | string | null): string | null {
-    if (!value) return null;
-
-    if (value instanceof Date) {
-      return value.toISOString().slice(0, 10);
-    }
-
-    return value.slice(0, 10);
   }
 
   public transformUser(user: User): AuthUserResponse {

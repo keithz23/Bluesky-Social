@@ -22,6 +22,7 @@ import { PostQueryDto } from './dto/post-query.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { SearchPostsDto } from './dto/search-posts.dto';
 import { PinPostQueryDto } from './dto/pin-post-query.dto';
+import { ReplyQueryDto } from './dto/reply-query.dto';
 import 'multer';
 import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
@@ -131,10 +132,9 @@ export class PostsController {
   getReplies(
     @CurrentUser('id') userId: string,
     @Param('postId') postId: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: number,
+    @Query() query: ReplyQueryDto,
   ) {
-    return this.postsService.getReplies(userId, postId, cursor, limit);
+    return this.postsService.getReplies(userId, postId, query.cursor, query.limit);
   }
 
   @Get('/users/pin-post/:username')

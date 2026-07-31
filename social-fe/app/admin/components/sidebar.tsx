@@ -36,7 +36,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { icon: Home, label: "Dashboard", href: "/admin/dashboard" },
+      {
+        icon: Home,
+        label: "Dashboard",
+        href: "/admin/dashboard",
+        permission: "system:read",
+      },
       {
         icon: BarChart3,
         label: "Analytics",

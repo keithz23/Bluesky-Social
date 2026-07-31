@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateReportDto } from './create-report.dto';
+import { ReportStatus } from '@prisma/client';
+import { IsEnum } from 'class-validator';
 
-export class UpdateReportDto extends PartialType(CreateReportDto) {}
+export class UpdateReportDto {
+  @IsEnum(ReportStatus)
+  status: ReportStatus;
+}

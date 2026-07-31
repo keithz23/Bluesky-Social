@@ -10,7 +10,6 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
@@ -49,7 +48,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.data.userId = payload.sub;
 
-      client.join(`user:${payload.sub}`);
+      await client.join(`user:${payload.sub}`);
 
       this.logger.log(
         `User ${payload.sub} connected (Socket ID: ${client.id})`,
@@ -67,22 +66,22 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ── Post Room Management ──────────────────────────────────
 
   @SubscribeMessage('join-post')
-  handleJoinPost(
+  async handleJoinPost(
     @MessageBody() data: { postId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    client.join(`post:${data.postId}`);
+    await client.join(`post:${data.postId}`);
     this.logger.log(
       `User ${client.data.userId} joined room post:${data.postId}`,
     );
   }
 
   @SubscribeMessage('leave-post')
-  handleLeavePost(
+  async handleLeavePost(
     @MessageBody() data: { postId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    client.leave(`post:${data.postId}`);
+    await client.leave(`post:${data.postId}`);
     this.logger.log(`User ${client.data.userId} left room post:${data.postId}`);
   }
 

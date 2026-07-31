@@ -192,25 +192,18 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from current session' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  signout(
+  async signout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): { message: string } {
+  ): Promise<{ message: string }> {
     const refreshToken = request.cookies?.refreshToken;
     const userId = request.user?.['id'];
 
     if (refreshToken) {
-      void this.authService.logout(userId, refreshToken).catch((error) => {
-        this.logger.warn(
-          `Failed to revoke refresh token during logout: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      });
+      await this.authService.logout(userId, refreshToken);
     }
 
     this.clearAuthCookies(response);
