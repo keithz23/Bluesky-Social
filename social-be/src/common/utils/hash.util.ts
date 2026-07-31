@@ -12,11 +12,6 @@ export class HashUtil {
     return bcrypt.compare(plainText, hash);
   }
 
-  /**
-   * Refresh tokens are high-entropy bearer credentials. A deterministic digest
-   * lets us look up and revoke a session without retaining the credential
-   * itself in the database.
-   */
   static hashRefreshToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
