@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { HashUtil } from 'src/common/utils/hash.util';
 
 interface RoleWithPermissions {
   name: string;
@@ -64,7 +65,7 @@ export class JwtUtils {
 
     await this.prisma.refreshToken.create({
       data: {
-        token: refreshToken,
+        tokenHash: HashUtil.hashRefreshToken(refreshToken),
         userId,
         expiresAt,
         userAgent,

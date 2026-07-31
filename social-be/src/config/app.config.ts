@@ -5,7 +5,7 @@ export default registerAs('config', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
 
   database: {
-    url: process.env.POSTGRES_URL,
+    url: process.env.DATABASE_URL,
   },
 
   aws: {
@@ -40,7 +40,7 @@ export default registerAs('config', () => ({
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'this-my-super-jwt-secret',
+    secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '15m',
     refreshSecret: process.env.JWT_REFRESH_SECRET,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',

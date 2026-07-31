@@ -14,6 +14,7 @@ import { JwtUtils } from './utils/jwt.util';
 import { MailUtils } from './utils/mail.util';
 import { TwoFactorUtils } from './utils/two-factor.util';
 import { OtherUtils } from './utils/other.util';
+import { SettingsModule } from '../admin/settings/settings.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { OtherUtils } from './utils/other.util';
     PrismaModule,
     CacheModule,
     UploadModule,
+    SettingsModule,
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => {
         const secret = configService.get('config.jwt.secret');

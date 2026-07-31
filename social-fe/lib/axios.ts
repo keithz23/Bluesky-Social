@@ -94,6 +94,9 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
   }
 
   isRefreshing = true;
+  // A refresh that started before a successful login must not clear the new
+  // in-memory session when its old request later fails with 401.
+  const accessTokenBeforeRefresh = useAuthStore.getState().accessToken;
 
   try {
     const res =
@@ -106,8 +109,8 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
 
     useAuthStore.getState().setAuth(
       session.accessToken,
-      session.user.username,
       session.user.id,
+      session.user.username,
       session.user.email ?? "",
       session.roles.map((role) => role.name),
       session.roles.flatMap((role) => role.permissions),
@@ -117,7 +120,11 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
     return session;
   } catch (refreshError) {
     processQueue(refreshError, null);
-    useAuthStore.getState().clearAuth();
+    if (
+      useAuthStore.getState().accessToken === accessTokenBeforeRefresh
+    ) {
+      useAuthStore.getState().clearAuth();
+    }
     throw refreshError;
   } finally {
     isRefreshing = false;

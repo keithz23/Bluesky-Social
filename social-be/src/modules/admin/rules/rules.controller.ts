@@ -17,21 +17,22 @@ import { RuleQueryDto } from './dto/rule-query.dto';
 import { DeleteRuleDto } from './dto/delete-rule.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
+import { ActiveRuleResponse, RulesResponse } from './rules.interface';
 
 @Controller('rules')
 export class RulesController {
   constructor(private readonly rulesService: RulesService) {}
 
-  @Public()
   @Get('active')
-  findActiveRulesForReport() {
+  @Public()
+  findActiveRulesForReport(): Promise<ActiveRuleResponse[]> {
     return this.rulesService.findActiveRulesForReport();
   }
 
   @UseGuards(PermissionsGuard)
   @Post()
-  // @Permissions('rule:create')
-  create(@Body() createRuleDto: CreateRuleDto) {
+  @Permissions('rule:create')
+  create(@Body() createRuleDto: CreateRuleDto): Promise<RulesResponse> {
     return this.rulesService.create(createRuleDto);
   }
 

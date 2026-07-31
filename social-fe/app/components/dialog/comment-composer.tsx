@@ -47,6 +47,7 @@ export default function CommentComposer({
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedImages, setSelectedImages] = useState<ImagePreview[]>([]);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [pickerWidth, setPickerWidth] = useState(320);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
@@ -72,6 +73,18 @@ export default function CommentComposer({
     const caretPosition = textarea?.value.length ?? initialText.length;
     textarea?.setSelectionRange(caretPosition, caretPosition);
   }, [autoFocus, initialText]);
+
+  useEffect(() => {
+    const updatePickerWidth = () => {
+      // Keep popup controls inside a narrow mobile viewport, including its
+      // 12px viewport margins managed by ComposerFloatingPicker.
+      setPickerWidth(Math.min(320, Math.max(260, window.innerWidth - 24)));
+    };
+
+    updatePickerWidth();
+    window.addEventListener("resize", updatePickerWidth);
+    return () => window.removeEventListener("resize", updatePickerWidth);
+  }, []);
 
   const revokeImagePreviews = (images: ImagePreview[]) => {
     images.forEach((img) => URL.revokeObjectURL(img.preview));
@@ -152,12 +165,12 @@ export default function CommentComposer({
   const fetchGifs = (offset: number) => gf.trending({ offset, limit: 10 });
 
   return (
-    <div className={`bg-white px-4 py-3 ${className}`}>
-      <div className="flex items-end gap-2">
+    <div className={`bg-white px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-3 ${className}`}>
+      <div className="flex items-end gap-2 sm:gap-2.5">
         {user && (
           <Avatar
             data={user}
-            className="mb-8 size-8 border border-white text-sm sm:size-8"
+            className="mb-7 size-8 shrink-0 border border-white text-sm sm:mb-8"
           />
         )}
 
@@ -236,7 +249,7 @@ export default function CommentComposer({
               onChange={handleFileChange}
             />
 
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
               <button
                 type="button"
                 title="Sticker"
@@ -337,7 +350,7 @@ export default function CommentComposer({
       <ComposerFloatingPicker
         open={showEmojiPicker}
         anchorRef={emojiButtonRef}
-        width={320}
+        width={pickerWidth}
         maxHeight={380}
         onClose={() => setShowEmojiPicker(false)}
       >
@@ -345,7 +358,7 @@ export default function CommentComposer({
           onEmojiClick={(emoji) => appendText(emoji.emoji)}
           searchDisabled
           skinTonesDisabled
-          width={320}
+          width={pickerWidth}
           height={380}
           previewConfig={{ showPreview: false }}
         />
@@ -354,13 +367,13 @@ export default function CommentComposer({
       <ComposerFloatingPicker
         open={showGifPicker}
         anchorRef={gifButtonRef}
-        width={320}
+        width={pickerWidth}
         maxHeight={352}
         onClose={() => setShowGifPicker(false)}
       >
         <div className="p-2">
           <Grid
-            width={304}
+            width={pickerWidth - 16}
             columns={2}
             fetchGifs={fetchGifs}
             onGifClick={(gif, e) => {

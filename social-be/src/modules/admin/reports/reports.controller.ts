@@ -1,34 +1,38 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ReportsService } from './reports.service';
-import { CreateReportDto } from './dto/create-report.dto';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
+import { AdminReportQueryDto } from './dto/admin-report-query.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
+import { ReportsService } from './reports.service';
 
+@UseGuards(PermissionsGuard)
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  @Post()
-  create(@Body() createReportDto: CreateReportDto) {
-    return this.reportsService.create(createReportDto);
-  }
-
   @Get()
-  findAll() {
-    return this.reportsService.findAll();
+  @Permissions('report:read')
+  findAll(@Query() query: AdminReportQueryDto) {
+    return this.reportsService.findAll(query);
   }
 
   @Get(':id')
+  @Permissions('report:read')
   findOne(@Param('id') id: string) {
-    return this.reportsService.findOne(+id);
+    return this.reportsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateReportDto: UpdateReportDto) {
-    return this.reportsService.update(+id, updateReportDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.reportsService.remove(+id);
+  @Permissions('report:resolve')
+  update(@Param('id') id: string, @Body() dto: UpdateReportDto) {
+    return this.reportsService.update(id, dto);
   }
 }

@@ -7,7 +7,7 @@ import { main as seedRulesKeywords } from './seeds/rule-keywords.seed';
 const prisma = new PrismaClient();
 
 async function main() {
-  await seedRBAC();
+  await seedRBAC(prisma);
 
   await seedAdmin();
   await seedPerf();

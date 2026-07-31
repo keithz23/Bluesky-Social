@@ -45,7 +45,7 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
 
   return (
     <article className="bg-white">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between px-3 py-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="relative shrink-0">
             <Avatar data={post.user} className="size-10 text-base sm:size-10" />
@@ -90,7 +90,7 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
           {post.content && (
             <PostContent
               content={post.content}
-              className="px-4 pb-3 text-[15px] leading-5 text-gray-900"
+              className="px-3 pb-3 text-[15px] leading-5 text-gray-900 sm:px-4"
             />
           )}
 
@@ -103,7 +103,7 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
                   <img
                     src={post.media[0].mediaUrl}
                     alt={post.media[0].altText ?? ""}
-                    className="max-h-[58vh] min-h-80 w-full object-cover cursor-pointer"
+                    className="max-h-[52dvh] min-h-48 w-full cursor-pointer object-cover sm:max-h-[58vh] sm:min-h-80"
                   />
                 </PhotoView>
               </PhotoProvider>
@@ -150,7 +150,7 @@ function ModalPostPreview({ post, onOpenPhotoView }: PostCommentsDialogProps) {
         post.content && (
           <PostContent
             content={post.content}
-            className="px-4 pb-3 text-[15px] leading-5 text-gray-900"
+            className="px-3 pb-3 text-[15px] leading-5 text-gray-900 sm:px-4"
           />
         )
       )}
@@ -235,16 +235,16 @@ export default function PostCommentsDialog({
         onEscapeKeyDown={(e) => {
           if (isPhotoView) e.preventDefault();
         }}
-        className="h-[min(850px,calc(100vh-2rem))] w-[calc(100vw-1.5rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-xl border-none bg-white p-0 shadow-2xl sm:w-180 sm:max-w-none"
+        className="fixed left-0 top-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-none border-none bg-white p-0 shadow-2xl sm:left-1/2 sm:top-1/2 sm:h-[min(850px,calc(100dvh-2rem))] sm:w-[min(45rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
       >
-        <div className="relative flex h-15 items-center justify-center border-b border-gray-200 px-14">
-          <DialogTitle className="truncate text-center text-xl font-bold text-gray-950">
+        <div className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-200 px-12 sm:h-15 sm:px-14">
+          <DialogTitle className="truncate text-center text-base font-bold text-gray-950 sm:text-xl">
             {titleName}&apos;s Post
           </DialogTitle>
           <DialogClose asChild>
             <button
               type="button"
-              className="absolute right-4 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition-colors hover:bg-gray-200"
+              className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition-colors hover:bg-gray-200 sm:right-4 sm:size-9"
               aria-label="Close comments"
             >
               <X className="size-5" />
@@ -252,7 +252,7 @@ export default function PostCommentsDialog({
           </DialogClose>
         </div>
 
-        <div className="min-h-0 overflow-y-auto bg-white">
+        <div className="min-h-0 overflow-y-auto overscroll-contain bg-white">
           {isLoadingPost && <PostSkeleton />}
 
           {detailPost?.parentChain?.map((parent: Feed) => (
@@ -269,9 +269,9 @@ export default function PostCommentsDialog({
             onOpenPhotoView={setIsPhotoView}
           />
 
-          <div className="border-b border-gray-200 px-4 py-2">
+          <div className="border-b border-gray-200 px-3 py-2 sm:px-4">
             <div className="mb-2 flex items-center justify-between text-[13px] text-gray-600">
-              <div className="flex justify-center items-center gap-x-10">
+              <div className="flex items-center justify-center gap-x-6 sm:gap-x-10">
                 <LikeButton
                   isLiked={displayPost?.isLiked}
                   likeCount={displayPost?.likeCount}
@@ -309,7 +309,7 @@ export default function PostCommentsDialog({
           />
 
           {hasNextPage && (
-            <div className="flex justify-center px-4 pb-5 pt-2">
+            <div className="flex justify-center px-3 pb-5 pt-2 sm:px-4">
               <button
                 type="button"
                 disabled={isFetchingNextPage}
@@ -325,7 +325,7 @@ export default function PostCommentsDialog({
         <CommentComposer
           post={displayPost}
           disabled={disableReply}
-          className="border-t border-gray-200"
+          className="shrink-0 border-t border-gray-200"
         />
       </DialogContent>
     </Dialog>

@@ -530,14 +530,15 @@ model ListItem {
 model Notification {
   id        String           @id @default(cuid())
   userId    String           @map("user_id")
-  actorId   String           @map("actor_id")
+  actorId   String?          @map("actor_id")
   type      NotificationType
   postId    String?          @map("post_id")
+  message   String?          @db.Text
   isRead    Boolean          @default(false) @map("is_read")
   createdAt DateTime         @default(now()) @map("created_at")
 
   user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
-  actor User  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
   post  Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
@@ -811,7 +812,7 @@ model TypingStatus {
 
 model RefreshToken {
   id        String   @id @default(cuid())
-  token     String   @unique
+  tokenHash String   @unique @map("token_hash")
   userId    String   @map("user_id")
   expiresAt DateTime @map("expires_at")
   userAgent String?  @map("user_agent")
@@ -821,7 +822,7 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([token])
+  @@index([tokenHash])
   @@index([expiresAt])
   @@index([userId, createdAt(sort: Desc)], map: "idx_refresh_tokens_user_created")
   @@map("refresh_tokens")
@@ -922,6 +923,19 @@ model HomeTimeline {
   @@map("home_timelines")
 }
 
+model SystemSetting {
+  key         String   @id
+  value       Json
+  category    String
+  description String?  @db.Text
+  updatedById String?  @map("updated_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("system_settings")
+}
+
 // ============================================
 // ENUMS
 // ============================================
@@ -948,6 +962,7 @@ enum NotificationType {
   MESSAGE
   FOLLOW_REQUEST
   FOLLOW_REQUEST_ACCEPTED
+  MODERATION
 }
 
 enum FollowRequestStatus {

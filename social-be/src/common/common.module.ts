@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { AuditContextService } from './audit/audit-context.service';
 
 @Global()
 @Module({
@@ -11,6 +12,7 @@ import { JwtModule } from '@nestjs/jwt';
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  exports: [ConfigModule, JwtModule],
+  providers: [AuditContextService],
+  exports: [ConfigModule, JwtModule, AuditContextService],
 })
 export class CommonModule {}

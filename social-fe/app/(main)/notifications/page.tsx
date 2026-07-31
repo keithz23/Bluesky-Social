@@ -23,6 +23,7 @@ import {
   Circle,
   Check,
   Loader2,
+  ShieldAlert,
   UserPlus,
   X,
 } from "lucide-react";
@@ -83,6 +84,8 @@ export default function NotificationsPage() {
 
   const handleNotificationClick = (noti: Notifications) => {
     if (!noti.isRead) markAsRead(noti.id);
+
+    if (noti.type === "MODERATION") return;
 
     if (noti.postId && noti.post?.user?.username) {
       router.push(`/profile/${noti.post.user.username}/post/${noti.postId}`);
@@ -281,31 +284,45 @@ export default function NotificationsPage() {
               }`}
             >
               <div className="pt-1">
-                <Avatar data={noti?.actor} />
+                {noti.type === "MODERATION" ? (
+                  <div className="flex size-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 sm:size-12">
+                    <ShieldAlert className="size-5 sm:size-6" />
+                  </div>
+                ) : noti.actor ? (
+                  <Avatar data={noti.actor} />
+                ) : null}
               </div>
 
               <div className="flex-1 flex flex-col justify-center min-w-0">
                 <div className="text-[15px] text-gray-900 leading-snug">
-                  <span
-                    className="font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
-                    onClick={(e) => handleProfileClick(e, noti.actor.username)}
-                  >
-                    {noti.actor?.displayName}
-                    {noti.actor?.verified && (
-                      <BadgeCheck className="w-4 h-4 fill-blue-500 text-white" />
-                    )}
-                  </span>
+                  {noti.type === "MODERATION" ? (
+                    <span className="font-bold">Safety team</span>
+                  ) : noti.actor ? (
+                    <span
+                      className="font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      onClick={(e) => handleProfileClick(e, noti.actor!.username)}
+                    >
+                      {noti.actor.displayName}
+                      {noti.actor.verified && (
+                        <BadgeCheck className="w-4 h-4 fill-blue-500 text-white" />
+                      )}
+                    </span>
+                  ) : null}
                   <span className="text-gray-600 ml-1">
-                    {noti.type === "LIKE" && "liked your post."}
-                    {noti.type === "COMMENT" && "commented on your post."}
-                    {noti.type === "FOLLOW" && "started following you."}
-                    {noti.type === "MENTION" && "mentioned you in a post."}
-                    {noti.type === "REPOST" && "reposted your post."}
-                    {noti.type === "REPLY" && "replied to your post."}
-                    {noti.type === "FOLLOW_REQUEST" &&
-                      "requested to follow you."}
-                    {noti.type === "FOLLOW_REQUEST_ACCEPTED" &&
-                      "accepted your follow request."}
+                    {noti.type === "MODERATION"
+                      ? noti.message
+                      : <>
+                          {noti.type === "LIKE" && "liked your post."}
+                          {noti.type === "COMMENT" && "commented on your post."}
+                          {noti.type === "FOLLOW" && "started following you."}
+                          {noti.type === "MENTION" && "mentioned you in a post."}
+                          {noti.type === "REPOST" && "reposted your post."}
+                          {noti.type === "REPLY" && "replied to your post."}
+                          {noti.type === "FOLLOW_REQUEST" &&
+                            "requested to follow you."}
+                          {noti.type === "FOLLOW_REQUEST_ACCEPTED" &&
+                            "accepted your follow request."}
+                        </>}
                   </span>
                 </div>
                 <span className="text-sm text-gray-500 mt-1">

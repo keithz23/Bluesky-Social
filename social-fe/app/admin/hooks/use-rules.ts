@@ -57,7 +57,7 @@ export function useRuleMutations() {
   const deleteRulesMutation = useMutation({
     mutationFn: (ruleIds: string[]) => RulesService.deleteMany(ruleIds),
     onSuccess: () => {
-      toast.success("Rule(s) deleted");
+      toast.success("Rule(s) deactivated");
       invalidateRules();
     },
     onError: (error) => toast.error(extractErrMsg(error)),

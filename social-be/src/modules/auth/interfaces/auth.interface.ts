@@ -45,3 +45,12 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface RegisterUserResponse {
+  id: string;
+  username: string;
+  email: string;
+  displayName: string;
+  verified: boolean;
+  createdAt: Date;
+}

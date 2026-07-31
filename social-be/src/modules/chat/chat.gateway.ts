@@ -59,13 +59,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.username = user?.username ?? userId;
 
       // Join personal room
-      client.join(`user:${userId}`);
+      await client.join(`user:${userId}`);
 
       // Auto-join all conversation rooms
       const conversationIds =
         await this.chatService.getUserConversationIds(userId);
       for (const cId of conversationIds) {
-        client.join(`conversation:${cId}`);
+        await client.join(`conversation:${cId}`);
       }
 
       this.logger.log(`User ${userId} connected to chat (${client.id})`);
@@ -82,22 +82,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ─── Room management ──────────────────────────────────────
 
   @SubscribeMessage('join-conversation')
-  handleJoinConversation(
+  async handleJoinConversation(
     @MessageBody() data: { conversationId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    client.join(`conversation:${data.conversationId}`);
+    await client.join(`conversation:${data.conversationId}`);
     this.logger.log(
       `User ${client.data.userId} joined conversation:${data.conversationId}`,
     );
   }
 
   @SubscribeMessage('leave-conversation')
-  handleLeaveConversation(
+  async handleLeaveConversation(
     @MessageBody() data: { conversationId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    client.leave(`conversation:${data.conversationId}`);
+    await client.leave(`conversation:${data.conversationId}`);
     this.logger.log(
       `User ${client.data.userId} left conversation:${data.conversationId}`,
     );

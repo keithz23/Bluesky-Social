@@ -5,18 +5,19 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { MonitoringService } from './monitoring.service';
 
 @ApiTags('Monitoring')
-@Public()
 @Controller()
 export class MonitoringController {
   constructor(private readonly monitoringService: MonitoringService) {}
 
   @Get('health/live')
+  @Public()
   @ApiOperation({ summary: 'Liveness check for process uptime' })
   live() {
     return this.monitoringService.live();
   }
 
   @Get('health/ready')
+  @Public()
   @ApiOperation({ summary: 'Readiness check for database and queues' })
   async ready(@Res({ passthrough: true }) response: Response) {
     const result = await this.monitoringService.ready();
@@ -25,6 +26,7 @@ export class MonitoringController {
   }
 
   @Get('health')
+  @Public()
   @ApiOperation({ summary: 'Full application health summary' })
   async health(@Res({ passthrough: true }) response: Response) {
     const result = await this.monitoringService.health();

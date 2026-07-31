@@ -82,7 +82,9 @@ export const createRedisOptions = (
   if (!options.password) delete options.password;
 
   if (tlsEnabled) {
-    options.tls = { rejectUnauthorized: false };
+    // Reject untrusted/self-signed certificates. TLS without certificate
+    // verification is vulnerable to a man-in-the-middle attack.
+    options.tls = { rejectUnauthorized: true };
   }
 
   return options;

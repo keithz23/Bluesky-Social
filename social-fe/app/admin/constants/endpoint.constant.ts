@@ -1,4 +1,7 @@
 export const ADMIN_API_ENDPOINT = {
+  DASHBOARD: {
+    BASE: "/admin/dashboard",
+  },
   ROLES: {
     FIND_ALL: "/admin/roles",
     CREATE_ROLE: "/admin/roles",
@@ -29,5 +32,24 @@ export const ADMIN_API_ENDPOINT = {
   KEYWORDS: {
     BASE: "/admin/keywords",
     DETAIL: (keywordId: string) => `/admin/keywords/${keywordId}`,
+  },
+  AUDIT_LOGS: {
+    FIND_ALL: "/admin/audit-logs",
+    FIND_ONE: (auditLogId: string) => `/admin/audit-logs/${auditLogId}`,
+  },
+  POSTS: {
+    BASE: "/admin/posts",
+    DETAIL: (postId: string) => `/admin/posts/${postId}`,
+  },
+  REPORTS: {
+    BASE: "/admin/reports",
+    DETAIL: (reportId: string) => `/admin/reports/${reportId}`,
+  },
+  MODERATION: {
+    BASE: "/admin/moderation",
+    DECISION: (reportId: string) => `/admin/moderation/${reportId}/decision`,
+  },
+  SETTINGS: {
+    BASE: "/admin/settings",
   },
 };

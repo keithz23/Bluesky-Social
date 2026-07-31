@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TokenBucketService } from './token-bucket.service';
-import { RATE_LIMIT_KEY, RateLimitOptions } from './token.decorator';
+import {
+  DEFAULT_RATE_LIMIT,
+  RATE_LIMIT_KEY,
+  RateLimitOptions,
+} from './token.decorator';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -17,11 +21,13 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const options = this.reflector.get<RateLimitOptions>(
-      RATE_LIMIT_KEY,
-      context.getHandler(),
-    );
-    if (!options) return true; // route không set rate limit thì bỏ qua
+    if (context.getType() !== 'http') return true;
+
+    const options =
+      this.reflector.getAllAndOverride<RateLimitOptions>(RATE_LIMIT_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? DEFAULT_RATE_LIMIT;
 
     const req = context.switchToHttp().getRequest();
     const identifier = req.user?.id ?? req.ip;
@@ -35,9 +41,14 @@ export class RateLimitGuard implements CanActivate {
     );
 
     const res = context.switchToHttp().getResponse();
+    res.setHeader('X-RateLimit-Limit', options.capacity);
     res.setHeader('X-RateLimit-Remaining', Math.floor(remaining));
 
     if (!allowed) {
+      res.setHeader(
+        'Retry-After',
+        Math.max(1, Math.ceil(1 / options.refillRate)),
+      );
       throw new HttpException(
         'Too Many Requests',
         HttpStatus.TOO_MANY_REQUESTS,

@@ -1,36 +1,41 @@
 import {
   Controller,
   Get,
-  Post,
   Body,
   Patch,
   Param,
-  Delete,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { UpdatePostDto } from './dto/update-post.dto';
+import { AdminPostQueryDto } from './dto/admin-post-query.dto';
+import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
+import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 
+@UseGuards(PermissionsGuard)
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Get()
-  findAll() {
-    return this.postsService.findAll();
+  @Permissions('post:read')
+  findAll(@Query() query: AdminPostQueryDto) {
+    return this.postsService.findAll(query);
   }
 
   @Get(':id')
+  @Permissions('post:read')
   findOne(@Param('id') id: string) {
-    return this.postsService.findOne(+id);
+    return this.postsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
-    return this.postsService.update(+id, updatePostDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.postsService.remove(+id);
+  @Permissions('post:update')
+  updateVisibility(
+    @Param('id') id: string,
+    @Body() dto: UpdatePostVisibilityDto,
+  ) {
+    return this.postsService.updateVisibility(id, dto);
   }
 }

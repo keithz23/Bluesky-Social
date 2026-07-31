@@ -21,6 +21,7 @@ export interface AccountEmailCodePayload {
 export interface AuditContext {
   userAgent?: string;
   ipAddress?: string;
+  actorType?: string;
 }
 
 export interface AccountEmailCodeData {

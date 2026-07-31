@@ -9,6 +9,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
       - NEXT_PUBLIC_CALLBACK_URL=${NEXT_PUBLIC_CALLBACK_URL}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
     ports:
       - "3000:3000"
     healthcheck:
@@ -24,8 +25,10 @@ services:
     container_name: social-app
     image: keith0309/social-be:${GITHUB_SHA}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - '8000:8000'
     environment:
@@ -36,7 +39,7 @@ services:
       - DB_PASS=${POSTGRES_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_URL=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     env_file:
       - .env
     healthcheck:
@@ -52,26 +55,50 @@ services:
     image: postgres:15
     container_name: social-db
     restart: always
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >-
+        test "$${#POSTGRES_PASSWORD}" -ge 32 || { echo "POSTGRES_PASSWORD must contain at least 32 characters" >&2; exit 1; };
+        exec docker-entrypoint.sh postgres
     env_file:
       - .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   # --- REDIS ---
   redis:
     image: redis:latest
     container_name: social-redis
     restart: always
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >-
+        test "$${#REDIS_PASSWORD}" -ge 32 || { echo "REDIS_PASSWORD must contain at least 32 characters" >&2; exit 1; };
+        exec redis-server --requirepass "$${REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     ports:
-      - '6380:6379'
+      - '127.0.0.1:6380:6379'
     volumes:
       - redis-db:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   nginx:
     image: nginx:alpine
