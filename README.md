@@ -156,6 +156,12 @@ Create a root `.env` with the deployment-specific variables, including `GITHUB_S
 
 ## Deployment
 
+### AWS Production Flow
+
+![AWS ECS production deployment flow](assets/flowchart.png)
+
+> The AWS deployment is a production baseline for validating the release flow and supporting small-scale usage. Before serving high traffic, add the appropriate capacity planning, observability, backup/restore drills, and multi-AZ/high-availability measures.
+
 The repository includes GitHub Actions workflows and Terraform environments under `infra/envs`:
 
 - `infra/envs/staging` provisions a Docker-based staging environment.
