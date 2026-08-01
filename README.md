@@ -1,262 +1,173 @@
-# Social
+# Bluesky Social
 
-A full-stack social networking application with a Next.js frontend and a NestJS backend. The app includes authentication, profiles, posts, replies, feeds, follows, lists, notifications, real-time chat, bookmarks, moderation, and account security flows such as email/password changes and account deactivation with email OTP verification.
+A production-minded social networking platform built with Next.js and NestJS. It supports social interactions, real-time conversations, moderation workflows, and account-security features in a Docker-ready architecture.
+
+## Highlights
+
+- **Social graph and content:** profiles, posts, replies, likes, reposts, bookmarks, follows, private accounts, lists, search, and personalized feeds.
+- **Real-time experience:** chat, presence, typing indicators, and notifications through Socket.IO.
+- **Security:** HTTP-only access and refresh cookies, JWT authentication, Google OAuth, email OTP flows, 2FA, RBAC, Redis-backed token-bucket rate limiting, and audit logs.
+- **Administration:** dashboard analytics, user/content/report management, role and permission management, moderation rules, and system settings.
+- **Operations:** Prisma migrations, Redis cache and BullMQ queues, Docker Compose, Nginx, CI/CD workflows, and AWS infrastructure definitions.
+
+## Architecture
+
+```text
+Browser
+  │
+  ├── Next.js frontend (social-fe :3000)
+  │       │ HTTP + Socket.IO
+  │       ▼
+  └── NestJS API (social-be :8000)
+          ├── PostgreSQL / Prisma  - persistent application data
+          ├── Redis / BullMQ       - cache, OTPs, queues, rate limiting
+          ├── Socket.IO            - chat and notifications
+          └── S3-compatible store  - media uploads
+```
 
 ## Tech Stack
 
-- Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query, Zustand, Socket.IO client
-- Backend: NestJS 11, TypeScript, Prisma, PostgreSQL, Redis, BullMQ, Socket.IO
-- Infrastructure: Docker Compose, Nginx, PostgreSQL, Redis
-- Storage and mail integrations: S3-compatible object storage, Nodemailer
-
-## AWS Deployment Flow
-
-![AWS ECS production baseline flow](assets/flowchart.png)
-
-> Note: The current AWS deployment is a production baseline designed around AWS Free Tier oriented resources. It is suitable for validating the deployment flow and small-scale usage, but it is not yet a high-scale or highly available production architecture.
+| Area | Technologies |
+| --- | --- |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query, Zustand |
+| Backend | NestJS 11, TypeScript, Prisma, Socket.IO, BullMQ |
+| Data | PostgreSQL 15, Redis |
+| Infrastructure | Docker Compose, Nginx, AWS ECS/Fargate, ALB, RDS, ElastiCache, S3 |
 
 ## Repository Structure
 
 ```text
 .
-├── docker-compose.yml      # Production-style stack using published images
-├── nginx.conf              # Reverse proxy configuration
-├── social-be/              # NestJS API, Prisma schema, workers, sockets
-└── social-fe/              # Next.js app
+├── social-fe/             # Next.js web application
+├── social-be/             # NestJS API, Prisma schema, workers, gateways
+├── infra/                 # Terraform for staging and production environments
+├── docker-compose.yml     # Production-style stack using published images
+└── nginx.conf             # Reverse proxy configuration
 ```
-
-## Features
-
-- Email/password authentication and Google OAuth
-- HTTP-only cookie based access and refresh tokens
-- Email verification, forgot password, password change with OTP
-- Profile editing with avatar and cover uploads
-- Posts, replies, likes, reposts, bookmarks, feeds, and search
-- Follows, follow requests, user suggestions, and lists
-- Real-time chat and notifications with Socket.IO
-- Report/moderation endpoints
-- Account settings for email, password, handle, birthday, and deactivation
-- Audit logging for sensitive account actions
 
 ## Prerequisites
 
-- Node.js 22+ for the backend
-- Node.js 20+ for the frontend
-- PostgreSQL 15+
-- Redis
-- npm
-- Docker and Docker Compose, optional but recommended for local infrastructure
-
-## Environment Variables
-
-Create environment files before running the apps.
-
-### Backend: `social-be/.env`
-
-```env
-NODE_ENV=development
-PORT=8000
-API_PREFIX=api/v1
-
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/social
-POSTGRES_DB=social
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-
-REDIS_HOST=localhost
-REDIS_PORT=6380
-REDIS_URL=redis://localhost:6380
-
-JWT_SECRET=change-me
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=change-me-too
-JWT_REFRESH_EXPIRES_IN=7d
-BCRYPT_SALT_ROUNDS=12
-
-CLIENT_URL=http://localhost:3000
-SERVER_URL=http://localhost:8000
-CORS_ORIGIN=http://localhost:3000
-CORS_CREDENTIALS=true
-
-MAIL_HOST=
-MAIL_PORT=
-MAIL_USER=
-MAIL_PASSWORD=
-MAIL_FROM=
-MAIL_SECURE=false
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_CALLBACK_URL=http://localhost:8000/api/v1/auth/google/callback
-
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=
-AWS_BUCKET_NAME=
-AWS_ENDPOINT=
-CLOUDFRONT_DOMAIN=
-```
-
-For the current AWS Free Tier oriented deployment, the backend uses ElastiCache with TLS enabled and disables the Socket.IO Redis adapter:
-
-```env
-REDIS_TLS=true
-REDIS_BULL_PREFIX={bull}
-SOCKET_REDIS_ADAPTER_ENABLED=false
-```
-
-- `REDIS_TLS=true` enables TLS for AWS ElastiCache connections.
-- `REDIS_BULL_PREFIX={bull}` keeps BullMQ keys in the same Redis cluster hash slot.
-- `SOCKET_REDIS_ADAPTER_ENABLED=false` avoids `PSUBSCRIBE`, which is not supported by ElastiCache Serverless. Redis is still used for cache, OTP storage, and BullMQ queues. With this adapter disabled, Socket.IO is intended for a single backend task; use a compatible Redis/Valkey setup before scaling realtime sockets across multiple backend tasks.
-
-### Frontend: `social-fe/.env`
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-NEXT_PUBLIC_SERVER_URL=http://localhost:8000
-```
+- Node.js 20+ and npm
+- Docker Engine with Docker Compose (recommended)
 
 ## Local Development
 
-### 1. Start PostgreSQL and Redis
+### 1. Configure the backend
 
-You can run infrastructure from the backend compose file:
+Create a local environment file from the tracked template:
+
+```bash
+cp social-be/.env.example social-be/.env
+```
+
+Update the secrets and optional mail, OAuth, and object-storage values before using those integrations. Do not commit `.env` files.
+
+### 2. Start PostgreSQL and Redis
 
 ```bash
 cd social-be
 docker compose up -d db redis
 ```
 
-Redis is exposed on `localhost:6380` and PostgreSQL on `localhost:5432`.
+PostgreSQL is available at `localhost:5432`; Redis is available at `localhost:6380`.
 
-### 2. Install dependencies
+### 3. Install dependencies and migrate the database
 
 ```bash
 cd social-be
-npm install
+npm ci
+npx prisma migrate deploy
 
 cd ../social-fe
-npm install
+npm ci
 ```
 
-### 3. Prepare the database
+For local schema changes, use `npx prisma migrate dev`; use `npx prisma studio` to inspect data.
+
+### 4. Configure and run the frontend
+
+Create `social-fe/.env.development` if it does not exist:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_SERVER_URL=http://localhost:8000
+```
+
+Start each application in a separate terminal:
+
+```bash
+# Terminal 1
+cd social-be && npm run start:dev
+
+# Terminal 2
+cd social-fe && npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). The API is at `http://localhost:8000/api/v1` and Swagger is at `http://localhost:8000/api/docs`.
+
+## Run the API with Docker
+
+The backend Compose stack runs the API, PostgreSQL, and Redis together:
 
 ```bash
 cd social-be
-npx prisma migrate deploy
+docker compose up --build
 ```
 
-For local schema iteration, use Prisma commands such as:
+On startup, the API waits for healthy database/cache services, runs Prisma migrations, and starts on port `8000`.
 
-```bash
-npx prisma migrate dev
-npx prisma studio
-```
+### Database authentication and persisted volumes
 
-### 4. Run the backend
+PostgreSQL uses `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` **only when its named volume is created for the first time**. Changing these values after `postgres-data` already exists does not update the database user/password and causes Prisma error `P1000`.
+
+The Compose services now derive `DATABASE_URL` inside the API container from those same `POSTGRES_*` values and URL-encode the password. This prevents authentication failures when a password contains URL-reserved characters such as `@`, `:`, `/`, or `#`.
+
+If you intentionally changed the local database credentials and do not need the existing local data, recreate only the local Compose volumes:
 
 ```bash
 cd social-be
-npm run start:dev
+docker compose down -v
+docker compose up --build
 ```
 
-The API uses the configured `PORT` and `API_PREFIX`. With the example env above:
+> `docker compose down -v` deletes the local PostgreSQL and Redis data for this stack. Back up any data you need first. If you need to preserve data, restore the original credentials instead.
 
-- API: `http://localhost:8000/api/v1`
-- Swagger: `http://localhost:8000/api/docs`
+## Production-Style Stack
 
-### 5. Run the frontend
-
-```bash
-cd social-fe
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-## Docker
-
-The root `docker-compose.yml` is production-oriented and uses published images:
+The root Compose file uses published frontend/backend images and includes Nginx:
 
 ```bash
 docker compose up -d
 ```
 
-It starts:
-
-- `social-fe` on port `3000`
-- `social-app` on port `8000`
-- `social-db` on port `5432`
-- `social-redis` on port `6380`
-- `social-nginx` on ports `80` and `443`
-
-For local backend development with source-mounted containers, use:
-
-```bash
-cd social-be
-docker compose up -d
-```
+Create a root `.env` with the deployment-specific variables, including `GITHUB_SHA`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_PASSWORD`, JWT secrets, and the `NEXT_PUBLIC_*` URLs. The API derives its database URL at runtime; it should not rely on a manually assembled `DATABASE_URL`.
 
 ## Useful Commands
 
-Backend:
+| Component | Command |
+| --- | --- |
+| Backend build | `cd social-be && npm run build` |
+| Backend tests | `cd social-be && npm test` |
+| Backend E2E tests | `cd social-be && npm run test:e2e` |
+| Backend lint | `cd social-be && npm run lint` |
+| Frontend build | `cd social-fe && npm run build` |
+| Frontend lint | `cd social-fe && npm run lint` |
+| Prisma Studio | `cd social-be && npx prisma studio` |
 
-```bash
-cd social-be
-npm run start:dev
-npm run build
-npm run test
-npm run test:e2e
-npm run lint
-```
+## Deployment
 
-Frontend:
+The repository includes GitHub Actions workflows and Terraform environments under `infra/envs`:
 
-```bash
-cd social-fe
-npm run dev
-npm run build
-npm run lint
-```
+- `infra/envs/staging` provisions a Docker-based staging environment.
+- `infra/envs/production` provisions AWS resources for the ECS/Fargate deployment path.
 
-Prisma:
-
-```bash
-cd social-be
-npx prisma migrate dev
-npx prisma migrate deploy
-npx prisma studio
-```
-
-## API Notes
-
-- Auth routes are mounted under `/api/v1/auth` when `API_PREFIX=api/v1`.
-- Access and refresh tokens are stored in HTTP-only cookies.
-- Refresh tokens are persisted in PostgreSQL and revoked on sensitive changes such as password change, email change, and account deactivation.
-- Account deactivation uses an email OTP confirmation flow.
-- Sockets are exposed through namespaces such as `/socket`, `/chat`, and `/notifications`.
-
-## Development Notes
-
-- The backend uses Prisma migrations from `social-be/prisma/migrations`.
-- Redis is used for cache, OTP storage, queues, and Socket.IO scaling.
-- Mail templates live in `social-be/src/mail/templates`.
-- Frontend API calls are centralized in `social-fe/app/services`.
-- Frontend server state is handled with TanStack Query; auth state is stored with Zustand.
+See the environment-specific README files for Terraform inputs and deployment details.
 
 ## Verification
 
 Before opening a pull request, run:
 
 ```bash
-cd social-be
-npm run build
-
-cd ../social-fe
-npm run lint
-npm run build
+cd social-be && npm run build && npm test
+cd ../social-fe && npm run lint && npm run build
 ```
-
-## License
-
-This project is private and currently marked as `UNLICENSED`.
