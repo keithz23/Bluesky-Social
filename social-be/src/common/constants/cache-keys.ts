@@ -11,3 +11,8 @@ export const CACHE_KEYS = {
   GROUP_MEMBERS: (groupId: string) => `group:members:${groupId}`,
   ONLINE_USERS: () => `users:online`,
 };
+
+export const CACHE_CHANNELS = {
+  KEYWORDS_INVALIDATED: 'moderation:keywords:invalidated',
+  SYSTEM_SETTINGS_INVALIDATED: 'system:settings:invalidated',
+} as const;

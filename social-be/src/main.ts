@@ -5,6 +5,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AuditContextInterceptor } from './common/interceptors/audit-context.interceptor';
+import { AuditContextService } from './common/audit/audit-context.service';
+import { PrismaService } from './prisma/prisma.service';
 import * as compression from 'compression';
 import helmet from 'helmet';
 import { ConfigService } from '@nestjs/config';
@@ -46,6 +49,8 @@ class RedisIoAdapter extends IoAdapter {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  const auditContextService = app.get(AuditContextService);
+  const prismaService = app.get(PrismaService);
 
   app.enableShutdownHooks();
 
@@ -82,12 +87,15 @@ async function bootstrap() {
 
   // Global interceptors
   app.useGlobalInterceptors(
+    new AuditContextInterceptor(auditContextService, prismaService),
     new LoggingInterceptor(),
     new TransformInterceptor(),
   );
 
-  // Swagger documentation
-  setupSwagger(app);
+  // Swagger documentation is intentionally disabled in production.
+  if (configService.get<string>('config.nodeEnv') !== 'production') {
+    setupSwagger(app);
+  }
 
   // ElastiCache Serverless does not support PSUBSCRIBE, which is used by this adapter.
   if (configService.get<boolean>('config.socket.redisAdapterEnabled')) {
@@ -103,4 +111,7 @@ async function bootstrap() {
   console.log(`API Documentation: http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+void bootstrap().catch((error: unknown) => {
+  console.error('Failed to bootstrap application', error);
+  process.exitCode = 1;
+});

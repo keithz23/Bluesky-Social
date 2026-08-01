@@ -1,386 +1,201 @@
 import { PrismaClient } from '@prisma/client';
-import { faker } from '@faker-js/faker';
 
-const prisma = new PrismaClient();
-
-const CONFIG = {
-  CUSTOM_GROUPS: 15,
-  CUSTOM_ROLES: 15,
-  ACTIONS: [
-    'read',
-    'create',
-    'update',
-    'delete',
-    'export',
-    'import',
-    'approve',
-  ],
+type PermissionDefinition = {
+  group: string;
+  name: string;
+  displayName: string;
+  resource: string;
+  action: string;
 };
 
-export async function seedRBAC() {
-  console.log('Starting RBAC...');
+const PERMISSION_GROUPS = [
+  { name: 'User', description: 'User management' },
+  { name: 'Role', description: 'Role and permission management' },
+  { name: 'Post', description: 'Post management and moderation' },
+  { name: 'Report', description: 'Report review and resolution' },
+  { name: 'Rule', description: 'Moderation rule management' },
+  { name: 'Keyword', description: 'Keyword moderation management' },
+  { name: 'System', description: 'System settings, analytics, and audit logs' },
+] as const;
 
-  const baseGroups = [
-    { name: 'User', description: 'User management' },
-    { name: 'Role', description: 'Role & permission management' },
-    { name: 'Rule', description: 'Rule management' },
-    { name: 'Post', description: 'Post management' },
-    { name: 'Report', description: 'Report management' },
-    { name: 'Keyword', description: 'Keyword management' },
-    { name: 'System', description: 'System management' },
-  ];
-  const groupNames = new Set(baseGroups.map((g) => g.name));
-  const groups = [...baseGroups];
+const PERMISSIONS: PermissionDefinition[] = [
+  ['User', 'user:read', 'View Users', 'user', 'read'],
+  ['User', 'user:create', 'Create User', 'user', 'create'],
+  ['User', 'user:update', 'Update User', 'user', 'update'],
+  ['User', 'user:delete', 'Delete User', 'user', 'delete'],
 
-  while (groups.length < baseGroups.length + CONFIG.CUSTOM_GROUPS) {
-    const fakeName = faker.commerce.department();
-    if (!groupNames.has(fakeName)) {
-      groupNames.add(fakeName);
-      groups.push({ name: fakeName, description: `${fakeName} management` });
-    }
-  }
+  ['Role', 'role:read', 'View Roles', 'role', 'read'],
+  ['Role', 'role:create', 'Create Role', 'role', 'create'],
+  ['Role', 'role:update', 'Update Role', 'role', 'update'],
+  ['Role', 'role:delete', 'Delete Role', 'role', 'delete'],
+  [
+    'Role',
+    'role:assign-permission',
+    'Assign Permissions to Role',
+    'role',
+    'assign-permission',
+  ],
+  ['Role', 'permission:read', 'View Permissions', 'permission', 'read'],
 
-  for (const group of groups) {
-    await prisma.permissionGroup.upsert({
-      where: { name: group.name },
-      update: {},
-      create: group,
-    });
-  }
+  ['Post', 'post:read', 'View Posts', 'post', 'read'],
+  ['Post', 'post:create', 'Create Post', 'post', 'create'],
+  ['Post', 'post:update', 'Update or Hide Post', 'post', 'update'],
+  ['Post', 'post:delete', 'Delete Post', 'post', 'delete'],
 
-  const groupMap = new Map(
-    (await prisma.permissionGroup.findMany()).map((g) => [g.name, g.id]),
-  );
+  ['Report', 'report:read', 'View Reports', 'report', 'read'],
+  ['Report', 'report:resolve', 'Resolve Reports', 'report', 'resolve'],
 
-  const permissions: Array<{
-    group: string;
-    name: string;
-    displayName: string;
-    resource: string;
-    action: string;
-  }> = [
-    // User
-    {
-      group: 'User',
-      name: 'user:read',
-      displayName: 'View Users',
-      resource: 'user',
-      action: 'read',
-    },
-    {
-      group: 'User',
-      name: 'user:create',
-      displayName: 'Create User',
-      resource: 'user',
-      action: 'create',
-    },
-    {
-      group: 'User',
-      name: 'user:update',
-      displayName: 'Update User',
-      resource: 'user',
-      action: 'update',
-    },
-    {
-      group: 'User',
-      name: 'user:delete',
-      displayName: 'Delete User',
-      resource: 'user',
-      action: 'delete',
-    },
+  ['Rule', 'rule:read', 'View Rules', 'rule', 'read'],
+  ['Rule', 'rule:create', 'Create Rule', 'rule', 'create'],
+  ['Rule', 'rule:update', 'Update Rule', 'rule', 'update'],
+  ['Rule', 'rule:delete', 'Delete Rule', 'rule', 'delete'],
 
-    {
-      group: 'Role',
-      name: 'role:read',
-      displayName: 'View Roles',
-      resource: 'role',
-      action: 'read',
-    },
-    {
-      group: 'Role',
-      name: 'role:create',
-      displayName: 'Create Role',
-      resource: 'role',
-      action: 'create',
-    },
-    {
-      group: 'Role',
-      name: 'role:update',
-      displayName: 'Update Role',
-      resource: 'role',
-      action: 'update',
-    },
-    {
-      group: 'Role',
-      name: 'role:delete',
-      displayName: 'Delete Role',
-      resource: 'role',
-      action: 'delete',
-    },
-    {
-      group: 'Role',
-      name: 'role:assign-permission',
-      displayName: 'Assign Permissions to Role',
-      resource: 'role',
-      action: 'assign-permission',
-    },
-    {
-      group: 'Role',
-      name: 'permission:read',
-      displayName: 'View Permissions',
-      resource: 'permission',
-      action: 'read',
-    },
+  ['Keyword', 'keyword:read', 'View Keywords', 'keyword', 'read'],
+  ['Keyword', 'keyword:create', 'Create Keyword', 'keyword', 'create'],
+  ['Keyword', 'keyword:update', 'Update Keyword', 'keyword', 'update'],
+  ['Keyword', 'keyword:delete', 'Delete Keyword', 'keyword', 'delete'],
 
-    // Post
-    {
-      group: 'Post',
-      name: 'post:read',
-      displayName: 'View Posts',
-      resource: 'post',
-      action: 'read',
-    },
-    {
-      group: 'Post',
-      name: 'post:create',
-      displayName: 'Create Post',
-      resource: 'post',
-      action: 'create',
-    },
-    {
-      group: 'Post',
-      name: 'post:update',
-      displayName: 'Update Post',
-      resource: 'post',
-      action: 'update',
-    },
-    {
-      group: 'Post',
-      name: 'post:delete',
-      displayName: 'Delete Post',
-      resource: 'post',
-      action: 'delete',
-    },
+  ['System', 'system:read', 'View System Data', 'system', 'read'],
+  ['System', 'system:update', 'Update System Data', 'system', 'update'],
+].map(([group, name, displayName, resource, action]) => ({
+  group,
+  name,
+  displayName,
+  resource,
+  action,
+}));
 
-    // Report
-    {
-      group: 'Report',
-      name: 'report:read',
-      displayName: 'View Reports',
-      resource: 'report',
-      action: 'read',
-    },
-    {
-      group: 'Report',
-      name: 'report:resolve',
-      displayName: 'Resolve Reports',
-      resource: 'report',
-      action: 'update',
-    },
+const SYSTEM_ROLES = [
+  { name: 'super_admin', description: 'System owner', level: 0 },
+  { name: 'admin', description: 'Administrator', level: 10 },
+  { name: 'moderator', description: 'Content moderator', level: 50 },
+  { name: 'user', description: 'Default application user', level: 1000 },
+] as const;
 
-    // Rule
-    {
-      group: 'Rule',
-      name: 'rule:read',
-      displayName: 'View Rules',
-      resource: 'rule',
-      action: 'read',
-    },
-    {
-      group: 'Rule',
-      name: 'rule:create',
-      displayName: 'Create Rule',
-      resource: 'rule',
-      action: 'create',
-    },
-    {
-      group: 'Rule',
-      name: 'rule:update',
-      displayName: 'Update Rule',
-      resource: 'rule',
-      action: 'update',
-    },
-    {
-      group: 'Rule',
-      name: 'rule:delete',
-      displayName: 'Delete Rule',
-      resource: 'rule',
-      action: 'delete',
-    },
+const MODERATOR_PERMISSIONS = [
+  'post:read',
+  'post:update',
+  'post:delete',
+  'report:read',
+  'report:resolve',
+  'rule:read',
+  'keyword:read',
+];
 
-    // Keyword
-    {
-      group: 'Keyword',
-      name: 'keyword:read',
-      displayName: 'View Keyword',
-      resource: 'keyword',
-      action: 'read',
-    },
-    {
-      group: 'Keyword',
-      name: 'keyword:create',
-      displayName: 'Create Keyword',
-      resource: 'keyword',
-      action: 'create',
-    },
-    {
-      group: 'Keyword',
-      name: 'keyword:update',
-      displayName: 'Update Keyword',
-      resource: 'keyword',
-      action: 'update',
-    },
-    {
-      group: 'Keyword',
-      name: 'keyword:delete',
-      displayName: 'Delete Keyword',
-      resource: 'keyword',
-      action: 'delete',
-    },
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  super_admin: PERMISSIONS.map((permission) => permission.name),
+  admin: PERMISSIONS.map((permission) => permission.name),
+  moderator: MODERATOR_PERMISSIONS,
+  // Public endpoints are authenticated by JWT and do not use these admin
+  // permissions. Keeping this empty prevents regular users from opening
+  // /admin/posts simply because they can read posts in the public product.
+  user: [],
+};
 
-    // System
-    {
-      group: 'System',
-      name: 'system:read',
-      displayName: 'View Settings',
-      resource: 'system',
-      action: 'read',
-    },
-    {
-      group: 'System',
-      name: 'system:update',
-      displayName: 'Update Settings',
-      resource: 'system',
-      action: 'update',
-    },
-  ];
+export async function seedRBAC(prisma: PrismaClient) {
+  console.log('Seeding deterministic RBAC permissions and roles...');
 
-  for (let i = baseGroups.length; i < groups.length; i++) {
-    const groupName = groups[i].name;
-    const resource = groupName.toLowerCase().replace(/\s+/g, '_');
-
-    const assignedActions = faker.helpers.arrayElements(
-      CONFIG.ACTIONS,
-      faker.number.int({ min: 2, max: CONFIG.ACTIONS.length }),
-    );
-
-    for (const action of assignedActions) {
-      permissions.push({
-        group: groupName,
-        name: `${resource}:${action}`,
-        displayName: `${action.charAt(0).toUpperCase() + action.slice(1)} ${groupName}`,
-        resource,
-        action,
+  await prisma.$transaction(async (tx) => {
+    for (const group of PERMISSION_GROUPS) {
+      await tx.permissionGroup.upsert({
+        where: { name: group.name },
+        update: { description: group.description },
+        create: group,
       });
     }
-  }
 
-  for (const p of permissions) {
-    await prisma.permission.upsert({
-      where: { name: p.name },
-      update: {},
-      create: {
-        name: p.name,
-        displayName: p.displayName,
-        resource: p.resource,
-        action: p.action,
-        groupId: groupMap.get(p.group)!,
-      },
+    const groups = await tx.permissionGroup.findMany({
+      where: { name: { in: PERMISSION_GROUPS.map((group) => group.name) } },
+      select: { id: true, name: true },
     });
-  }
+    const groupIds = new Map(groups.map((group) => [group.name, group.id]));
 
-  const allPermissions = await prisma.permission.findMany({
-    where: { name: { in: permissions.map((p) => p.name) } },
-  });
+    for (const permission of PERMISSIONS) {
+      const groupId = groupIds.get(permission.group);
+      if (!groupId) {
+        throw new Error(`Permission group ${permission.group} was not created`);
+      }
 
-  const baseRoles = [
-    { name: 'super_admin', description: 'System Owner', level: 0 },
-    { name: 'admin', description: 'Administrator', level: 10 },
-    { name: 'moderator', description: 'Moderator', level: 50 },
-    { name: 'user', description: 'Default User', level: 1000 },
-  ];
-
-  const roleNames = new Set(baseRoles.map((r) => r.name));
-  const roles = [...baseRoles];
-
-  while (roles.length < baseRoles.length + CONFIG.CUSTOM_ROLES) {
-    const fakeRoleName = faker.person
-      .jobTitle()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_');
-    if (!roleNames.has(fakeRoleName)) {
-      roleNames.add(fakeRoleName);
-      roles.push({
-        name: fakeRoleName,
-        description: faker.person.jobTitle(),
-        level: 500,
+      await tx.permission.upsert({
+        where: { name: permission.name },
+        update: {
+          displayName: permission.displayName,
+          resource: permission.resource,
+          action: permission.action,
+          groupId,
+        },
+        create: {
+          name: permission.name,
+          displayName: permission.displayName,
+          resource: permission.resource,
+          action: permission.action,
+          groupId,
+        },
       });
     }
-  }
 
-  for (const role of roles) {
-    await prisma.role.upsert({
-      where: { name: role.name },
-      update: {},
-      create: role,
-    });
-  }
+    for (const role of SYSTEM_ROLES) {
+      await tx.role.upsert({
+        where: { name: role.name },
+        update: { description: role.description, level: role.level },
+        create: role,
+      });
+    }
 
-  const roleMap = new Map(
-    (await prisma.role.findMany()).map((r) => [r.name, r.id]),
-  );
-
-  const userPermissions = ['post:read', 'post:create', 'post:update'];
-  const moderatorPermissions = [
-    ...userPermissions,
-    'post:delete',
-    'report:read',
-    'report:resolve',
-    'rule:read',
-  ];
-  const adminPermissions = allPermissions.map((p) => p.name);
-
-  const rolePermissionsMap = new Map<string, string[]>([
-    ['super_admin', adminPermissions],
-    ['admin', adminPermissions],
-    ['moderator', moderatorPermissions],
-    ['user', userPermissions],
-  ]);
-
-  for (let i = baseRoles.length; i < roles.length; i++) {
-    const roleName = roles[i].name;
-    const randomPerms = faker.helpers.arrayElements(
-      allPermissions.map((p) => p.name),
-      faker.number.int({ min: 5, max: 15 }),
-    );
-    rolePermissionsMap.set(roleName, randomPerms);
-  }
-
-  for (const [roleName, perms] of rolePermissionsMap.entries()) {
-    const roleId = roleMap.get(roleName);
-    if (!roleId) continue;
-
-    for (const permissionName of perms) {
-      const permission = allPermissions.find((p) => p.name === permissionName);
-      if (!permission) continue;
-
-      await prisma.rolePermission.upsert({
+    const [permissions, roles] = await Promise.all([
+      tx.permission.findMany({
         where: {
-          roleId_permissionId: {
-            roleId: roleId,
-            permissionId: permission.id,
+          name: { in: PERMISSIONS.map((permission) => permission.name) },
+        },
+        select: { id: true, name: true },
+      }),
+      tx.role.findMany({
+        where: { name: { in: SYSTEM_ROLES.map((role) => role.name) } },
+        select: { id: true, name: true },
+      }),
+    ]);
+    const permissionIds = new Map(
+      permissions.map((permission) => [permission.name, permission.id]),
+    );
+    const managedPermissionIds = permissions.map((permission) => permission.id);
+
+    for (const role of roles) {
+      const desiredPermissionIds = (ROLE_PERMISSIONS[role.name] ?? []).map(
+        (name) => {
+          const permissionId = permissionIds.get(name);
+          if (!permissionId)
+            throw new Error(`Permission ${name} was not created`);
+          return permissionId;
+        },
+      );
+
+      // Reconcile only permissions owned by this seed. Custom permissions and
+      // custom roles remain untouched, while old grants are revoked safely.
+      await tx.rolePermission.deleteMany({
+        where: {
+          roleId: role.id,
+          permissionId: {
+            in: managedPermissionIds,
+            ...(desiredPermissionIds.length > 0
+              ? { notIn: desiredPermissionIds }
+              : {}),
           },
         },
-        update: {},
-        create: {
-          roleId: roleId,
-          permissionId: permission.id,
-        },
       });
+
+      if (desiredPermissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: desiredPermissionIds.map((permissionId) => ({
+            roleId: role.id,
+            permissionId,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
-  }
+  });
 
   console.log(
-    `Success: ${groups.length} Groups, ${permissions.length} Permissions, ${roles.length} Roles.`,
+    `RBAC ready: ${PERMISSION_GROUPS.length} groups, ${PERMISSIONS.length} permissions, ${SYSTEM_ROLES.length} system roles.`,
   );
 }

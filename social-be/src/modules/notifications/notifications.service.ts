@@ -88,6 +88,67 @@ export class NotificationsService implements OnModuleInit {
     return notification;
   }
 
+  async sendSystemNotification(data: {
+    userId: string;
+    postId: string;
+    message: string;
+  }) {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const duplicate = await this.prisma.notification.findFirst({
+      where: {
+        userId: data.userId,
+        actorId: null,
+        type: NotificationType.MODERATION,
+        postId: data.postId,
+        message: data.message,
+        createdAt: { gte: oneDayAgo },
+      },
+    });
+    if (duplicate) return duplicate;
+
+    const notification = await this.prisma.notification.create({
+      data: {
+        userId: data.userId,
+        actorId: null,
+        type: NotificationType.MODERATION,
+        postId: data.postId,
+        message: data.message,
+      },
+      include: {
+        actor: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+            followersCount: true,
+            followingCount: true,
+          },
+        },
+        post: {
+          select: {
+            user: { select: { username: true } },
+          },
+        },
+      },
+    });
+
+    if (await this.notificationGateway.isUserConnected(data.userId)) {
+      this.notificationGateway.emitToUserById(
+        data.userId,
+        'new-notification',
+        notification,
+      );
+      const count = await this.getUnreadCount(data.userId);
+      this.notificationGateway.emitToUserById(data.userId, 'unread-count', {
+        count,
+      });
+    }
+
+    return notification;
+  }
+
   async create(createNotificationDto: CreateNotificationDto) {
     const { userId, postId, actorId, type } = createNotificationDto;
     return await this.prisma.notification.create({
@@ -148,6 +209,7 @@ export class NotificationsService implements OnModuleInit {
       select: {
         id: true,
         type: true,
+        message: true,
         isRead: true,
         createdAt: true,
         postId: true,

@@ -36,11 +36,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { icon: Home, label: "Dashboard", href: "/admin/dashboard" },
       {
-        icon: BarChart3,
-        label: "Analytics",
-        href: "/admin/analytics",
+        icon: Home,
+        label: "Dashboard",
+        href: "/admin/dashboard",
         permission: "system:read",
       },
     ],

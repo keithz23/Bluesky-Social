@@ -62,6 +62,7 @@ import {
 } from 'src/common/utils/cookie-option.util';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateAccountPrivacyDto } from './dto/update-account-privacy.dto';
+import { RegisterUserResponse } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -81,7 +82,9 @@ export class AuthController {
   @Throttle({ default: { ttl: 3600, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({ status: 409, description: 'Username or email already exists' })
-  async signup(@Body() registerDto: RegisterDto): Promise<User> {
+  async signup(
+    @Body() registerDto: RegisterDto,
+  ): Promise<RegisterUserResponse> {
     return this.authService.register(registerDto);
   }
 
@@ -189,25 +192,18 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from current session' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  signout(
+  async signout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): { message: string } {
+  ): Promise<{ message: string }> {
     const refreshToken = request.cookies?.refreshToken;
     const userId = request.user?.['id'];
 
     if (refreshToken) {
-      void this.authService.logout(userId, refreshToken).catch((error) => {
-        this.logger.warn(
-          `Failed to revoke refresh token during logout: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      });
+      await this.authService.logout(userId, refreshToken);
     }
 
     this.clearAuthCookies(response);
@@ -235,8 +231,12 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
-  async getProfile(@CurrentUser('id') userId: string) {
-    return this.authService.getProfile(userId);
+  async getProfile(
+    @CurrentUser('id') userId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.getProfile(userId, ipAddress, userAgent);
   }
 
   // ============= PROFILE ROUTES =============
@@ -254,6 +254,8 @@ export class AuthController {
   async updateProfile(
     @CurrentUser('id') userId: string,
     @Body() updateDto: UpdateProfileDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
     @UploadedFiles(
       new ImageValidationPipe(
         IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
@@ -268,6 +270,8 @@ export class AuthController {
     return this.authService.updateProfile(
       userId,
       updateDto,
+      ipAddress,
+      userAgent,
       files?.avatar,
       files?.cover,
     );

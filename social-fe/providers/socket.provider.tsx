@@ -11,6 +11,7 @@ import { io, Socket } from "socket.io-client";
 import { AuthService } from "@/app/services/auth.service";
 import { useGlobal } from "@/app/hooks/use-global";
 import { useChatRealtime } from "@/app/hooks/use-chat-realtime";
+import { useAuthStore } from "@/app/store/use-auth.store";
 
 interface SocketContextType {
   globalSocket: Socket | null;
@@ -35,6 +36,8 @@ const GlobalSocketWrapper = ({ children }: { children: React.ReactNode }) => {
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
+  const userId = useAuthStore((state) => state.id);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [sockets, setSockets] = useState<{
     global: Socket | null;
     notifications: Socket | null;
@@ -50,6 +53,17 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const isInitialized = useRef(false);
 
   useEffect(() => {
+    if (!userId || !accessToken) {
+      setSockets((current) => {
+        current.global?.disconnect();
+        current.notifications?.disconnect();
+        current.chat?.disconnect();
+        return { global: null, notifications: null, chat: null };
+      });
+      setIsConnected(false);
+      return;
+    }
+
     if (isInitialized.current) return;
 
     let globalIo: Socket;
@@ -75,9 +89,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
         globalIo.on("connect", () => setIsConnected(true));
         globalIo.on("disconnect", () => setIsConnected(false));
-        globalIo.on("connect_error", (err) =>
-          console.error("Global Socket Error:", err),
-        );
+        globalIo.on("connect_error", async (err) => {
+          console.error("Global Socket Error:", err);
+          try {
+            const { token: refreshedToken } = await AuthService.getSocketToken();
+            [globalIo, notiIo, chatIo].forEach((socket) => {
+              socket.auth = { token: refreshedToken };
+              socket.connect();
+            });
+          } catch (refreshError) {
+            console.error("Refresh socket token failed:", refreshError);
+          }
+        });
 
         setSockets({
           global: globalIo,
@@ -98,7 +121,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (chatIo) chatIo.disconnect();
       isInitialized.current = false;
     };
-  }, []);
+  }, [userId, accessToken]);
 
   return (
     <SocketContext.Provider

@@ -272,7 +272,7 @@ export default function RulesManagementPage() {
               onClick={() => setIsDeleteDialogOpen(true)}
               disabled={isDeleting}
             >
-              <Trash className="w-4 h-4 mr-2 shrink-0" /> Delete (
+              <Trash className="w-4 h-4 mr-2 shrink-0" /> Deactivate (
               {selectedRuleIds.length})
             </Button>
           )}
@@ -381,11 +381,12 @@ export default function RulesManagementPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-600 flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5" /> Confirm Deletion
+              <ShieldAlert className="w-5 h-5" /> Confirm Deactivation
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {selectedRuleIds.length} rule(s)?
-              This action cannot be undone.
+              Are you sure you want to deactivate {selectedRuleIds.length} rule(s)?
+              Existing reports will be preserved and these rules can be
+              reactivated later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -401,7 +402,7 @@ export default function RulesManagementPage() {
                 setIsDeleteDialogOpen(false);
               }}
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeleting ? "Deactivating..." : "Deactivate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

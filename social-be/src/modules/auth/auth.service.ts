@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -54,6 +55,11 @@ import { JwtUtils } from './utils/jwt.util';
 import { MailUtils } from './utils/mail.util';
 import { TwoFactorUtils } from './utils/two-factor.util';
 import { OtherUtils } from './utils/other.util';
+import { SettingsService } from '../admin/settings/settings.service';
+import {
+  AuthUserResponse,
+  RegisterUserResponse,
+} from './interfaces/auth.interface';
 
 @Injectable()
 export class AuthService {
@@ -67,12 +73,23 @@ export class AuthService {
     private mailUtils: MailUtils,
     private twoFactorUtils: TwoFactorUtils,
     private otherUtils: OtherUtils,
+    private readonly settingsService: SettingsService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<User> {
+  async register(
+    registerDto: RegisterDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<RegisterUserResponse> {
+    const registrationEnabled = await this.settingsService.getBoolean(
+      'account.registration_enabled',
+    );
+    if (!registrationEnabled) {
+      throw new ForbiddenException('New account registration is currently disabled');
+    }
+
     const { email, username, password, dateOfBirth } = registerDto;
 
-    // Check if email exists
     const existingEmail = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -80,7 +97,6 @@ export class AuthService {
       throw new ConflictException(ERROR_MESSAGES.EMAIL_ALREADY_EXISTS);
     }
 
-    // Check if username exists
     const existingUsername = await this.prisma.user.findUnique({
       where: { username },
     });
@@ -88,7 +104,6 @@ export class AuthService {
       throw new ConflictException(ERROR_MESSAGES.USERNAME_ALREADY_EXISTS);
     }
 
-    // Hash password
     const passwordHash = await HashUtil.hash(password);
 
     const newUser = await this.prisma.$transaction(async (prisma) => {
@@ -107,12 +122,9 @@ export class AuthService {
       expiresAt.setHours(expiresAt.getHours() + 24);
 
       await prisma.emailVerificationToken.create({
-        data: {
-          token: verifyToken,
-          userId: user.id,
-          expiresAt: expiresAt,
-        },
+        data: { token: verifyToken, userId: user.id, expiresAt },
       });
+
       await this.mailService.sendVerifyEmail(
         user.email,
         verifyToken,
@@ -122,7 +134,14 @@ export class AuthService {
       return user;
     });
 
-    return newUser;
+    return {
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+      displayName: newUser.displayName,
+      verified: newUser.verified,
+      createdAt: newUser.createdAt,
+    };
   }
 
   async login(
@@ -168,7 +187,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.verified) {
+    const requireEmailVerification = await this.settingsService.getBoolean(
+      'account.require_email_verification',
+    );
+    if (requireEmailVerification && !user.verified) {
       throw new UnauthorizedException(
         'Please check your email and verify your account before logging in.',
       );
@@ -308,21 +330,6 @@ export class AuthService {
 
     await this.redisService.del(redisKey);
 
-    await this.prisma.auditLog.create({
-      data: this.otherUtils.createAuditLogData({
-        userId: user.id,
-        action: 'MFA_LOGIN_SUCCESS',
-        userAgent,
-        ipAddress,
-        metadata: {
-          method:
-            method === 'recovery_code'
-              ? 'RECOVERY_CODE'
-              : 'TOTP_OR_RECOVERY_CODE',
-        },
-      }),
-    });
-
     return {
       ...tokens,
       user: this.otherUtils.transformUser(user),
@@ -331,9 +338,9 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthResponseDto> {
-    // Verify refresh token in database
+    // Refresh tokens are bearer credentials: only their digest is retained.
     const tokenDoc = await this.prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
+      where: { tokenHash: HashUtil.hashRefreshToken(refreshToken) },
       include: {
         user: {
           include: {
@@ -409,7 +416,7 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({
       where: {
         ...(userId ? { userId } : {}),
-        token: refreshToken,
+        tokenHash: HashUtil.hashRefreshToken(refreshToken),
       },
     });
 
@@ -425,7 +432,7 @@ export class AuthService {
     return { message: 'Logged out from all devices' };
   }
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string, ipAddress?: string, userAgent?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -458,13 +465,13 @@ export class AuthService {
   async updateProfile(
     userId: string,
     updateDto: UpdateProfileDto,
+    ipAddress?: string,
+    userAgent?: string,
     avatar?: Express.Multer.File[],
     cover?: Express.Multer.File[],
   ) {
     const uploadedKeys: string[] = [];
-
     try {
-      // Upload avatar
       if (avatar?.length) {
         const results = await this.s3Service
           .uploadImages(avatar, `public/avatar/${userId}`, {
@@ -475,12 +482,10 @@ export class AuthService {
             this.logger.error('Error uploading avatar', error);
             throw new BadRequestException('Failed to upload avatar');
           });
-
         uploadedKeys.push(...results.map((r) => r.key));
         updateDto.avatarUrl = results[0].url;
       }
 
-      // Upload cover
       if (cover?.length) {
         const results = await this.s3Service
           .uploadImages(cover, `public/cover/${userId}`, {
@@ -491,26 +496,27 @@ export class AuthService {
             this.logger.error('Error uploading cover', error);
             throw new BadRequestException('Failed to upload cover');
           });
-
         uploadedKeys.push(...results.map((r) => r.key));
         updateDto.coverUrl = results[0].url;
       }
 
-      // Get old image before update to delete later
-      const oldUser = uploadedKeys.length
-        ? await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { avatarUrl: true, coverUrl: true },
-          })
-        : null;
+      const oldUser = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          avatarUrl: true,
+          coverUrl: true,
+          username: true,
+          displayName: true,
+          bio: true,
+        },
+      });
 
       const user = await this.prisma.user.update({
         where: { id: userId },
         data: updateDto,
       });
 
-      // Deleted old image after update db
-      if (oldUser) {
+      if (uploadedKeys.length && oldUser) {
         const oldKeys = [
           updateDto.avatarUrl && oldUser.avatarUrl
             ? this.s3Service.extractKeyFromUrl(oldUser.avatarUrl)
@@ -519,7 +525,6 @@ export class AuthService {
             ? this.s3Service.extractKeyFromUrl(oldUser.coverUrl)
             : null,
         ].filter(Boolean);
-
         if (oldKeys.length) {
           this.otherUtils
             .scheduleCleanup(oldKeys as string[], 'replaced_by_new_upload')
@@ -563,24 +568,10 @@ export class AuthService {
       return this.otherUtils.transformUser(currentUser);
     }
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { isPrivate },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_PRIVACY_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldIsPrivate: currentUser.isPrivate,
-            newIsPrivate: isPrivate,
-          },
-        }),
-      }),
-    ]);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isPrivate },
+    });
 
     return this.otherUtils.transformUser(user);
   }
@@ -608,24 +599,10 @@ export class AuthService {
       throw new ConflictException('Username already exists.');
     }
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { username: normalizedUsername, displayName: normalizedUsername },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_USERNAME_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldUsername: currentUser.username,
-            newUsername: normalizedUsername,
-          },
-        }),
-      }),
-    ]);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { username: normalizedUsername, displayName: normalizedUsername },
+    });
 
     return this.otherUtils.transformUser(user);
   }
@@ -652,26 +629,10 @@ export class AuthService {
 
     if (!currentUser) throw new NotFoundException('User not found');
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { dateOfBirth: birthDate },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_BIRTHDAY_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldDateOfBirth: this.otherUtils.formatAuditDate(
-              currentUser.dateOfBirth,
-            ),
-            newDateOfBirth: this.otherUtils.formatAuditDate(birthDate),
-          },
-        }),
-      }),
-    ]);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { dateOfBirth: birthDate },
+    });
 
     return this.otherUtils.transformUser(user);
   }
@@ -726,18 +687,6 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_PASSWORD_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: 'email_otp',
-            refreshTokensRevoked: true,
-          },
-        }),
       }),
     ]);
 
@@ -839,18 +788,6 @@ export class AuthService {
       this.prisma.passwordResetToken.updateMany({
         where: { userId: match.userId, usedAt: null, id: { not: match.id } },
         data: { usedAt: new Date() },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId: match.userId,
-          action: 'ACCOUNT_PASSWORD_RESET',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: 'forgot_password_code',
-            resetTokenId: match.id,
-          },
-        }),
       }),
     ]);
   }
@@ -1069,6 +1006,13 @@ export class AuthService {
     }
 
     // User chưa tồn tại -> tạo mới, gán role mặc định
+    const registrationEnabled = await this.settingsService.getBoolean(
+      'account.registration_enabled',
+    );
+    if (!registrationEnabled) {
+      throw new ForbiddenException('New account registration is currently disabled');
+    }
+
     const baseUsername = googleUser.email.split('@')[0];
     let username = baseUsername;
     let counter = 1;
@@ -1324,18 +1268,6 @@ export class AuthService {
       this.prisma.recoveryCode.createMany({
         data: recoveryCodeRows,
       }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'MFA_TOTP_ENABLED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: 'TOTP',
-            recoveryCodeCount: recoveryCodes.length,
-          },
-        }),
-      }),
     ]);
 
     await this.redisService.del(setupKey);
@@ -1418,18 +1350,6 @@ export class AuthService {
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'MFA_DISABLED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            method: user.twoFactorMethod ?? 'UNKNOWN',
-            appPasswordsRevoked: true,
-          },
-        }),
-      }),
     ]);
 
     return { message: 'Two-factor authentication disabled successfully' };
@@ -1503,19 +1423,6 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'ACCOUNT_EMAIL_CHANGED',
-          userAgent,
-          ipAddress,
-          metadata: {
-            oldEmail: user.email,
-            newEmail: requestUpdateEmailData.new_email,
-            refreshTokensRevoked: true,
-          },
-        }),
       }),
     ]);
 
@@ -1594,18 +1501,6 @@ export class AuthService {
       this.prisma.refreshToken.deleteMany({
         where: { userId },
       }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'DELETE_ACCOUNT',
-          userAgent,
-          ipAddress,
-          metadata: {
-            status: 'DELETED',
-            refreshTokensRevoked: true,
-          },
-        }),
-      }),
     ]);
     await this.redisService.del(redisKey);
     return { message: 'Account deleted successfully.' };
@@ -1640,18 +1535,6 @@ export class AuthService {
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId },
-      }),
-      this.prisma.auditLog.create({
-        data: this.otherUtils.createAuditLogData({
-          userId,
-          action: 'DEACTIVATE_ACCOUNT',
-          userAgent,
-          ipAddress,
-          metadata: {
-            status: 'DEACTIVATED',
-            refreshTokensRevoked: true,
-          },
-        }),
       }),
     ]);
 

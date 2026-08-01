@@ -30,13 +30,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-      message =
-        typeof exceptionResponse === 'string'
-          ? exceptionResponse
-          : (exceptionResponse as any).message;
-    } else if (exception instanceof Error) {
-      message = exception.message;
+      if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
+        const exceptionResponse = exception.getResponse();
+        message =
+          typeof exceptionResponse === 'string'
+            ? exceptionResponse
+            : (exceptionResponse as any).message;
+      }
     }
 
     const errorResponse: Record<string, unknown> = {
@@ -46,10 +46,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       method: request?.method,
       message,
     };
-
-    if (process.env.NODE_ENV === 'development' && exception instanceof Error) {
-      errorResponse['stack'] = exception.stack;
-    }
 
     this.logger.error(
       `${request?.method ?? 'N/A'} ${request?.url ?? 'N/A'}`,

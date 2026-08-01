@@ -1,34 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { PermissionsGuard } from 'src/common/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
+import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import { SettingsService } from './settings.service';
-import { CreateSettingDto } from './dto/create-setting.dto';
-import { UpdateSettingDto } from './dto/update-setting.dto';
 
+@UseGuards(PermissionsGuard)
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
-  @Post()
-  create(@Body() createSettingDto: CreateSettingDto) {
-    return this.settingsService.create(createSettingDto);
-  }
-
   @Get()
+  @Permissions('system:read')
   findAll() {
     return this.settingsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.settingsService.findOne(+id);
+  @Patch()
+  @Permissions('system:update')
+  update(
+    @Body() dto: UpdateSystemSettingsDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.settingsService.update(dto, userId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSettingDto: UpdateSettingDto) {
-    return this.settingsService.update(+id, updateSettingDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.settingsService.remove(+id);
+  @Delete()
+  @Permissions('system:update')
+  reset(@CurrentUser('id') userId: string) {
+    return this.settingsService.reset(userId);
   }
 }

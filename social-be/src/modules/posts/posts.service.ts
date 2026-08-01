@@ -29,6 +29,7 @@ import { SocketGateway } from '../socket/socket.gateway';
 import { SearchPostsDto } from './dto/search-posts.dto';
 import { PinPostQueryDto } from './dto/pin-post-query.dto';
 import { KeywordsService } from '../admin/keywords/keywords.service';
+import { SettingsService } from '../admin/settings/settings.service';
 
 const FANOUT_WRITE_MAX_FOLLOWERS = 5000;
 @Injectable()
@@ -40,6 +41,7 @@ export class PostsService {
     private readonly notificationService: NotificationsService,
     private readonly socketGateway: SocketGateway,
     private readonly keywordsService: KeywordsService,
+    private readonly settingsService: SettingsService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
     @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
@@ -54,6 +56,7 @@ export class PostsService {
     images?: Express.Multer.File[],
   ) {
     const { content, replyPrivacy, gifUrl, postTheme } = createPostDto;
+    await this.assertContentLength(content ?? '');
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
     const mentionedUsernames = extractMentions(content ?? '');
@@ -239,39 +242,23 @@ export class PostsService {
         return { post, mentionedUsers };
       });
 
-      if (fullPost.mentionedUsers.length > 0) {
+      const moderationResult = fullPost.post
+        ? await this.handleKeywordScan(
+            fullPost.post.id,
+            userId,
+            fullPost.post.content,
+          )
+        : { matched: false, autoHidden: false };
+
+      if (!moderationResult.autoHidden) {
         fullPost.mentionedUsers.forEach((user) => {
-          this.notificationService.sendNotification({
+          this.notifySafely({
             type: NotificationType.MENTION,
             postId: fullPost.post?.id,
             actorId: userId,
             userId: user.id,
           });
         });
-      }
-
-      try {
-        const author = await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { followersCount: true },
-        });
-
-        if ((author?.followersCount ?? 0) <= FANOUT_WRITE_MAX_FOLLOWERS) {
-          await this.feedFanoutQueue.add(JOB_NAMES.FANOUT_POST, {
-            postId: fullPost.post!.id,
-            authorId: userId,
-          });
-        }
-      } catch (error) {
-        this.logger.warn('Failed to enqueue feed fanout job', error);
-      }
-
-      if (fullPost.post) {
-        await this.handleKeywordScan(
-          fullPost.post.id,
-          userId,
-          fullPost.post.content,
-        );
       }
 
       const postAfterScan = await this.prisma.post.findUnique({
@@ -297,7 +284,13 @@ export class PostsService {
         }
       }
 
-      return fullPost.post;
+      return fullPost.post
+        ? {
+            ...fullPost.post,
+            autoFlagged: moderationResult.matched,
+            isDeleted: moderationResult.autoHidden,
+          }
+        : null;
     } catch (error) {
       // Cleanup S3 if transaction fail
       if (uploadedKeys.length > 0) {
@@ -767,15 +760,34 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    // Build parent chain (root → ... → immediate parent)
-    const parentChain: any[] = [];
-    if (post.parentPostId) {
-      let currentParentId: string | null = post.parentPostId;
-      const maxDepth = 20;
-      let depth = 0;
-      while (currentParentId && depth < maxDepth) {
-        const parent = await this.prisma.post.findUnique({
-          where: { id: currentParentId, isDeleted: false },
+    // Resolve a whole reply chain in one recursive query, then hydrate its
+    // posts in one Prisma query. This avoids one database round trip per level.
+    const maxDepth = 20;
+    const ancestorRows = post.parentPostId
+      ? await this.prisma.$queryRaw<Array<{ id: string; depth: number }>>`
+          WITH RECURSIVE ancestors AS (
+            SELECT id, parent_post_id, 1 AS depth, ARRAY[id] AS path
+            FROM posts
+            WHERE id = ${post.parentPostId} AND is_deleted = false
+
+            UNION ALL
+
+            SELECT parent.id, parent.parent_post_id, ancestors.depth + 1, ancestors.path || parent.id
+            FROM posts AS parent
+            INNER JOIN ancestors ON parent.id = ancestors.parent_post_id
+            WHERE parent.is_deleted = false
+              AND ancestors.depth < ${maxDepth}
+              AND NOT parent.id = ANY(ancestors.path)
+          )
+          SELECT id, depth FROM ancestors
+        `
+      : [];
+    const parentIdsInOrder = ancestorRows
+      .sort((a, b) => b.depth - a.depth)
+      .map((ancestor) => ancestor.id);
+    const parentRecords = parentIdsInOrder.length
+      ? await this.prisma.post.findMany({
+          where: { id: { in: parentIdsInOrder }, isDeleted: false },
           select: {
             id: true,
             content: true,
@@ -815,13 +827,13 @@ export class PostsService {
               },
             },
           },
-        });
-        if (!parent) break;
-        parentChain.unshift(parent);
-        currentParentId = parent.parentPostId;
-        depth++;
-      }
-    }
+        })
+      : [];
+    const parentsById = new Map(parentRecords.map((parent) => [parent.id, parent]));
+    const parentChain = parentIdsInOrder.flatMap((id) => {
+      const parent = parentsById.get(id);
+      return parent ? [parent] : [];
+    });
 
     const parentIds = parentChain.map((p) => p.id);
     const allUserIds = [
@@ -1008,6 +1020,8 @@ export class PostsService {
       updatePostDto.content === undefined
         ? post.content
         : updatePostDto.content.trim();
+
+    await this.assertContentLength(nextContent);
 
     if (!nextContent && finalMediaCount === 0) {
       throw new BadRequestException('Post cannot be empty');
@@ -1240,14 +1254,22 @@ export class PostsService {
         }
       }
 
-      fullPost.newlyMentionedUsers.forEach((user) => {
-        this.notificationService.sendNotification({
-          type: NotificationType.MENTION,
-          postId: updatedPost.id,
-          actorId: userId,
-          userId: user.id,
+      const moderationResult = await this.handleKeywordScan(
+        updatedPost.id,
+        userId,
+        updatedPost.content,
+      );
+
+      if (!moderationResult.autoHidden) {
+        fullPost.newlyMentionedUsers.forEach((user) => {
+          this.notifySafely({
+            type: NotificationType.MENTION,
+            postId: updatedPost.id,
+            actorId: userId,
+            userId: user.id,
+          });
         });
-      });
+      }
 
       const [liked, bookmarked, reposted, follow, authorFollowsMe] =
         await Promise.all([
@@ -1280,6 +1302,8 @@ export class PostsService {
 
       return {
         ...updatedPost,
+        autoFlagged: moderationResult.matched,
+        isDeleted: moderationResult.autoHidden,
         isLiked: !!liked,
         isBookmarked: !!bookmarked,
         isReposted: !!reposted,
@@ -1367,6 +1391,7 @@ export class PostsService {
     const hashtagNames = extractHashtags(content ?? '');
     const mentionedUsernames = extractMentions(content ?? '');
     const trimmedContent = content?.trim() ?? '';
+    await this.assertContentLength(trimmedContent);
 
     const parentPost = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
@@ -1559,33 +1584,43 @@ export class PostsService {
       const reply = fullReply.reply;
       if (!reply) throw new Error('Failed to create reply');
 
-      this.socketGateway.emitToPost(replyParentPostId, 'new-reply', reply);
-      if (replyParentPostId !== postId) {
-        this.socketGateway.emitToPost(postId, 'new-reply', reply);
-      }
+      const moderationResult = await this.handleKeywordScan(
+        reply.id,
+        userId,
+        reply.content,
+      );
 
-      if (parentPost.userId !== userId) {
-        this.notificationService.sendNotification({
-          type: NotificationType.REPLY,
-          postId: reply.id,
-          actorId: userId,
-          userId: parentPost.userId,
-        });
-      }
+      if (!moderationResult.autoHidden) {
+        this.socketGateway.emitToPost(replyParentPostId, 'new-reply', reply);
+        if (replyParentPostId !== postId) {
+          this.socketGateway.emitToPost(postId, 'new-reply', reply);
+        }
 
-      if (fullReply.mentionedUsers.length > 0) {
-        fullReply.mentionedUsers.forEach((user) => {
-          this.notificationService.sendNotification({
-            type: NotificationType.MENTION,
+        if (parentPost.userId !== userId) {
+          this.notifySafely({
+            type: NotificationType.REPLY,
             postId: reply.id,
             actorId: userId,
-            userId: user.id,
+            userId: parentPost.userId,
           });
-        });
+        }
+
+        if (fullReply.mentionedUsers.length > 0) {
+          fullReply.mentionedUsers.forEach((user) => {
+            this.notifySafely({
+              type: NotificationType.MENTION,
+              postId: reply.id,
+              actorId: userId,
+              userId: user.id,
+            });
+          });
+        }
       }
 
       return {
         ...reply,
+        autoFlagged: moderationResult.matched,
+        isDeleted: moderationResult.autoHidden,
         isLiked: false,
         isBookmarked: false,
         isReposted: false,
@@ -2023,6 +2058,19 @@ export class PostsService {
     );
   }
 
+  private notifySafely(
+    data: Parameters<NotificationsService['sendNotification']>[0],
+  ): void {
+    void this.notificationService
+      .sendNotification(data)
+      .catch((error: unknown) => {
+        this.logger.error(
+          'Failed to create notification',
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
+  }
+
   private async attachHashtags(
     tx: any,
     postId: string,
@@ -2073,31 +2121,52 @@ export class PostsService {
     postId: string,
     authorId: string,
     content: string,
-  ) {
+  ): Promise<{ matched: boolean; autoHidden: boolean }> {
     try {
+      const keywordScanEnabled = await this.settingsService.getBoolean(
+        'moderation.keyword_scan_enabled',
+      );
+      if (!keywordScanEnabled) return { matched: false, autoHidden: false };
+
       const scanResult = this.keywordsService.scanContent(content);
-      if (!scanResult.matched) return;
+      if (!scanResult.matched) return { matched: false, autoHidden: false };
 
       const ruleIds = [...new Set(scanResult.matches.map((m) => m.ruleId))];
-
-      await Promise.all(
-        ruleIds.map((ruleId) =>
-          this.prisma.report.create({
-            data: {
-              reporterId: null,
-              isAutoGenerated: true,
-              postId,
-              userId: authorId,
-              ruleId,
-              status:
-                scanResult.action === 'AUTO_HIDE' ? 'REVIEWED' : 'PENDING',
-              details: `Auto-detected by keyword filter (action: ${scanResult.action})`,
-            },
-          }),
-        ),
+      const existingReports = await this.prisma.report.findMany({
+        where: {
+          postId,
+          ruleId: { in: ruleIds },
+          isAutoGenerated: true,
+        },
+        select: { ruleId: true },
+      });
+      const reportedRuleIds = new Set(
+        existingReports.map((report) => report.ruleId),
+      );
+      const newRuleIds = ruleIds.filter(
+        (ruleId) => !reportedRuleIds.has(ruleId),
       );
 
-      if (scanResult.action === 'AUTO_HIDE') {
+      if (newRuleIds.length > 0) {
+        await Promise.all(
+          newRuleIds.map((ruleId) =>
+            this.prisma.report.create({
+              data: {
+                reporterId: null,
+                isAutoGenerated: true,
+                postId,
+                userId: authorId,
+                ruleId,
+                status: 'PENDING',
+                details: `Auto-detected by keyword filter (action: ${scanResult.action})`,
+              },
+            }),
+          ),
+        );
+      }
+
+      const autoHidden = scanResult.action === 'AUTO_HIDE';
+      if (autoHidden) {
         await this.prisma.post.update({
           where: { id: postId },
           data: { isDeleted: true, autoFlagged: true },
@@ -2108,8 +2177,33 @@ export class PostsService {
           data: { autoFlagged: true },
         });
       }
+
+      const moderationMessage = autoHidden
+        ? 'Your post was hidden because it may violate our content rules. It has been sent to moderators for review.'
+        : scanResult.action === 'WARN'
+          ? 'Your post may violate our content rules. Please review and edit it; moderators have been notified.'
+          : 'Your post was flagged for moderator review. It remains visible while the review is pending.';
+      await this.notificationService.sendSystemNotification({
+        userId: authorId,
+        postId,
+        message: moderationMessage,
+      });
+
+      return { matched: true, autoHidden };
     } catch (error) {
       this.logger.error('Keyword scan failed', error);
+      return { matched: false, autoHidden: false };
+    }
+  }
+
+  private async assertContentLength(content: string): Promise<void> {
+    const maxPostLength = await this.settingsService.getNumber(
+      'content.max_post_length',
+    );
+    if (content.length > maxPostLength) {
+      throw new BadRequestException(
+        `Post content cannot exceed ${maxPostLength} characters`,
+      );
     }
   }
 }

@@ -46,6 +46,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [setAuth, clearAuth, queryClient]);
 
   useEffect(() => {
+    // Remove the legacy persisted permission state left by previous versions.
+    window.localStorage.removeItem("auth-storage");
     void performRefresh();
 
     const refreshWhenVisible = () => {

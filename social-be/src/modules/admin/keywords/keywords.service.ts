@@ -11,6 +11,8 @@ import { UpdateKeywordDto } from './dto/update-keyword.dto';
 import { KeywordQueryDto } from './dto/keyword-query.dto';
 import { DeleteKeywordDto } from './dto/delete-keyword.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
+import { CacheService } from 'src/modules/cache/cache.service';
+import { CACHE_CHANNELS } from 'src/common/constants/cache-keys';
 
 type KeywordWithRule = Keyword & {
   rule: { id: string; title: string; severity: string };
@@ -20,18 +22,31 @@ type KeywordWithRule = Keyword & {
 export class KeywordsService implements OnModuleInit {
   private keywordCache: KeywordWithRule[] = [];
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async onModuleInit() {
+    await this.cacheService.subscribe(
+      CACHE_CHANNELS.KEYWORDS_INVALIDATED,
+      async () => this.refreshCache(),
+    );
     await this.refreshCache();
   }
 
   private async refreshCache() {
     this.keywordCache = await this.prisma.keyword.findMany({
+      where: { rule: { isActive: true } },
       include: {
         rule: { select: { id: true, title: true, severity: true } },
       },
     });
+  }
+
+  private async invalidateKeywordCache(): Promise<void> {
+    await this.refreshCache();
+    await this.cacheService.publish(CACHE_CHANNELS.KEYWORDS_INVALIDATED);
   }
 
   async create(createKeywordDto: CreateKeywordDto) {
@@ -54,7 +69,7 @@ export class KeywordsService implements OnModuleInit {
           rule: { select: { id: true, title: true, severity: true } },
         },
       });
-      await this.refreshCache();
+      await this.invalidateKeywordCache();
       return created;
     } catch (error) {
       if (
@@ -143,7 +158,7 @@ export class KeywordsService implements OnModuleInit {
           rule: { select: { id: true, title: true, severity: true } },
         },
       });
-      await this.refreshCache();
+      await this.invalidateKeywordCache();
       return updated;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -166,7 +181,7 @@ export class KeywordsService implements OnModuleInit {
     if (result.count === 0) {
       throw new NotFoundException('No keywords found to delete');
     }
-    await this.refreshCache();
+    await this.invalidateKeywordCache();
     return result;
   }
 

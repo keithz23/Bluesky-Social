@@ -48,7 +48,7 @@ export class NotificationGateway
 
       client.data.userId = payload.sub;
 
-      client.join(`user:${payload.sub}`);
+      await client.join(`user:${payload.sub}`);
 
       this.logger.log(
         `User ${payload.sub} connected (Socket ID: ${client.id})`,

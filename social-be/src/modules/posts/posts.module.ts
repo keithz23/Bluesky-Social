@@ -9,6 +9,7 @@ import { SocketModule } from '../socket/socket.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { KeywordsModule } from '../admin/keywords/keywords.module';
+import { SettingsModule } from '../admin/settings/settings.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { KeywordsModule } from '../admin/keywords/keywords.module';
     SocketModule,
     NotificationsModule,
     KeywordsModule,
+    SettingsModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.FEED_FANOUT,
     }),
