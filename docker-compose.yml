@@ -40,6 +40,15 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    # Build DATABASE_URL inside the container so passwords with reserved URL
+    # characters (for example @, :, /, or #) are encoded correctly.
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        export DATABASE_URL="postgresql://$${DB_USER}:$$(node -p 'encodeURIComponent(process.env.DB_PASS)')@$${DB_HOST}:$${DB_PORT}/$${DB_NAME}?schema=public"
+        npx prisma migrate deploy
+        exec node dist/src/main.js
     env_file:
       - .env
     healthcheck:

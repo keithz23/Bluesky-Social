@@ -42,12 +42,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: "/admin/dashboard",
         permission: "system:read",
       },
-      {
-        icon: BarChart3,
-        label: "Analytics",
-        href: "/admin/analytics",
-        permission: "system:read",
-      },
     ],
   },
   {
