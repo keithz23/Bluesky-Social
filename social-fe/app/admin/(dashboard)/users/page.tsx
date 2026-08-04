@@ -156,10 +156,13 @@ export default function UsersPage() {
     setIsFormDialogOpen(true);
   };
 
-  const handleOpenEdit = useCallback((user: any) => {
-    setUserToEditInfo(user);
-    setIsFormDialogOpen(true);
-  }, [setIsFormDialogOpen, setUserToEditInfo]);
+  const handleOpenEdit = useCallback(
+    (user: any) => {
+      setUserToEditInfo(user);
+      setIsFormDialogOpen(true);
+    },
+    [setIsFormDialogOpen, setUserToEditInfo],
+  );
 
   const handleDelete = () => {
     deleteUsersMutation.mutate(

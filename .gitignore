@@ -13,6 +13,7 @@
 
 # Local project documentation
 PROJECT_REPORT.md
+PROJECT_STUDY_NOTES.md
 
 # Terraform
 **/.terraform/*

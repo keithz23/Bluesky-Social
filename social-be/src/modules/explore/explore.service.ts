@@ -1,16 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { VisibilityService } from 'src/common/services/visibility.service';
 import { SYSTEM_FEEDS } from '../feed/feed-catalog';
 import { ExploreQueryDto } from './dto/explore-query.dto';
 
 @Injectable()
 export class ExploreService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly visibility: VisibilityService,
+  ) {}
 
   async getExplore(currentUserId: string | null, query: ExploreQueryDto) {
     const q = query.q?.trim();
     const limit = query.limit ?? 10;
-    const excludedUserIds = await this.getExcludedUserIds(currentUserId);
+    const excludedUserIds = await this.visibility.getExcludedUserIds(
+      currentUserId,
+      { includeBlockedBy: true },
+    );
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [hashtags, accounts] = await Promise.all([
@@ -84,28 +91,5 @@ export class ExploreService {
     );
 
     return { topics, accounts, feeds };
-  }
-
-  private async getExcludedUserIds(currentUserId: string | null) {
-    if (!currentUserId) return [];
-    const [blocks, blockedBy, mutes] = await Promise.all([
-      this.prisma.block.findMany({
-        where: { blockerId: currentUserId },
-        select: { blockedId: true },
-      }),
-      this.prisma.block.findMany({
-        where: { blockedId: currentUserId },
-        select: { blockerId: true },
-      }),
-      this.prisma.mute.findMany({
-        where: { muterId: currentUserId },
-        select: { mutedId: true },
-      }),
-    ]);
-    return [
-      ...blocks.map((item) => item.blockedId),
-      ...blockedBy.map((item) => item.blockerId),
-      ...mutes.map((item) => item.mutedId),
-    ];
   }
 }

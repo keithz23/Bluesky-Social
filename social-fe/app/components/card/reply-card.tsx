@@ -209,7 +209,7 @@ export default function ReplyCard({
 
         {showReplyComposer && (
           <div
-            className="ml-12 mt-1.5 sm:ml-[52px]"
+            className="ml-12 mt-1.5 sm:ml-13"
             onClick={(e) => e.stopPropagation()}
           >
             <CommentComposer
@@ -224,7 +224,7 @@ export default function ReplyCard({
         )}
 
         {!isNested && reply.replyCount > 0 && (
-          <div className="ml-12 mt-1.5 sm:ml-[52px]">
+          <div className="ml-12 mt-1.5 sm:ml-13">
             <button
               type="button"
               onClick={(e) => {

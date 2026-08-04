@@ -384,8 +384,8 @@ export default function RulesManagementPage() {
               <ShieldAlert className="w-5 h-5" /> Confirm Deactivation
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to deactivate {selectedRuleIds.length} rule(s)?
-              Existing reports will be preserved and these rules can be
+              Are you sure you want to deactivate {selectedRuleIds.length}{" "}
+              rule(s)? Existing reports will be preserved and these rules can be
               reactivated later.
             </AlertDialogDescription>
           </AlertDialogHeader>

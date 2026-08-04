@@ -6,6 +6,7 @@ import { UploadModule } from 'src/uploads/upload.module';
 import { SocketModule } from '../socket/socket.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { BullModule } from '@nestjs/bullmq';
+import { VisibilityModule } from 'src/common/services/visibility.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { BullModule } from '@nestjs/bullmq';
     UploadModule,
     SocketModule,
     NotificationsModule,
+    VisibilityModule,
     BullModule.registerQueue({
       name: 'posts',
     }),

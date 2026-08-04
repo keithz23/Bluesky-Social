@@ -116,7 +116,7 @@ export default function PostDetailCard({
               />
             </div>
             {role === "parent" && (
-              <div className="absolute top-10 bottom-[-18px] w-px bg-gray-200" />
+              <div className="absolute top-10 -bottom-4.5 w-px bg-gray-200" />
             )}
           </div>
 
