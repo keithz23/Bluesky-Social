@@ -8,14 +8,9 @@ import {
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { S3Service } from 'src/uploads/s3.service';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import { MediaType, NotificationType, ReplyPolicy } from '@prisma/client';
-import {
-  CleanupJobData,
-  JOB_NAMES,
-  QUEUE_NAMES,
-} from 'src/common/constants/queue.constant';
+import { JOB_NAMES, QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { PostQueryDto } from './dto/post-query.dto';
@@ -28,8 +23,11 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { SearchPostsDto } from './dto/search-posts.dto';
 import { PinPostQueryDto } from './dto/pin-post-query.dto';
-import { KeywordsService } from '../admin/keywords/keywords.service';
-import { SettingsService } from '../admin/settings/settings.service';
+import { PostFormatterService } from './services/post-formatter.service';
+import { PostHashtagService } from './services/post-hashtag.service';
+import { PostMediaService } from './services/post-media.service';
+import { PostModerationService } from './services/post-moderation.service';
+import { VisibilityService } from 'src/common/services/visibility.service';
 
 const FANOUT_WRITE_MAX_FOLLOWERS = 5000;
 @Injectable()
@@ -37,15 +35,13 @@ export class PostsService {
   private logger = new Logger(PostsService.name);
   constructor(
     private readonly prisma: PrismaService,
-    private readonly s3Service: S3Service,
     private readonly notificationService: NotificationsService,
     private readonly socketGateway: SocketGateway,
-    private readonly keywordsService: KeywordsService,
-    private readonly settingsService: SettingsService,
-    @InjectQueue(QUEUE_NAMES.CLEANUP)
-    private cleanupQueue: Queue<CleanupJobData>,
-    @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
-    private imageProcessingQueue: Queue,
+    private readonly postFormatter: PostFormatterService,
+    private readonly postHashtags: PostHashtagService,
+    private readonly postMedia: PostMediaService,
+    private readonly postModeration: PostModerationService,
+    private readonly visibility: VisibilityService,
     @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
     private feedFanoutQueue: Queue,
   ) {}
@@ -56,47 +52,23 @@ export class PostsService {
     images?: Express.Multer.File[],
   ) {
     const { content, replyPrivacy, gifUrl, postTheme } = createPostDto;
-    await this.assertContentLength(content ?? '');
+    await this.postModeration.assertContentLength(content ?? '');
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
     const mentionedUsernames = extractMentions(content ?? '');
     const hashtagNames = extractHashtags(content ?? '');
 
-    if (images && images.length > 0) {
-      try {
-        uploadResults = await this.s3Service.uploadImages(
-          images,
-          `public/posts/${userId}/images`,
-          { resize: true, quality: 85 },
-        );
-        uploadedKeys.push(...uploadResults.map((r) => r.key));
-      } catch (error) {
-        this.logger.error('Error uploading images', error);
-        throw new Error('Failed to upload images');
-      }
-    }
+    const imageUpload = await this.postMedia.uploadImages(userId, images);
+    uploadResults = imageUpload.uploadResults;
+    uploadedKeys.push(...imageUpload.uploadedKeys);
 
-    // Download GIF from URL,  upload to S3
-    let gifUploadResult: UploadResult | null = null;
-    if (!images?.length && gifUrl) {
-      try {
-        const response = await fetch(gifUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to download GIF: ${response.statusText}`);
-        }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        gifUploadResult = await this.s3Service.uploadBuffer(
-          buffer,
-          `public/posts/${userId}/gifs`,
-          'gif',
-          'image/gif',
-        );
-        uploadedKeys.push(gifUploadResult.key);
-      } catch (error) {
-        this.logger.error('Error uploading GIF to S3', error);
-        throw new Error('Failed to upload GIF');
-      }
-    }
+    const gifUpload = await this.postMedia.uploadGif(
+      userId,
+      gifUrl,
+      !images?.length && Boolean(gifUrl),
+    );
+    const gifUploadResult = gifUpload.gifUploadResult;
+    uploadedKeys.push(...gifUpload.uploadedKeys);
 
     try {
       const fullPost = await this.prisma.$transaction(async (tx) => {
@@ -204,7 +176,7 @@ export class PostsService {
           });
         }
 
-        await this.attachHashtags(tx, created.id, hashtagNames);
+        await this.postHashtags.attachHashtags(tx, created.id, hashtagNames);
 
         const post = await tx.post.findUnique({
           where: { id: created.id },
@@ -243,7 +215,7 @@ export class PostsService {
       });
 
       const moderationResult = fullPost.post
-        ? await this.handleKeywordScan(
+        ? await this.postModeration.handleKeywordScan(
             fullPost.post.id,
             userId,
             fullPost.post.content,
@@ -294,7 +266,10 @@ export class PostsService {
     } catch (error) {
       // Cleanup S3 if transaction fail
       if (uploadedKeys.length > 0) {
-        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+        await this.postMedia.scheduleCleanup(
+          uploadedKeys,
+          'transaction_failed',
+        );
         this.logger.warn(
           `Scheduled cleanup for ${uploadedKeys.length} orphaned files`,
         );
@@ -317,7 +292,7 @@ export class PostsService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    if (!(await this.canViewUserContent(currentUserId, user))) {
+    if (!(await this.visibility.canViewUserContent(currentUserId, user))) {
       return { posts: [], nextCursor: null, hasMore: false };
     }
 
@@ -478,58 +453,8 @@ export class PostsService {
     if (hasMore) posts.pop();
     const nextCursor = hasMore ? posts[posts.length - 1].id : null;
 
-    const postIds = posts.map((p) => p.id);
-
-    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
-      this.prisma.like.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      }),
-      this.prisma.bookmark.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      }),
-      this.prisma.repost.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      }),
-    ]);
-
-    const likedSet = new Set(likedPosts.map((l) => l.postId));
-    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
-    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
-
-    const following = await this.prisma.follow.findMany({
-      where: { followerId: currentUserId },
-      select: {
-        followingId: true,
-      },
-    });
-
-    const followingIds = following.map((f) => f.followingId);
-
-    const followingSet = new Set(followingIds);
-
-    const userInfo = posts.length > 0 ? posts[0].user : null;
-
     return {
-      posts: posts.map((post) => ({
-        ...post,
-        isLiked: likedSet.has(post.id),
-        isBookmarked: bookmarkedSet.has(post.id),
-        isReposted: repostedSet.has(post.id),
-        user: userInfo
-          ? {
-              ...userInfo,
-              followStatus:
-                userInfo.id === currentUserId
-                  ? null
-                  : followingSet.has(userInfo.id)
-                    ? 'following'
-                    : 'none',
-            }
-          : null,
-      })),
+      posts: await this.postFormatter.enrichPosts(currentUserId, posts),
       nextCursor,
       hasMore,
     };
@@ -547,26 +472,10 @@ export class PostsService {
       ? searchTerm.slice(1).toLowerCase()
       : searchTerm.toLowerCase();
 
-    const [blocks, mutes, blockedBy] = await Promise.all([
-      this.prisma.block.findMany({
-        where: { blockerId: currentUserId },
-        select: { blockedId: true },
-      }),
-      this.prisma.mute.findMany({
-        where: { muterId: currentUserId },
-        select: { mutedId: true },
-      }),
-      this.prisma.block.findMany({
-        where: { blockedId: currentUserId },
-        select: { blockerId: true },
-      }),
-    ]);
-
-    const excludedUserIds = [
-      ...blocks.map((block) => block.blockedId),
-      ...mutes.map((mute) => mute.mutedId),
-      ...blockedBy.map((block) => block.blockerId),
-    ];
+    const excludedUserIds = await this.visibility.getExcludedUserIds(
+      currentUserId,
+      { includeBlockedBy: true },
+    );
 
     const posts = await this.prisma.post.findMany({
       where: {
@@ -651,52 +560,8 @@ export class PostsService {
       return { posts: [], nextCursor: null, hasMore: false };
     }
 
-    const postIds = posts.map((post) => post.id);
-    const authorIds = [...new Set(posts.map((post) => post.user.id))];
-
-    const [likedPosts, bookmarkedPosts, repostedPosts, following] =
-      await Promise.all([
-        this.prisma.like.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-          select: { postId: true },
-        }),
-        this.prisma.bookmark.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-          select: { postId: true },
-        }),
-        this.prisma.repost.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-          select: { postId: true },
-        }),
-        this.prisma.follow.findMany({
-          where: { followerId: currentUserId, followingId: { in: authorIds } },
-          select: { followingId: true },
-        }),
-      ]);
-
-    const likedSet = new Set(likedPosts.map((like) => like.postId));
-    const bookmarkedSet = new Set(
-      bookmarkedPosts.map((bookmark) => bookmark.postId),
-    );
-    const repostedSet = new Set(repostedPosts.map((repost) => repost.postId));
-    const followingSet = new Set(following.map((follow) => follow.followingId));
-
     return {
-      posts: posts.map((post) => ({
-        ...post,
-        isLiked: likedSet.has(post.id),
-        isBookmarked: bookmarkedSet.has(post.id),
-        isReposted: repostedSet.has(post.id),
-        user: {
-          ...post.user,
-          followStatus:
-            post.user.id === currentUserId
-              ? null
-              : followingSet.has(post.user.id)
-                ? 'following'
-                : 'none',
-        },
-      })),
+      posts: await this.postFormatter.enrichPosts(currentUserId, posts),
       nextCursor,
       hasMore,
     };
@@ -752,7 +617,7 @@ export class PostsService {
     if (!post) throw new NotFoundException('Post not found');
 
     if (
-      !(await this.canViewUserContent(userId, {
+      !(await this.visibility.canViewUserContent(userId, {
         id: post.user.id,
         isPrivate: post.user.isPrivate,
       }))
@@ -829,7 +694,9 @@ export class PostsService {
           },
         })
       : [];
-    const parentsById = new Map(parentRecords.map((parent) => [parent.id, parent]));
+    const parentsById = new Map(
+      parentRecords.map((parent) => [parent.id, parent]),
+    );
     const parentChain = parentIdsInOrder.flatMap((id) => {
       const parent = parentsById.get(id);
       return parent ? [parent] : [];
@@ -1021,7 +888,7 @@ export class PostsService {
         ? post.content
         : updatePostDto.content.trim();
 
-    await this.assertContentLength(nextContent);
+    await this.postModeration.assertContentLength(nextContent);
 
     if (!nextContent && finalMediaCount === 0) {
       throw new BadRequestException('Post cannot be empty');
@@ -1034,41 +901,17 @@ export class PostsService {
       (media) => !keepMediaIds.includes(media.id),
     );
 
-    if (images && images.length > 0) {
-      try {
-        uploadResults = await this.s3Service.uploadImages(
-          images,
-          `public/posts/${userId}/images`,
-          { resize: true, quality: 85 },
-        );
-        uploadedKeys.push(...uploadResults.map((r) => r.key));
-      } catch (error) {
-        this.logger.error('Error uploading images', error);
-        throw new Error('Failed to upload images');
-      }
-    }
+    const imageUpload = await this.postMedia.uploadImages(userId, images);
+    uploadResults = imageUpload.uploadResults;
+    uploadedKeys.push(...imageUpload.uploadedKeys);
 
-    // Download GIF from URL,  upload to S3
-    let gifUploadResult: UploadResult | null = null;
-    if (addingGif && updatePostDto.gifUrl) {
-      try {
-        const response = await fetch(updatePostDto.gifUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to download GIF: ${response.statusText}`);
-        }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        gifUploadResult = await this.s3Service.uploadBuffer(
-          buffer,
-          `public/posts/${userId}/gifs`,
-          'gif',
-          'image/gif',
-        );
-        uploadedKeys.push(gifUploadResult.key);
-      } catch (error) {
-        this.logger.error('Error uploading GIF to S3', error);
-        throw new Error('Failed to upload GIF');
-      }
-    }
+    const gifUpload = await this.postMedia.uploadGif(
+      userId,
+      updatePostDto.gifUrl,
+      addingGif,
+    );
+    const gifUploadResult = gifUpload.gifUploadResult;
+    uploadedKeys.push(...gifUpload.uploadedKeys);
 
     try {
       const fullPost = await this.prisma.$transaction(async (tx) => {
@@ -1186,7 +1029,7 @@ export class PostsService {
             data: { postCount: { decrement: 1 } },
           });
         }
-        await this.attachHashtags(tx, postId, hashtagNames);
+        await this.postHashtags.attachHashtags(tx, postId, hashtagNames);
 
         const updated = await tx.post.findUnique({
           where: { id: postId },
@@ -1246,15 +1089,16 @@ export class PostsService {
         const keys = mediaToDelete
           .map(
             (media) =>
-              media.storageKey ?? this.extractKeyFromUrl(media.mediaUrl),
+              media.storageKey ??
+              this.postMedia.extractKeyFromUrl(media.mediaUrl),
           )
           .filter(Boolean);
         if (keys.length > 0) {
-          await this.scheduleCleanup(keys, 'post_deleted');
+          await this.postMedia.scheduleCleanup(keys, 'post_deleted');
         }
       }
 
-      const moderationResult = await this.handleKeywordScan(
+      const moderationResult = await this.postModeration.handleKeywordScan(
         updatedPost.id,
         userId,
         updatedPost.content,
@@ -1271,56 +1115,23 @@ export class PostsService {
         });
       }
 
-      const [liked, bookmarked, reposted, follow, authorFollowsMe] =
-        await Promise.all([
-          this.prisma.like.findUnique({
-            where: { userId_postId: { userId, postId } },
-          }),
-          this.prisma.bookmark.findUnique({
-            where: { userId_postId: { userId, postId } },
-          }),
-          this.prisma.repost.findUnique({
-            where: { userId_postId: { userId, postId } },
-          }),
-          this.prisma.follow.findUnique({
-            where: {
-              followerId_followingId: {
-                followerId: userId,
-                followingId: updatedPost.user.id,
-              },
-            },
-          }),
-          this.prisma.follow.findUnique({
-            where: {
-              followerId_followingId: {
-                followerId: updatedPost.user.id,
-                followingId: userId,
-              },
-            },
-          }),
-        ]);
+      const enrichedPost = await this.postFormatter.enrichPost(
+        userId,
+        updatedPost,
+        { includeAuthorFollowsMe: true },
+      );
 
       return {
-        ...updatedPost,
+        ...enrichedPost,
         autoFlagged: moderationResult.matched,
         isDeleted: moderationResult.autoHidden,
-        isLiked: !!liked,
-        isBookmarked: !!bookmarked,
-        isReposted: !!reposted,
-        user: {
-          ...updatedPost.user,
-          followStatus:
-            updatedPost.user.id === userId
-              ? null
-              : follow
-                ? 'following'
-                : 'none',
-          isFollowedByAuthor: !!authorFollowsMe,
-        },
       };
     } catch (error) {
       if (uploadedKeys.length > 0) {
-        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+        await this.postMedia.scheduleCleanup(
+          uploadedKeys,
+          'transaction_failed',
+        );
       }
       throw error;
     }
@@ -1376,8 +1187,10 @@ export class PostsService {
 
     // Schedule s3 cleanup
     if (post.media.length > 0) {
-      const keys = post.media.map((m) => this.extractKeyFromUrl(m.mediaUrl));
-      await this.scheduleCleanup(keys, 'post_deleted');
+      const keys = post.media.map((m) =>
+        this.postMedia.extractKeyFromUrl(m.mediaUrl),
+      );
+      await this.postMedia.scheduleCleanup(keys, 'post_deleted');
     }
   }
 
@@ -1391,7 +1204,7 @@ export class PostsService {
     const hashtagNames = extractHashtags(content ?? '');
     const mentionedUsernames = extractMentions(content ?? '');
     const trimmedContent = content?.trim() ?? '';
-    await this.assertContentLength(trimmedContent);
+    await this.postModeration.assertContentLength(trimmedContent);
 
     const parentPost = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
@@ -1431,40 +1244,17 @@ export class PostsService {
     let uploadResults: UploadResult[] = [];
     const uploadedKeys: string[] = [];
 
-    if (images && images.length > 0) {
-      try {
-        uploadResults = await this.s3Service.uploadImages(
-          images,
-          `public/posts/${userId}/images`,
-          { resize: true, quality: 85 },
-        );
-        uploadedKeys.push(...uploadResults.map((r) => r.key));
-      } catch (error) {
-        this.logger.error('Error uploading images', error);
-        throw new Error('Failed to upload images');
-      }
-    }
+    const imageUpload = await this.postMedia.uploadImages(userId, images);
+    uploadResults = imageUpload.uploadResults;
+    uploadedKeys.push(...imageUpload.uploadedKeys);
 
-    let gifUploadResult: UploadResult | null = null;
-    if (!images?.length && gifUrl) {
-      try {
-        const response = await fetch(gifUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to download GIF: ${response.statusText}`);
-        }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        gifUploadResult = await this.s3Service.uploadBuffer(
-          buffer,
-          `public/posts/${userId}/gifs`,
-          'gif',
-          'image/gif',
-        );
-        uploadedKeys.push(gifUploadResult.key);
-      } catch (error) {
-        this.logger.error('Error uploading GIF to S3', error);
-        throw new Error('Failed to upload GIF');
-      }
-    }
+    const gifUpload = await this.postMedia.uploadGif(
+      userId,
+      gifUrl,
+      !images?.length && Boolean(gifUrl),
+    );
+    const gifUploadResult = gifUpload.gifUploadResult;
+    uploadedKeys.push(...gifUpload.uploadedKeys);
 
     try {
       const fullReply = await this.prisma.$transaction(async (tx) => {
@@ -1515,7 +1305,7 @@ export class PostsService {
           });
         }
 
-        await this.attachHashtags(tx, created.id, hashtagNames);
+        await this.postHashtags.attachHashtags(tx, created.id, hashtagNames);
 
         let mentionedUsers: { id: string; username: string }[] = [];
         if (mentionedUsernames.length > 0) {
@@ -1584,7 +1374,7 @@ export class PostsService {
       const reply = fullReply.reply;
       if (!reply) throw new Error('Failed to create reply');
 
-      const moderationResult = await this.handleKeywordScan(
+      const moderationResult = await this.postModeration.handleKeywordScan(
         reply.id,
         userId,
         reply.content,
@@ -1632,7 +1422,10 @@ export class PostsService {
       };
     } catch (error) {
       if (uploadedKeys.length > 0) {
-        await this.scheduleCleanup(uploadedKeys, 'transaction_failed');
+        await this.postMedia.scheduleCleanup(
+          uploadedKeys,
+          'transaction_failed',
+        );
       }
       throw error;
     }
@@ -1660,7 +1453,7 @@ export class PostsService {
 
     if (!parentPost) throw new NotFoundException('Post not found');
 
-    if (!(await this.canViewUserContent(userId, parentPost.user))) {
+    if (!(await this.visibility.canViewUserContent(userId, parentPost.user))) {
       return { replies: [], nextCursor: null, hasMore: false };
     }
 
@@ -1719,63 +1512,10 @@ export class PostsService {
 
     const nextCursor = hasMore ? replies[replies.length - 1].id : null;
 
-    const replyIds = replies.map((r) => r.id);
-    const authorIds = [...new Set(replies.map((r) => r.user.id))];
-
-    const [
-      likedPosts,
-      bookmarkedPosts,
-      repostedPosts,
-      following,
-      authorsFollowingMe,
-    ] = await Promise.all([
-      this.prisma.like.findMany({
-        where: { userId, postId: { in: replyIds } },
-        select: { postId: true },
-      }),
-      this.prisma.bookmark.findMany({
-        where: { userId, postId: { in: replyIds } },
-        select: { postId: true },
-      }),
-      this.prisma.repost.findMany({
-        where: { userId, postId: { in: replyIds } },
-        select: { postId: true },
-      }),
-      this.prisma.follow.findMany({
-        where: { followerId: userId, followingId: { in: authorIds } },
-        select: { followingId: true },
-      }),
-      this.prisma.follow.findMany({
-        where: { followerId: { in: authorIds }, followingId: userId },
-        select: { followerId: true },
-      }),
-    ]);
-
-    const likedSet = new Set(likedPosts.map((l) => l.postId));
-    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
-    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
-    const followingSet = new Set(following.map((f) => f.followingId));
-    const authorFollowsMeSet = new Set(
-      authorsFollowingMe.map((f) => f.followerId),
-    );
-
     return {
-      replies: replies.map((r) => ({
-        ...r,
-        isLiked: likedSet.has(r.id),
-        isBookmarked: bookmarkedSet.has(r.id),
-        isReposted: repostedSet.has(r.id),
-        user: {
-          ...r.user,
-          followStatus:
-            r.user.id === userId
-              ? null
-              : followingSet.has(r.user.id)
-                ? 'following'
-                : 'none',
-          isFollowedByAuthor: authorFollowsMeSet.has(r.user.id),
-        },
-      })),
+      replies: await this.postFormatter.enrichPosts(userId, replies, {
+        includeAuthorFollowsMe: true,
+      }),
       nextCursor,
       hasMore,
     };
@@ -1817,7 +1557,7 @@ export class PostsService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    if (!(await this.canViewUserContent(currentUserId, user))) {
+    if (!(await this.visibility.canViewUserContent(currentUserId, user))) {
       return { posts: [], nextCursor: null, hasMore: false };
     }
 
@@ -1875,58 +1615,8 @@ export class PostsService {
     if (hasMore) posts.pop();
     const nextCursor = hasMore ? posts[posts.length - 1].id : null;
 
-    const postIds = posts.map((p) => p.id);
-
-    const [likedPosts, bookmarkedPosts, repostedPosts] = await Promise.all([
-      this.prisma.like.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      }),
-      this.prisma.bookmark.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      }),
-      this.prisma.repost.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      }),
-    ]);
-
-    const likedSet = new Set(likedPosts.map((l) => l.postId));
-    const bookmarkedSet = new Set(bookmarkedPosts.map((b) => b.postId));
-    const repostedSet = new Set(repostedPosts.map((r) => r.postId));
-
-    const following = await this.prisma.follow.findMany({
-      where: { followerId: currentUserId },
-      select: {
-        followingId: true,
-      },
-    });
-
-    const followingIds = following.map((f) => f.followingId);
-
-    const followingSet = new Set(followingIds);
-
-    const userInfo = posts.length > 0 ? posts[0].user : null;
-
     return {
-      posts: posts.map((post) => ({
-        ...post,
-        isLiked: likedSet.has(post.id),
-        isBookmarked: bookmarkedSet.has(post.id),
-        isReposted: repostedSet.has(post.id),
-        user: userInfo
-          ? {
-              ...userInfo,
-              followStatus:
-                userInfo.id === currentUserId
-                  ? null
-                  : followingSet.has(userInfo.id)
-                    ? 'following'
-                    : 'none',
-            }
-          : null,
-      })),
+      posts: await this.postFormatter.enrichPosts(currentUserId, posts),
       nextCursor,
       hasMore,
     };
@@ -2020,44 +1710,6 @@ export class PostsService {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  private async canViewUserContent(
-    currentUserId: string,
-    targetUser: { id: string; isPrivate: boolean },
-  ) {
-    if (targetUser.id === currentUserId) return true;
-    if (!targetUser.isPrivate) return true;
-
-    const follow = await this.prisma.follow.findUnique({
-      where: {
-        followerId_followingId: {
-          followerId: currentUserId,
-          followingId: targetUser.id,
-        },
-      },
-      select: { id: true },
-    });
-
-    return Boolean(follow);
-  }
-
-  private async scheduleCleanup(
-    keys: string[],
-    reason: CleanupJobData['reason'],
-  ) {
-    await this.cleanupQueue.add(
-      JOB_NAMES.CLEANUP_FAILED_UPLOAD,
-      { keys, reason },
-      {
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
-        delay: 1000, // Delay 1s before cleanup
-      },
-    );
-  }
-
   private notifySafely(
     data: Parameters<NotificationsService['sendNotification']>[0],
   ): void {
@@ -2071,42 +1723,6 @@ export class PostsService {
       });
   }
 
-  private async attachHashtags(
-    tx: any,
-    postId: string,
-    hashtagNames: string[],
-  ) {
-    if (hashtagNames.length === 0) return;
-
-    const hashtags = await Promise.all(
-      hashtagNames.map((name) =>
-        tx.hashtag.upsert({
-          where: { name },
-          create: { name, postCount: 1 },
-          update: { postCount: { increment: 1 } },
-          select: { id: true },
-        }),
-      ),
-    );
-
-    await tx.postHashtag.createMany({
-      data: hashtags.map((hashtag) => ({
-        postId,
-        hashtagId: hashtag.id,
-      })),
-      skipDuplicates: true,
-    });
-  }
-
-  private extractKeyFromUrl(url: string): string {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.pathname.substring(1);
-    } catch {
-      return url;
-    }
-  }
-
   private normalizeKeepMediaIds(keepMediaIds?: string[] | string): string[] {
     if (!keepMediaIds) return [];
 
@@ -2115,95 +1731,5 @@ export class PostsService {
     }
 
     return [keepMediaIds];
-  }
-
-  private async handleKeywordScan(
-    postId: string,
-    authorId: string,
-    content: string,
-  ): Promise<{ matched: boolean; autoHidden: boolean }> {
-    try {
-      const keywordScanEnabled = await this.settingsService.getBoolean(
-        'moderation.keyword_scan_enabled',
-      );
-      if (!keywordScanEnabled) return { matched: false, autoHidden: false };
-
-      const scanResult = this.keywordsService.scanContent(content);
-      if (!scanResult.matched) return { matched: false, autoHidden: false };
-
-      const ruleIds = [...new Set(scanResult.matches.map((m) => m.ruleId))];
-      const existingReports = await this.prisma.report.findMany({
-        where: {
-          postId,
-          ruleId: { in: ruleIds },
-          isAutoGenerated: true,
-        },
-        select: { ruleId: true },
-      });
-      const reportedRuleIds = new Set(
-        existingReports.map((report) => report.ruleId),
-      );
-      const newRuleIds = ruleIds.filter(
-        (ruleId) => !reportedRuleIds.has(ruleId),
-      );
-
-      if (newRuleIds.length > 0) {
-        await Promise.all(
-          newRuleIds.map((ruleId) =>
-            this.prisma.report.create({
-              data: {
-                reporterId: null,
-                isAutoGenerated: true,
-                postId,
-                userId: authorId,
-                ruleId,
-                status: 'PENDING',
-                details: `Auto-detected by keyword filter (action: ${scanResult.action})`,
-              },
-            }),
-          ),
-        );
-      }
-
-      const autoHidden = scanResult.action === 'AUTO_HIDE';
-      if (autoHidden) {
-        await this.prisma.post.update({
-          where: { id: postId },
-          data: { isDeleted: true, autoFlagged: true },
-        });
-      } else {
-        await this.prisma.post.update({
-          where: { id: postId },
-          data: { autoFlagged: true },
-        });
-      }
-
-      const moderationMessage = autoHidden
-        ? 'Your post was hidden because it may violate our content rules. It has been sent to moderators for review.'
-        : scanResult.action === 'WARN'
-          ? 'Your post may violate our content rules. Please review and edit it; moderators have been notified.'
-          : 'Your post was flagged for moderator review. It remains visible while the review is pending.';
-      await this.notificationService.sendSystemNotification({
-        userId: authorId,
-        postId,
-        message: moderationMessage,
-      });
-
-      return { matched: true, autoHidden };
-    } catch (error) {
-      this.logger.error('Keyword scan failed', error);
-      return { matched: false, autoHidden: false };
-    }
-  }
-
-  private async assertContentLength(content: string): Promise<void> {
-    const maxPostLength = await this.settingsService.getNumber(
-      'content.max_post_length',
-    );
-    if (content.length > maxPostLength) {
-      throw new BadRequestException(
-        `Post content cannot exceed ${maxPostLength} characters`,
-      );
-    }
   }
 }

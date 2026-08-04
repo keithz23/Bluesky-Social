@@ -29,13 +29,17 @@ import { ColumnDef } from "../../interfaces/column.interface";
 
 const toDateTimeParam = (date: string, isEndOfDay = false) => {
   if (!date) return undefined;
-  return new Date(`${date}T${isEndOfDay ? "23:59:59.999" : "00:00:00"}`).toISOString();
+  return new Date(
+    `${date}T${isEndOfDay ? "23:59:59.999" : "00:00:00"}`,
+  ).toISOString();
 };
 
 const actionBadgeClass = (action: string) => {
   if (action.includes("DELETE")) return "border-red-200 bg-red-50 text-red-700";
-  if (action.includes("UPDATE")) return "border-amber-200 bg-amber-50 text-amber-700";
-  if (action.includes("CREATE")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (action.includes("UPDATE"))
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  if (action.includes("CREATE"))
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
 };
 
@@ -150,8 +154,12 @@ export default function AuditLogsPage() {
           <div className="flex min-w-52 items-center gap-3">
             <ActorAvatar actor={log.actor} />
             <div className="min-w-0">
-              <p className="truncate font-medium text-slate-900">{log.actor.displayName}</p>
-              <p className="truncate text-xs text-slate-500">@{log.actor.username} · {log.actor.email}</p>
+              <p className="truncate font-medium text-slate-900">
+                {log.actor.displayName}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                @{log.actor.username} · {log.actor.email}
+              </p>
             </div>
           </div>
         );
@@ -161,8 +169,12 @@ export default function AuditLogsPage() {
       header: "Source",
       cell: (log) => (
         <div className="max-w-64">
-          <p className="truncate text-sm text-slate-700">{log.ipAddress || "—"}</p>
-          <p className="mt-1 truncate text-xs text-slate-500">{log.userAgent || "No user agent"}</p>
+          <p className="truncate text-sm text-slate-700">
+            {log.ipAddress || "—"}
+          </p>
+          <p className="mt-1 truncate text-xs text-slate-500">
+            {log.userAgent || "No user agent"}
+          </p>
         </div>
       ),
     },
@@ -203,7 +215,11 @@ export default function AuditLogsPage() {
               Review system activity and administrative changes.
             </p>
           </div>
-          <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
             Refresh
           </Button>
         </div>
@@ -221,8 +237,13 @@ export default function AuditLogsPage() {
                 className="bg-white pl-9"
               />
             </div>
-            <Select value={actorType} onValueChange={(value) => updateParams("actorType", value)}>
-              <SelectTrigger className="w-full bg-white sm:w-40"><SelectValue placeholder="Actor" /></SelectTrigger>
+            <Select
+              value={actorType}
+              onValueChange={(value) => updateParams("actorType", value)}
+            >
+              <SelectTrigger className="w-full bg-white sm:w-40">
+                <SelectValue placeholder="Actor" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All actors</SelectItem>
                 <SelectItem value="USER">Users</SelectItem>
@@ -244,14 +265,25 @@ export default function AuditLogsPage() {
               className="w-full bg-white sm:w-40"
             />
             {hasActiveFilters && (
-              <Button variant="ghost" onClick={clearFilters} className="text-slate-600">
+              <Button
+                variant="ghost"
+                onClick={clearFilters}
+                className="text-slate-600"
+              >
                 <RotateCcw /> Clear
               </Button>
             )}
           </div>
           <p className="whitespace-nowrap text-sm text-muted-foreground">
-            Showing <span className="font-medium">{startItem}–{endItem}</span> of{" "}
-            <span className="font-medium">{formatCompactNumber(meta.total)}</span> logs
+            Showing{" "}
+            <span className="font-medium">
+              {startItem}–{endItem}
+            </span>{" "}
+            of{" "}
+            <span className="font-medium">
+              {formatCompactNumber(meta.total)}
+            </span>{" "}
+            logs
           </p>
         </div>
 
@@ -273,12 +305,17 @@ export default function AuditLogsPage() {
               updateParams("page", String(nextPage));
               scrollToTop();
             }}
-            changeLimit={(nextLimit) => updateParams("limit", String(nextLimit))}
+            changeLimit={(nextLimit) =>
+              updateParams("limit", String(nextLimit))
+            }
           />
         )}
       </div>
 
-      <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
+      <Dialog
+        open={Boolean(selectedLog)}
+        onOpenChange={(open) => !open && setSelectedLog(null)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Audit log details</DialogTitle>
@@ -286,12 +323,61 @@ export default function AuditLogsPage() {
           </DialogHeader>
           {selectedLog && (
             <dl className="grid gap-4 text-sm sm:grid-cols-2">
-              <div><dt className="text-slate-500">Log ID</dt><dd className="mt-1 break-all font-mono text-xs text-slate-800">{selectedLog.id}</dd></div>
-              <div><dt className="text-slate-500">Actor</dt><dd className="mt-1 flex items-center gap-2 text-slate-800">{selectedLog.actor ? <><ActorAvatar actor={selectedLog.actor} /><span>{selectedLog.actor.displayName}<br /><span className="text-xs text-slate-500">@{selectedLog.actor.username} · {selectedLog.actor.email}</span></span></> : <>{selectedLog.userId ? "Deleted user" : "System"} ({selectedLog.actorType})</>}</dd></div>
-              <div><dt className="text-slate-500">IP address</dt><dd className="mt-1 text-slate-800">{selectedLog.ipAddress || "—"}</dd></div>
-              <div><dt className="text-slate-500">Created at</dt><dd className="mt-1 text-slate-800">{formatFullDate(selectedLog.createdAt)}</dd></div>
-              <div className="sm:col-span-2"><dt className="text-slate-500">User agent</dt><dd className="mt-1 break-words text-slate-800">{selectedLog.userAgent || "—"}</dd></div>
-              <div className="sm:col-span-2"><dt className="text-slate-500">Metadata</dt><dd className="mt-1 overflow-x-auto rounded-md bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-100"><pre>{JSON.stringify(selectedLog.metadata, null, 2) || "—"}</pre></dd></div>
+              <div>
+                <dt className="text-slate-500">Log ID</dt>
+                <dd className="mt-1 break-all font-mono text-xs text-slate-800">
+                  {selectedLog.id}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Actor</dt>
+                <dd className="mt-1 flex items-center gap-2 text-slate-800">
+                  {selectedLog.actor ? (
+                    <>
+                      <ActorAvatar actor={selectedLog.actor} />
+                      <span>
+                        {selectedLog.actor.displayName}
+                        <br />
+                        <span className="text-xs text-slate-500">
+                          @{selectedLog.actor.username} ·{" "}
+                          {selectedLog.actor.email}
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {selectedLog.userId ? "Deleted user" : "System"} (
+                      {selectedLog.actorType})
+                    </>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">IP address</dt>
+                <dd className="mt-1 text-slate-800">
+                  {selectedLog.ipAddress || "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Created at</dt>
+                <dd className="mt-1 text-slate-800">
+                  {formatFullDate(selectedLog.createdAt)}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-slate-500">User agent</dt>
+                <dd className="mt-1 wrap-break-words text-slate-800">
+                  {selectedLog.userAgent || "—"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-slate-500">Metadata</dt>
+                <dd className="mt-1 overflow-x-auto rounded-md bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-100">
+                  <pre>
+                    {JSON.stringify(selectedLog.metadata, null, 2) || "—"}
+                  </pre>
+                </dd>
+              </div>
             </dl>
           )}
         </DialogContent>

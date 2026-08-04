@@ -19,6 +19,7 @@ import { Queue } from 'bullmq';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import { FeedQueryDto } from '../feed/dto/feed-query.dto';
 import { UpdateListDto } from './dto/update-list.dto';
+import { VisibilityService } from 'src/common/services/visibility.service';
 
 @Injectable()
 export class ListsService {
@@ -28,6 +29,7 @@ export class ListsService {
     private readonly s3Service: S3Service,
     private readonly notificationService: NotificationsService,
     private readonly socketGateway: SocketGateway,
+    private readonly visibility: VisibilityService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private cleanupQueue: Queue<CleanupJobData>,
     @InjectQueue(QUEUE_NAMES.IMAGE_PROCESSING)
@@ -274,7 +276,7 @@ export class ListsService {
 
       if (!owner) return { lists: [], hasMore: false, nextCursor: null };
 
-      if (!(await this.canViewUserContent(userId, owner))) {
+      if (!(await this.visibility.canViewUserContent(userId, owner))) {
         return { lists: [], hasMore: false, nextCursor: null };
       }
 
@@ -421,7 +423,7 @@ export class ListsService {
     if (!list) return null;
 
     if (
-      !(await this.canViewUserContent(userId, {
+      !(await this.visibility.canViewUserContent(userId, {
         id: list.userId,
         isPrivate: list.user.isPrivate,
       }))
@@ -490,26 +492,6 @@ export class ListsService {
         delay: 1000, // Delay 1s before cleanup
       },
     );
-  }
-
-  private async canViewUserContent(
-    currentUserId: string,
-    targetUser: { id: string; isPrivate: boolean },
-  ) {
-    if (targetUser.id === currentUserId) return true;
-    if (!targetUser.isPrivate) return true;
-
-    const follow = await this.prisma.follow.findUnique({
-      where: {
-        followerId_followingId: {
-          followerId: currentUserId,
-          followingId: targetUser.id,
-        },
-      },
-      select: { id: true },
-    });
-
-    return Boolean(follow);
   }
 
   private extractKeyFromUrl(url: string): string {
