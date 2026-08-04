@@ -1,12 +1,13 @@
 import { MediaType, PrismaClient } from '@prisma/client';
-import { randomUUID } from 'crypto';
 
 type FakerApi = typeof import('@faker-js/faker');
 type RecentPost = { id: string; createdAt: Date };
 
-const prisma = new PrismaClient();
+const defaultPrisma = new PrismaClient();
 
-const importFaker = async (): Promise<FakerApi> =>
+const importFaker = (): Promise<FakerApi> =>
+  // Keep a native dynamic import when this seed is transpiled to CommonJS.
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
   new Function('specifier', 'return import(specifier)')('@faker-js/faker');
 
 const envInt = (name: string, fallback: number) => {
@@ -15,7 +16,7 @@ const envInt = (name: string, fallback: number) => {
 };
 
 const config = {
-  runId: process.env.REALISTIC_RUN_ID ?? Date.now().toString(36),
+  runId: process.env.REALISTIC_RUN_ID ?? 'demo',
   users: envInt('REALISTIC_USERS', 10),
   postsPerUser: envInt('REALISTIC_POSTS_PER_USER', 20),
   followsPerUser: envInt('REALISTIC_FOLLOWS_PER_USER', 10),
@@ -24,7 +25,8 @@ const config = {
   maxTimelineRows: envInt('REALISTIC_MAX_TIMELINE_ROWS', 1_000_000),
 };
 
-const id = (prefix: string) => `${prefix}_${randomUUID().replace(/-/g, '')}`;
+const stableId = (prefix: string, ...parts: Array<string | number>) =>
+  `${prefix}_${parts.join('_').replace(/[^a-zA-Z0-9_]/g, '_')}`;
 
 const pick = <T>(items: T[], index: number) => items[index % items.length];
 
@@ -76,19 +78,22 @@ const tags = [
   '#notes',
 ];
 
-export async function main() {
+export async function seedRealistic(prisma: PrismaClient = defaultPrisma) {
   const { faker } = await importFaker();
   faker.seed(Number.parseInt(config.runId, 36) || Date.now());
 
   console.log('Realistic seed config:', config);
 
   const now = new Date();
-  const userIds = Array.from({ length: config.users }, () => id('user'));
+  const userIds = Array.from({ length: config.users }, (_, index) =>
+    stableId('user', config.runId, index),
+  );
   const usernames = userIds.map((_, i) => {
     const base = slug(faker.person.firstName() + '_' + faker.person.lastName());
     return `bot_${config.runId}_${base}_${i}`;
   });
   const recentPostsByAuthor = new Map<string, RecentPost[]>();
+  const hashtagPostIds = new Map<string, string[]>();
 
   for (let i = 0; i < userIds.length; i += config.batchSize) {
     const batch = userIds
@@ -133,6 +138,17 @@ export async function main() {
     );
   }
 
+  const userRole = await prisma.role.findUnique({
+    where: { name: 'user' },
+    select: { id: true },
+  });
+  if (userRole) {
+    await prisma.userRole.createMany({
+      data: userIds.map((userId) => ({ userId, roleId: userRole.id })),
+      skipDuplicates: true,
+    });
+  }
+
   const totalPosts = config.users * config.postsPerUser;
   let postsDone = 0;
   let mediaDone = 0;
@@ -152,7 +168,7 @@ export async function main() {
         const template = faker.helpers.arrayElement(postTemplates);
 
         return {
-          id: id('post'),
+          id: stableId('post', config.runId, userIndex, postIndex),
           userId,
           content: template.replace('{topic}', topic).replace('{tag}', tag),
           isDeleted: false,
@@ -168,6 +184,15 @@ export async function main() {
     );
 
     await prisma.post.createMany({ data: postBatch, skipDuplicates: true });
+    for (const post of postBatch) {
+      for (const match of post.content.matchAll(/#([a-zA-Z0-9_]+)/g)) {
+        const name = match[1].toLowerCase();
+        hashtagPostIds.set(name, [
+          ...(hashtagPostIds.get(name) ?? []),
+          post.id,
+        ]);
+      }
+    }
     recentPostsByAuthor.set(
       userId,
       postBatch
@@ -179,17 +204,24 @@ export async function main() {
 
     const media = postBatch
       .filter((_, index) => (postsDone + index) % 4 === 0)
-      .map((post) => ({
-        id: id('media'),
-        postId: post.id,
-        mediaUrl: `https://picsum.photos/seed/realistic-${config.runId}-${mediaSeed++}/1200/800`,
-        mediaType: MediaType.IMAGE,
-        width: 1200,
-        height: 800,
-        fileSize: 220_000,
-        orderIndex: 0,
-        createdAt: post.createdAt,
-      }));
+      .map((post) => {
+        const mediaIndex = mediaSeed++;
+        const isVideo = mediaIndex % 5 === 0;
+        return {
+          id: stableId('media', post.id),
+          postId: post.id,
+          mediaUrl: isVideo
+            ? 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+            : `https://picsum.photos/seed/realistic-${config.runId}-${mediaIndex}/1200/800`,
+          mediaType: isVideo ? MediaType.VIDEO : MediaType.IMAGE,
+          width: isVideo ? 1280 : 1200,
+          height: isVideo ? 720 : 800,
+          duration: isVideo ? 15 : null,
+          fileSize: isVideo ? 2_500_000 : 220_000,
+          orderIndex: 0,
+          createdAt: post.createdAt,
+        };
+      });
 
     if (media.length > 0) {
       await prisma.postMedia.createMany({ data: media, skipDuplicates: true });
@@ -203,6 +235,27 @@ export async function main() {
   }
 
   console.log(`media: ${mediaDone}`);
+
+  for (const [name, postIds] of hashtagPostIds) {
+    const hashtag = await prisma.hashtag.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+      select: { id: true },
+    });
+    await prisma.postHashtag.createMany({
+      data: postIds.map((postId) => ({ postId, hashtagId: hashtag.id })),
+      skipDuplicates: true,
+    });
+    const postCount = await prisma.postHashtag.count({
+      where: { hashtagId: hashtag.id },
+    });
+    await prisma.hashtag.update({
+      where: { id: hashtag.id },
+      data: { postCount },
+    });
+  }
+  console.log(`hashtags: ${hashtagPostIds.size}`);
 
   const followsPerUser = Math.min(config.followsPerUser, config.users - 1);
   const totalFollows = config.users * followsPerUser;
@@ -262,7 +315,7 @@ export async function main() {
       const createdAt = new Date(now.getTime() - (i + j) * 45_000);
 
       followBatch.push({
-        id: id('follow'),
+        id: stableId('follow', config.runId, i, j),
         followerId,
         followingId,
         createdAt,
@@ -271,7 +324,7 @@ export async function main() {
       if (shouldSeedTimeline) {
         for (const post of recentPostsByAuthor.get(followingId) ?? []) {
           timelineBatch.push({
-            id: id('timeline'),
+            id: stableId('timeline', followerId, post.id),
             userId: followerId,
             postId: post.id,
             authorId: followingId,
@@ -309,11 +362,13 @@ export async function main() {
   console.log(`Realistic seed complete. runId=${config.runId}`);
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  seedRealistic()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await defaultPrisma.$disconnect();
+    });
+}

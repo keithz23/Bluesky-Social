@@ -48,7 +48,7 @@ interface DataTableProps<T> {
   disabledRowIds?: string[];
 }
 
-function DataTable<T extends Record<string, any>>({
+function DataTable<T extends object>({
   data,
   columns,
   isLoading,
@@ -65,7 +65,7 @@ function DataTable<T extends Record<string, any>>({
   onSelectAll,
   isAllSelected = false,
   disabledRowIds = [],
-  getRowId = (row) => row.id as string,
+  getRowId = (row) => (row as { id: string }).id,
 }: DataTableProps<T>) {
   return (
     <Card className="rounded-xl border bg-white py-0 shadow-sm flex-1 flex flex-col overflow-hidden">
@@ -256,4 +256,6 @@ function DataTable<T extends Record<string, any>>({
     </Card>
   );
 }
-export default React.memo(DataTable);
+const MemoizedDataTable = React.memo(DataTable) as typeof DataTable;
+
+export default MemoizedDataTable;

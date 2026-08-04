@@ -63,6 +63,27 @@ export const API_ENDPOINT = {
       const qs = query.toString();
       return qs ? `/feed?${qs}` : "/feed";
     },
+    CATALOG: "/feed/catalog",
+    PINNED: "/feed/pinned",
+    PIN: (slug: string) => `/feed/${slug}/pin`,
+    POSTS: (slug: string, params?: { cursor?: string; limit?: number; seed?: string }) => {
+      const query = new URLSearchParams();
+      if (params?.cursor) query.set("cursor", params.cursor);
+      if (params?.limit) query.set("limit", String(params.limit));
+      if (params?.seed) query.set("seed", params.seed);
+      const qs = query.toString();
+      return qs ? `/feed/${slug}/posts?${qs}` : `/feed/${slug}/posts`;
+    },
+  },
+
+  EXPLORE: {
+    GET: (q?: string, limit?: number) => {
+      const query = new URLSearchParams();
+      if (q) query.set("q", q);
+      if (limit) query.set("limit", String(limit));
+      const qs = query.toString();
+      return qs ? `/explore?${qs}` : "/explore";
+    },
   },
 
   NOTIFICATIONS: {

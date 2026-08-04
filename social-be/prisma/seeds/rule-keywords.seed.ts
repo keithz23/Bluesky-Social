@@ -1,7 +1,7 @@
 import { KeywordAction, PrismaClient, RuleSeverity } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
-const prisma = new PrismaClient();
+const defaultPrisma = new PrismaClient();
 
 const id = (prefix: string) => `${prefix}_${randomUUID().replace(/-/g, '')}`;
 
@@ -144,7 +144,7 @@ const rules: RuleSeed[] = [
   },
 ];
 
-export async function main() {
+export async function seedRulesKeywords(prisma: PrismaClient = defaultPrisma) {
   console.log(`Seeding ${rules.length} rules...`);
 
   for (const rule of rules) {
@@ -196,11 +196,13 @@ export async function main() {
   console.log('Rules & keywords seed complete.');
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  seedRulesKeywords()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await defaultPrisma.$disconnect();
+    });
+}
