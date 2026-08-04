@@ -1,9 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
-
-export async function seedAdmin() {
+export async function seedAdmin(prisma: PrismaClient) {
   const email = process.env.ADMIN_EMAIL ?? 'admin@gmail.com';
 
   const password = process.env.ADMIN_PASSWORD ?? 'Admin@123';
@@ -35,9 +33,6 @@ export async function seedAdmin() {
       userId_roleId: {
         userId: admin.id,
         roleId: role.id,
-      },
-      role: {
-        level: 1,
       },
     },
     update: {},

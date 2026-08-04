@@ -83,6 +83,7 @@ model User {
   deleteScheduledAt DateTime?      @map("delete_scheduled_at")
   homeTimelines     HomeTimeline[] @relation("TimelineOwner")
   authoredTimelines HomeTimeline[] @relation("TimelineAuthor")
+  pinnedFeeds       UserPinnedFeed[]
 
   twoFactorEnabled   Boolean          @default(false) @map("two_factor_enabled")
   twoFactorMethod    TwoFactorMethod?
@@ -921,6 +922,20 @@ model HomeTimeline {
   @@index([authorId])
   @@index([postId])
   @@map("home_timelines")
+}
+
+model UserPinnedFeed {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  feedSlug  String   @map("feed_slug")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feedSlug])
+  @@index([userId, position])
+  @@map("user_pinned_feeds")
 }
 
 model SystemSetting {

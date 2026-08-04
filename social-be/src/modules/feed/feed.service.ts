@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FeedQueryDto } from './dto/feed-query.dto';
+import { isSystemFeedSlug, SYSTEM_FEEDS } from './feed-catalog';
 
 type FeedPost = {
   id: string;
@@ -52,6 +54,98 @@ export class FeedService {
       currentUserId,
       followingIds,
       posts: rankedPosts,
+      offset,
+      limit,
+    });
+  }
+
+  async getCatalog(currentUserId: string | null) {
+    const pinned = currentUserId
+      ? await this.prisma.userPinnedFeed.findMany({
+          where: { userId: currentUserId },
+          orderBy: { position: 'asc' },
+          select: { feedSlug: true },
+        })
+      : [];
+    const pinnedSet = new Set(pinned.map((item) => item.feedSlug));
+    return SYSTEM_FEEDS.map((feed) => ({
+      ...feed,
+      isPinned: pinnedSet.has(feed.slug),
+    }));
+  }
+
+  async getPinnedFeeds(userId: string) {
+    const catalog = await this.getCatalog(userId);
+    return catalog.filter((feed) => feed.isPinned);
+  }
+
+  async pinFeed(userId: string, slug: string) {
+    if (!isSystemFeedSlug(slug)) throw new NotFoundException('Feed not found');
+    const last = await this.prisma.userPinnedFeed.aggregate({
+      where: { userId },
+      _max: { position: true },
+    });
+    await this.prisma.userPinnedFeed.upsert({
+      where: { userId_feedSlug: { userId, feedSlug: slug } },
+      create: { userId, feedSlug: slug, position: (last._max.position ?? -1) + 1 },
+      update: {},
+    });
+    return { slug, isPinned: true };
+  }
+
+  async unpinFeed(userId: string, slug: string) {
+    if (!isSystemFeedSlug(slug)) throw new NotFoundException('Feed not found');
+    await this.prisma.userPinnedFeed.deleteMany({ where: { userId, feedSlug: slug } });
+    return { slug, isPinned: false };
+  }
+
+  async getSystemFeed(
+    slug: string,
+    currentUserId: string | null,
+    query: FeedQueryDto,
+  ) {
+    if (!isSystemFeedSlug(slug)) throw new NotFoundException('Feed not found');
+    if (slug === 'discover') return this.getFeed(currentUserId, query);
+
+    const limit = query.limit ?? 20;
+    const offset = this.parseOffsetCursor(query.cursor);
+    const seed = query.seed ?? `${Date.now()}`;
+    const { followingIds, excludedUserIds } =
+      await this.getViewerContext(currentUserId);
+
+    const where: Prisma.PostWhereInput = {
+      isDeleted: false,
+      autoFlagged: false,
+      parentPostId: null,
+      ...(slug !== 'following' && {
+        OR: [
+          { user: { isPrivate: false } },
+          ...(followingIds.length > 0 ? [{ userId: { in: followingIds } }] : []),
+        ],
+      }),
+      ...(excludedUserIds.length > 0 && { userId: { notIn: excludedUserIds } }),
+      ...(slug === 'following' && {
+        userId: { in: currentUserId ? [...followingIds, currentUserId] : [] },
+      }),
+      ...(slug === 'media' && {
+        media: { some: { mediaType: { in: ['IMAGE', 'GIF'] } } },
+      }),
+      ...(slug === 'video' && { media: { some: { mediaType: 'VIDEO' } } }),
+    };
+
+    const candidates = await this.prisma.post.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: Math.max((offset + limit) * 5, 200),
+      select: this.getPostSelect(),
+    });
+    const ranked = slug === 'following'
+      ? candidates
+      : this.rankPosts(candidates, followingIds, seed);
+    return this.paginateAndFormat({
+      currentUserId,
+      followingIds,
+      posts: ranked,
       offset,
       limit,
     });
@@ -164,7 +258,12 @@ export class FeedService {
     const posts = await this.prisma.post.findMany({
       where: {
         isDeleted: false,
+        autoFlagged: false,
         parentPostId: null,
+        OR: [
+          { user: { isPrivate: false } },
+          ...(followingIds.length > 0 ? [{ userId: { in: followingIds } }] : []),
+        ],
         ...(excludedUserIds.length > 0 && {
           userId: { notIn: excludedUserIds },
         }),
