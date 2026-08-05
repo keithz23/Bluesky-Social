@@ -235,7 +235,7 @@ export default function PostCommentsDialog({
         onEscapeKeyDown={(e) => {
           if (isPhotoView) e.preventDefault();
         }}
-        className="fixed left-0 top-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-none border-none bg-white p-0 shadow-2xl sm:left-1/2 sm:top-1/2 sm:h-[min(850px,calc(100dvh-2rem))] sm:w-[min(45rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
+        className="fixed left-0 top-0 h-dvh w-screen max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-none border-none bg-white p-0 shadow-2xl sm:left-1/2 sm:top-1/2 sm:h-[min(850px,calc(100dvh-2rem))] sm:w-[min(45rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
       >
         <div className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-200 px-12 sm:h-15 sm:px-14">
           <DialogTitle className="truncate text-center text-base font-bold text-gray-950 sm:text-xl">

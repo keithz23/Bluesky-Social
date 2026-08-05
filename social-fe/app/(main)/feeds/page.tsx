@@ -1,219 +1,106 @@
 "use client";
-import {
-  ArrowLeft,
-  Settings,
-  SlidersHorizontal,
-  Flame,
-  ArrowDownUp,
-  Film,
-  Search,
-  Pin,
-  Heart,
-  Users,
-  FlaskConical,
-  Palette,
-  ChevronRight,
-} from "lucide-react";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Film, Flame, Heart, ImageIcon, Pin, Search, Users } from "lucide-react";
+import { toast } from "sonner";
+import { FeedCatalogItem } from "@/app/interfaces/discovery.interface";
+import { useFeedCatalog, useTogglePinnedFeed } from "@/app/hooks/use-feed-catalog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function FeedsPage() {
-  const router = useRouter();
-  const myFeedsLinks = [
-    {
-      id: "discover",
-      title: "Discover",
-      icon: <Flame className="w-5 h-5 text-white" />,
-      bgColor: "bg-blue-500",
-    },
-    {
-      id: "following",
-      title: "Following",
-      icon: <ArrowDownUp className="w-5 h-5 text-white" />,
-      bgColor: "bg-blue-600",
-    },
-    {
-      id: "video",
-      title: "Video",
-      icon: <Film className="w-5 h-5 text-white" />,
-      bgColor: "bg-blue-500",
-    },
-  ];
+const icons = { Flame, Users, Heart, Image: ImageIcon, Film };
+const colors = {
+  blue: "bg-blue-500",
+  indigo: "bg-indigo-500",
+  rose: "bg-rose-500",
+  violet: "bg-violet-500",
+  slate: "bg-slate-700",
+};
 
-  const suggestedFeeds = [
-    {
-      id: 1,
-      title: "Popular With Friends",
-      author: "@bsky.app",
-      description:
-        "A mix of popular content from accounts you follow and content that your follows like.",
-      likes: "40,850",
-      icon: <Heart className="w-6 h-6 text-white" fill="currentColor" />,
-      bgColor: "bg-blue-500",
-    },
-    {
-      id: 2,
-      title: "Mutuals",
-      author: "@skyfeed.xyz",
-      description: "Posts from users who are following you back",
-      likes: "28,481",
-      icon: <Users className="w-6 h-6 text-white" fill="currentColor" />,
-      bgColor: "bg-slate-800",
-    },
-    {
-      id: 3,
-      title: "Science",
-      author: "@bossett.social",
-      description:
-        "The Science Feed. A curated feed from Bluesky professional scientists, science communicators, and science/nature photographer/artists. See l.bossett.io/vkeNf for more information! 🧪",
-      likes: "29,155",
-      icon: <FlaskConical className="w-6 h-6 text-white" />,
-      bgColor: "bg-blue-600",
-    },
-    {
-      id: 4,
-      title: "Artists: Trending",
-      author: "@bsky.art",
-      description:
-        "General art feed — image posts from artists across Bluesky, sorted by trending. For information on how to post and affiliated accounts, visit: www.bsky.art",
-      likes: "",
-      icon: <Palette className="w-6 h-6 text-white" />,
-      bgColor: "bg-black",
-    },
-  ];
+function FeedRow({ feed }: { feed: FeedCatalogItem }) {
+  const togglePin = useTogglePinnedFeed();
+  const Icon = icons[feed.icon];
+
+  const handlePin = () => {
+    togglePin.mutate(
+      { slug: feed.slug, pin: !feed.isPinned },
+      {
+        onSuccess: () => toast.success(feed.isPinned ? "Feed unpinned" : "Feed pinned"),
+        onError: () => toast.error("Could not update this feed"),
+      },
+    );
+  };
 
   return (
-    <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20 lg:min-h-[calc(100dvh-3.5rem)]">
-      {/* --- HEADER --- */}
-      <div className="sticky top-14 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4 lg:top-14">
-        <div className="flex items-center gap-6">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition cursor-pointer"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-900" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">Feeds</h1>
+    <article className="flex gap-3 border-b border-gray-100 p-4 transition hover:bg-gray-50">
+      <Link href={`/feeds/${feed.slug}`} className={`flex size-12 shrink-0 items-center justify-center rounded-xl text-white ${colors[feed.color]}`}>
+        <Icon className="size-6" />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <Link href={`/feeds/${feed.slug}`} className="font-bold text-gray-900 hover:underline">
+            {feed.name}
+          </Link>
+          <Button size="sm" variant={feed.isPinned ? "outline" : "default"} disabled={togglePin.isPending} onClick={handlePin}>
+            <Pin className="size-4" /> {feed.isPinned ? "Unpin" : "Pin"}
+          </Button>
         </div>
-        <button className="p-2 -mr-2 hover:bg-gray-100 rounded-full transition cursor-pointer">
-          <Settings className="w-5 h-5 text-gray-600" />
-        </button>
+        <p className="mt-1 text-sm leading-6 text-gray-600">{feed.description}</p>
       </div>
+    </article>
+  );
+}
 
-      {/* --- MY FEEDS SECTION --- */}
-      <div className="flex flex-col">
-        {/* Title My Feeds */}
-        <div className="flex items-start gap-4 p-4 hover:bg-gray-50 transition cursor-pointer">
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-            <SlidersHorizontal className="w-6 h-6 text-blue-500" />
+export default function FeedsPage() {
+  const [search, setSearch] = useState("");
+  const { data: feeds = [], isLoading, isError, refetch } = useFeedCatalog();
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q
+      ? feeds.filter((feed) => `${feed.name} ${feed.description}`.toLowerCase().includes(q))
+      : feeds;
+  }, [feeds, search]);
+  const pinned = feeds.filter((feed) => feed.isPinned);
+
+  return (
+    <div className="flex min-h-[calc(100dvh-7rem)] w-full flex-col bg-white pb-20">
+      <header className="sticky top-14 z-20 border-b bg-white/90 p-4 backdrop-blur-md">
+        <h1 className="text-xl font-bold text-gray-900">Feeds</h1>
+        <p className="mt-1 text-sm text-gray-500">Choose and pin the timelines you want close at hand.</p>
+      </header>
+
+      {pinned.length > 0 && (
+        <section className="border-b-4 border-gray-100">
+          <h2 className="px-4 pt-4 text-lg font-bold">My Feeds</h2>
+          <div className="flex gap-3 overflow-x-auto p-4">
+            {pinned.map((feed) => {
+              const Icon = icons[feed.icon];
+              return (
+                <Link key={feed.slug} href={`/feeds/${feed.slug}`} className="flex min-w-28 flex-col items-center gap-2 rounded-xl border p-3 text-center hover:bg-gray-50">
+                  <span className={`flex size-10 items-center justify-center rounded-lg text-white ${colors[feed.color]}`}><Icon className="size-5" /></span>
+                  <span className="text-sm font-semibold">{feed.name}</span>
+                </Link>
+              );
+            })}
           </div>
-          <div className="flex flex-col pt-1">
-            <h2 className="text-xl font-bold text-gray-900">My Feeds</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              All the feeds you've saved, right in one place.
-            </p>
-          </div>
-        </div>
+        </section>
+      )}
 
-        {/* Lists My Feeds */}
-        <div className="flex flex-col">
-          {myFeedsLinks.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between p-4 border-t border-gray-100 hover:bg-gray-50 transition cursor-pointer"
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${item.bgColor}`}
-                >
-                  {item.icon}
-                </div>
-                <span className="font-bold text-gray-900">{item.title}</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="h-0.5 bg-gray-100 w-full"></div>
-
-      {/* --- DISCOVER NEW FEEDS SECTION --- */}
-      <div className="flex flex-col">
-        {/* Title Discover */}
-        <div className="flex items-start gap-4 p-4">
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-            <SlidersHorizontal className="w-6 h-6 text-blue-500" />
-          </div>
-          <div className="flex flex-col pt-1">
-            <h2 className="text-xl font-bold text-gray-900">
-              Discover New Feeds
-            </h2>
-            <p className="text-sm text-gray-600 mt-1 leading-snug">
-              Choose your own timeline! Feeds built by the community help you
-              find content you love.
-            </p>
+      <section>
+        <div className="border-b p-4">
+          <h2 className="text-lg font-bold">Discover feeds</h2>
+          <div className="relative mt-3">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search feeds" className="pl-9" />
           </div>
         </div>
-
-        {/* Search bar */}
-        <div className="px-4 pb-4 border-b border-gray-100">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search feeds"
-              className="w-full bg-gray-100 border-none rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Lists Feed gợi ý */}
-        <div className="flex flex-col">
-          {suggestedFeeds.map((feed) => (
-            <div
-              key={feed.id}
-              className="p-4 border-b border-gray-100 hover:bg-gray-50 transition flex gap-3"
-            >
-              {/* Icon Feed */}
-              <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${feed.bgColor}`}
-              >
-                {feed.icon}
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-1">
-                  <div className="flex flex-col">
-                    <h3 className="font-bold text-base text-gray-900 leading-tight">
-                      {feed.title}
-                    </h3>
-                    <span className="text-sm text-gray-500">
-                      Feed by {feed.author}
-                    </span>
-                  </div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5 transition shrink-0 ml-2 cursor-pointer">
-                    <Pin className="w-4 h-4" /> Pin Feed
-                  </button>
-                </div>
-
-                <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap leading-snug">
-                  {feed.description}
-                </p>
-
-                {feed.likes && (
-                  <p className="text-sm text-gray-500 font-medium mt-2">
-                    Liked by {feed.likes} users
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+        {isLoading && <div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}</div>}
+        {isError && <div className="p-8 text-center"><p className="text-gray-600">Could not load feeds.</p><Button className="mt-3" onClick={() => refetch()}>Try again</Button></div>}
+        {!isLoading && !isError && filtered.map((feed) => <FeedRow key={feed.slug} feed={feed} />)}
+        {!isLoading && filtered.length === 0 && <p className="p-8 text-center text-gray-500">No feeds match “{search}”.</p>}
+      </section>
     </div>
   );
 }

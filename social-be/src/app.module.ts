@@ -32,6 +32,7 @@ import { DevDataModule } from './modules/dev-data/dev-data.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { RateLimitGuard } from './rate-limit/rate-limit.guard';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { ExploreModule } from './modules/explore/explore.module';
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
     ModerationModule,
     DevDataModule,
     AdminModule,
+    ExploreModule,
     EventEmitterModule.forRoot(),
   ],
   providers: [

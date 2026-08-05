@@ -65,13 +65,28 @@ export default function UsersPage() {
   const searchQuery = searchParams.get("search") || "";
   const [searchTerm, setSearchTerm] = useState(searchQuery);
 
+  const updateURLParams = useCallback(
+    (key: string, value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value && value !== "all") {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+      if (key !== "page") params.set("page", "1");
+
+      router.push(`${pathname}?${params}`);
+    },
+    [pathname, router, searchParams],
+  );
+
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       updateURLParams("search", searchTerm);
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
+  }, [searchTerm, updateURLParams]);
 
   const { userData, isUserLoading, deleteUsersMutation, isDeleting } = useUser(
     page,
@@ -141,10 +156,13 @@ export default function UsersPage() {
     setIsFormDialogOpen(true);
   };
 
-  const handleOpenEdit = useCallback((user: any) => {
-    setUserToEditInfo(user);
-    setIsFormDialogOpen(true);
-  }, []);
+  const handleOpenEdit = useCallback(
+    (user: any) => {
+      setUserToEditInfo(user);
+      setIsFormDialogOpen(true);
+    },
+    [setIsFormDialogOpen, setUserToEditInfo],
+  );
 
   const handleDelete = () => {
     deleteUsersMutation.mutate(
@@ -281,18 +299,6 @@ export default function UsersPage() {
     ],
     [currentUserId, canUpdate, handleOpenEdit],
   );
-
-  const updateURLParams = (key: string, value: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value && value !== "all") {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    if (key !== "page") params.set("page", "1");
-
-    router.push(`${pathname}?${params}`);
-  };
 
   const changePage = (newPage: number) => {
     updateURLParams("page", String(newPage));
