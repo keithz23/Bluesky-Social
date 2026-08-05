@@ -45,7 +45,8 @@ export interface CleanupJobData {
     | 'orphaned'
     | 'replaced_by_new_upload'
     | 'db_update_failed'
-    | 'list_deleted';
+    | 'list_deleted'
+    | 'moderation_blocked';
   retryCount?: number;
 }
 

@@ -8,7 +8,6 @@ import {
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import { MediaType, NotificationType, ReplyPolicy } from '@prisma/client';
 import { JOB_NAMES, QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { Queue } from 'bullmq';
@@ -25,7 +24,10 @@ import { SearchPostsDto } from './dto/search-posts.dto';
 import { PinPostQueryDto } from './dto/pin-post-query.dto';
 import { PostFormatterService } from './services/post-formatter.service';
 import { PostHashtagService } from './services/post-hashtag.service';
-import { PostMediaService } from './services/post-media.service';
+import {
+  ModeratedUploadResult,
+  PostMediaService,
+} from './services/post-media.service';
 import { PostModerationService } from './services/post-moderation.service';
 import { VisibilityService } from 'src/common/services/visibility.service';
 
@@ -53,7 +55,7 @@ export class PostsService {
   ) {
     const { content, replyPrivacy, gifUrl, postTheme } = createPostDto;
     await this.postModeration.assertContentLength(content ?? '');
-    let uploadResults: UploadResult[] = [];
+    let uploadResults: ModeratedUploadResult[] = [];
     const uploadedKeys: string[] = [];
     const mentionedUsernames = extractMentions(content ?? '');
     const hashtagNames = extractHashtags(content ?? '');
@@ -139,6 +141,7 @@ export class PostsService {
               width: u.width,
               height: u.height,
               orderIndex: idx,
+              ...this.getMediaModerationData(u),
             })),
           });
         }
@@ -152,6 +155,7 @@ export class PostsService {
               mediaType: MediaType.GIF,
               fileSize: gifUploadResult.size,
               orderIndex: 0,
+              ...this.getMediaModerationData(gifUploadResult),
             },
           });
         }
@@ -214,13 +218,27 @@ export class PostsService {
         return { post, mentionedUsers };
       });
 
-      const moderationResult = fullPost.post
+      const keywordModerationResult = fullPost.post
         ? await this.postModeration.handleKeywordScan(
             fullPost.post.id,
             userId,
             fullPost.post.content,
           )
         : { matched: false, autoHidden: false };
+      const imageModerationResult = fullPost.post
+        ? await this.postModeration.handleImageScanResult(
+            fullPost.post.id,
+            userId,
+            this.collectModeratedUploads(uploadResults, gifUploadResult),
+          )
+        : { matched: false, autoHidden: false };
+      const moderationResult = {
+        matched:
+          keywordModerationResult.matched || imageModerationResult.matched,
+        autoHidden:
+          keywordModerationResult.autoHidden ||
+          imageModerationResult.autoHidden,
+      };
 
       if (!moderationResult.autoHidden) {
         fullPost.mentionedUsers.forEach((user) => {
@@ -827,7 +845,7 @@ export class PostsService {
     updatePostDto: UpdatePostDto,
     images?: Express.Multer.File[],
   ) {
-    let uploadResults: UploadResult[] = [];
+    let uploadResults: ModeratedUploadResult[] = [];
     const uploadedKeys: string[] = [];
     const post = await this.prisma.post.findUnique({
       where: { id: postId, isDeleted: false },
@@ -956,6 +974,7 @@ export class PostsService {
               width: u.width,
               height: u.height,
               orderIndex: keptMedia.length + idx,
+              ...this.getMediaModerationData(u),
             })),
           });
         }
@@ -969,6 +988,7 @@ export class PostsService {
               mediaType: MediaType.GIF,
               fileSize: gifUploadResult.size,
               orderIndex: 0,
+              ...this.getMediaModerationData(gifUploadResult),
             },
           });
         }
@@ -1098,11 +1118,25 @@ export class PostsService {
         }
       }
 
-      const moderationResult = await this.postModeration.handleKeywordScan(
-        updatedPost.id,
-        userId,
-        updatedPost.content,
-      );
+      const keywordModerationResult =
+        await this.postModeration.handleKeywordScan(
+          updatedPost.id,
+          userId,
+          updatedPost.content,
+        );
+      const imageModerationResult =
+        await this.postModeration.handleImageScanResult(
+          updatedPost.id,
+          userId,
+          this.collectModeratedUploads(uploadResults, gifUploadResult),
+        );
+      const moderationResult = {
+        matched:
+          keywordModerationResult.matched || imageModerationResult.matched,
+        autoHidden:
+          keywordModerationResult.autoHidden ||
+          imageModerationResult.autoHidden,
+      };
 
       if (!moderationResult.autoHidden) {
         fullPost.newlyMentionedUsers.forEach((user) => {
@@ -1241,7 +1275,7 @@ export class PostsService {
         ? parentPost.parentPostId
         : postId;
 
-    let uploadResults: UploadResult[] = [];
+    let uploadResults: ModeratedUploadResult[] = [];
     const uploadedKeys: string[] = [];
 
     const imageUpload = await this.postMedia.uploadImages(userId, images);
@@ -1288,6 +1322,7 @@ export class PostsService {
               width: u.width,
               height: u.height,
               orderIndex: idx,
+              ...this.getMediaModerationData(u),
             })),
           });
         }
@@ -1301,6 +1336,7 @@ export class PostsService {
               mediaType: MediaType.GIF,
               fileSize: gifUploadResult.size,
               orderIndex: 0,
+              ...this.getMediaModerationData(gifUploadResult),
             },
           });
         }
@@ -1374,11 +1410,25 @@ export class PostsService {
       const reply = fullReply.reply;
       if (!reply) throw new Error('Failed to create reply');
 
-      const moderationResult = await this.postModeration.handleKeywordScan(
-        reply.id,
-        userId,
-        reply.content,
-      );
+      const keywordModerationResult =
+        await this.postModeration.handleKeywordScan(
+          reply.id,
+          userId,
+          reply.content,
+        );
+      const imageModerationResult =
+        await this.postModeration.handleImageScanResult(
+          reply.id,
+          userId,
+          this.collectModeratedUploads(uploadResults, gifUploadResult),
+        );
+      const moderationResult = {
+        matched:
+          keywordModerationResult.matched || imageModerationResult.matched,
+        autoHidden:
+          keywordModerationResult.autoHidden ||
+          imageModerationResult.autoHidden,
+      };
 
       if (!moderationResult.autoHidden) {
         this.socketGateway.emitToPost(replyParentPostId, 'new-reply', reply);
@@ -1721,6 +1771,26 @@ export class PostsService {
           error instanceof Error ? error.stack : String(error),
         );
       });
+  }
+
+  private getMediaModerationData(upload: ModeratedUploadResult) {
+    return {
+      moderationStatus: upload.moderation.status,
+      moderationLabels:
+        upload.moderation.labels.length > 0
+          ? upload.moderation.labels
+          : undefined,
+      moderationCheckedAt: upload.moderation.checkedAt,
+      moderationProvider: upload.moderation.provider,
+      moderationBlockReason: upload.moderation.blockReason,
+    };
+  }
+
+  private collectModeratedUploads(
+    uploadResults: ModeratedUploadResult[],
+    gifUploadResult: ModeratedUploadResult | null,
+  ) {
+    return [...uploadResults, ...(gifUploadResult ? [gifUploadResult] : [])];
   }
 
   private normalizeKeepMediaIds(keepMediaIds?: string[] | string): string[] {
