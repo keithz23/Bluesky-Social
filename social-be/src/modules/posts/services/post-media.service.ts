@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import {
   CleanupJobData,
@@ -8,6 +8,14 @@ import {
 } from 'src/common/constants/queue.constant';
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
 import { S3Service } from 'src/uploads/s3.service';
+import {
+  ImageModerationResult,
+  ImageModerationService,
+} from './image-moderation.service';
+
+export type ModeratedUploadResult = UploadResult & {
+  moderation: ImageModerationResult;
+};
 
 @Injectable()
 export class PostMediaService {
@@ -15,13 +23,14 @@ export class PostMediaService {
 
   constructor(
     private readonly s3Service: S3Service,
+    private readonly imageModeration: ImageModerationService,
     @InjectQueue(QUEUE_NAMES.CLEANUP)
     private readonly cleanupQueue: Queue<CleanupJobData>,
   ) {}
 
   async uploadImages(userId: string, images?: Express.Multer.File[]) {
     if (!images?.length) {
-      return { uploadResults: [] as UploadResult[], uploadedKeys: [] };
+      return { uploadResults: [] as ModeratedUploadResult[], uploadedKeys: [] };
     }
 
     try {
@@ -30,12 +39,15 @@ export class PostMediaService {
         `public/posts/${userId}/images`,
         { resize: true, quality: 85 },
       );
+      const moderatedResults = await this.moderateUploads(uploadResults);
+      await this.rejectBlockedUploads(moderatedResults);
 
       return {
-        uploadResults,
-        uploadedKeys: uploadResults.map((result) => result.key),
+        uploadResults: moderatedResults,
+        uploadedKeys: moderatedResults.map((result) => result.key),
       };
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       this.logger.error('Error uploading images', error);
       throw new Error('Failed to upload images');
     }
@@ -47,7 +59,10 @@ export class PostMediaService {
     enabled: boolean,
   ) {
     if (!enabled || !gifUrl) {
-      return { gifUploadResult: null as UploadResult | null, uploadedKeys: [] };
+      return {
+        gifUploadResult: null as ModeratedUploadResult | null,
+        uploadedKeys: [],
+      };
     }
 
     try {
@@ -62,12 +77,17 @@ export class PostMediaService {
         'gif',
         'image/gif',
       );
+      const [moderatedGifUploadResult] = await this.moderateUploads([
+        gifUploadResult,
+      ]);
+      await this.rejectBlockedUploads([moderatedGifUploadResult]);
 
       return {
-        gifUploadResult,
-        uploadedKeys: [gifUploadResult.key],
+        gifUploadResult: moderatedGifUploadResult,
+        uploadedKeys: [moderatedGifUploadResult.key],
       };
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       this.logger.error('Error uploading GIF to S3', error);
       throw new Error('Failed to upload GIF');
     }
@@ -95,5 +115,33 @@ export class PostMediaService {
     } catch {
       return url;
     }
+  }
+
+  private async moderateUploads(uploadResults: UploadResult[]) {
+    const moderationResults = await Promise.all(
+      uploadResults.map((upload) => this.imageModeration.scanUpload(upload)),
+    );
+
+    return uploadResults.map((upload, index) => ({
+      ...upload,
+      moderation: moderationResults[index],
+    }));
+  }
+
+  private async rejectBlockedUploads(uploadResults: ModeratedUploadResult[]) {
+    const blocked = uploadResults.filter(
+      (upload) => upload.moderation.shouldBlock,
+    );
+    if (blocked.length === 0) return;
+
+    await this.scheduleCleanup(
+      uploadResults.map((upload) => upload.key),
+      'moderation_blocked',
+    );
+
+    throw new BadRequestException(
+      blocked[0].moderation.blockReason ??
+        'Image violates content moderation policy',
+    );
   }
 }
