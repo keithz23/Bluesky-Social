@@ -77,12 +77,12 @@ model User {
   listMembers             ListMember[]
 
   // Deactive & Delete
-  status            UserStatus     @default(ACTIVE) @map("status")
-  deactivatedAt     DateTime?      @map("deactivated_at")
-  deletedAt         DateTime?      @map("deleted_at")
-  deleteScheduledAt DateTime?      @map("delete_scheduled_at")
-  homeTimelines     HomeTimeline[] @relation("TimelineOwner")
-  authoredTimelines HomeTimeline[] @relation("TimelineAuthor")
+  status            UserStatus       @default(ACTIVE) @map("status")
+  deactivatedAt     DateTime?        @map("deactivated_at")
+  deletedAt         DateTime?        @map("deleted_at")
+  deleteScheduledAt DateTime?        @map("delete_scheduled_at")
+  homeTimelines     HomeTimeline[]   @relation("TimelineOwner")
+  authoredTimelines HomeTimeline[]   @relation("TimelineAuthor")
   pinnedFeeds       UserPinnedFeed[]
 
   twoFactorEnabled   Boolean          @default(false) @map("two_factor_enabled")
@@ -321,19 +321,24 @@ model Post {
 }
 
 model PostMedia {
-  id           String    @id @default(cuid())
-  postId       String    @map("post_id")
-  mediaUrl     String    @map("media_url")
-  storageKey   String?   @map("storage_key")
-  thumbnailUrl String?   @map("thumbnail_url")
-  mediaType    MediaType @map("media_type")
-  altText      String?   @map("alt_text")
-  width        Int?
-  height       Int?
-  duration     Int?
-  fileSize     Int?      @map("file_size") // bytes
-  orderIndex   Int       @map("order_index")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id                    String                    @id @default(cuid())
+  postId                String                    @map("post_id")
+  mediaUrl              String                    @map("media_url")
+  storageKey            String?                   @map("storage_key")
+  thumbnailUrl          String?                   @map("thumbnail_url")
+  mediaType             MediaType                 @map("media_type")
+  altText               String?                   @map("alt_text")
+  width                 Int?
+  height                Int?
+  duration              Int?
+  fileSize              Int?                      @map("file_size") // bytes
+  orderIndex            Int                       @map("order_index")
+  moderationStatus      PostMediaModerationStatus @default(APPROVED) @map("moderation_status")
+  moderationLabels      Json?                     @map("moderation_labels")
+  moderationCheckedAt   DateTime?                 @map("moderation_checked_at")
+  moderationProvider    String?                   @map("moderation_provider")
+  moderationBlockReason String?                   @map("moderation_block_reason")
+  createdAt             DateTime                  @default(now()) @map("created_at")
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
@@ -966,6 +971,15 @@ enum MediaType {
   IMAGE
   VIDEO
   GIF
+}
+
+enum PostMediaModerationStatus {
+  PENDING
+  APPROVED
+  FLAGGED
+  BLOCKED
+  SKIPPED
+  ERROR
 }
 
 enum NotificationType {

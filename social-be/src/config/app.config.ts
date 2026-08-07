@@ -14,6 +14,21 @@ export default registerAs('config', () => ({
     region: process.env.AWS_REGION,
     bucket: process.env.AWS_BUCKET_NAME,
     endpoint: process.env.AWS_ENDPOINT,
+    rekognitionEndpoint: process.env.AWS_REKOGNITION_ENDPOINT,
+  },
+
+  imageModeration: {
+    enabled: process.env.IMAGE_MODERATION_ENABLED === 'true',
+    failClosed: process.env.IMAGE_MODERATION_FAIL_CLOSED === 'true',
+    blockUnscannable: process.env.IMAGE_MODERATION_BLOCK_UNSCANNABLE === 'true',
+    minConfidence:
+      parseFloat(process.env.IMAGE_MODERATION_MIN_CONFIDENCE ?? '') || 60,
+    reviewConfidence:
+      parseFloat(process.env.IMAGE_MODERATION_REVIEW_CONFIDENCE ?? '') || 70,
+    blockConfidence:
+      parseFloat(process.env.IMAGE_MODERATION_BLOCK_CONFIDENCE ?? '') || 90,
+    blockLabels: process.env.IMAGE_MODERATION_BLOCK_LABELS,
+    reviewLabels: process.env.IMAGE_MODERATION_REVIEW_LABELS,
   },
 
   cloudfront: {
