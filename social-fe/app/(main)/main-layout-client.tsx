@@ -43,15 +43,17 @@ const MAIN_BASE_CLASSES =
   "mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[860px] pb-20 transition-[margin] duration-300 md:pb-0";
 
 const getSidebarClasses = (isExpanded: boolean) =>
-  `${SIDEBAR_BASE_CLASSES} ${isExpanded
-    ? "w-60 translate-x-0 lg:w-56 xl:w-60"
-    : "-translate-x-full lg:w-16 lg:translate-x-0"
+  `${SIDEBAR_BASE_CLASSES} ${
+    isExpanded
+      ? "w-60 translate-x-0 lg:w-56 xl:w-60 justify-center"
+      : "-translate-x-full lg:w-16 lg:translate-x-0 justify-center"
   }`;
 
 const getMainContentClasses = (isSidebarExpanded: boolean) =>
-  `${MAIN_BASE_CLASSES} ${isSidebarExpanded
-    ? "lg:ml-[max(14rem,calc(14rem+(100vw-14rem-860px)/2))] xl:ml-[max(15rem,calc(15rem+(100vw-15rem-860px)/2))]"
-    : "lg:ml-[max(4rem,calc(4rem+(100vw-4rem-860px)/2))]"
+  `${MAIN_BASE_CLASSES} ${
+    isSidebarExpanded
+      ? "lg:ml-[max(14rem,calc(14rem+(100vw-14rem-860px)/2))] xl:ml-[max(15rem,calc(15rem+(100vw-15rem-860px)/2))]"
+      : "lg:ml-[max(4rem,calc(4rem+(100vw-4rem-860px)/2))]"
   }`;
 
 const isActivePath = (pathname: string, href: string) =>
@@ -81,7 +83,6 @@ function Badge({ count, mobile = false }: { count: number; mobile?: boolean }) {
   );
 }
 
-
 function SidebarNavLink({
   item,
   pathname,
@@ -103,8 +104,9 @@ function SidebarNavLink({
       href={item.href}
       onClick={onNavigate}
       title={item.label}
-      className={`group flex h-9 items-center gap-2.5 rounded-xl px-2.5 text-[13px] font-medium transition hover:bg-slate-200/80 ${isActive ? "bg-slate-200 text-blue-700" : "text-slate-950"
-        } ${isExpanded ? "justify-start" : "justify-center lg:px-0"}`}
+      className={`group flex h-9 items-center gap-2.5 rounded-xl px-2.5 text-[13px] font-medium transition hover:bg-slate-200/80 ${
+        isActive ? "bg-slate-200 text-blue-700" : "text-slate-950"
+      } ${isExpanded ? "justify-start" : "justify-center lg:px-0"}`}
     >
       <span className="relative">
         <item.icon
@@ -114,8 +116,9 @@ function SidebarNavLink({
         <Badge count={badgeCount} />
       </span>
       <span
-        className={`min-w-0 truncate transition-opacity ${isExpanded ? "opacity-100" : "hidden opacity-0"
-          } ${isActive ? "font-semibold" : ""}`}
+        className={`min-w-0 truncate transition-opacity ${
+          isExpanded ? "opacity-100" : "hidden opacity-0"
+        } ${isActive ? "font-semibold" : ""}`}
       >
         {item.label}
       </span>
@@ -138,7 +141,7 @@ function AuthenticatedSidebar({
 }) {
   return (
     <aside className={getSidebarClasses(isOpen)}>
-      <nav className="flex flex-col gap-1">
+      <nav className="flex flex-col gap-5">
         {navItems.map((item) => (
           <SidebarNavLink
             key={item.label}
@@ -154,7 +157,11 @@ function AuthenticatedSidebar({
   );
 }
 
-export default function MainLayoutClient({ children }: { children: ReactNode }) {
+export default function MainLayoutClient({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, user, isLoadingProfile } = useAuth();
@@ -200,20 +207,6 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
     }
   }, [router, shouldRedirectToLogin]);
 
-  useEffect(() => {
-    const desktopQuery = window.matchMedia("(min-width: 1024px)");
-    const syncSidebarForViewport = () => {
-      setIsSidebarExpanded(desktopQuery.matches);
-    };
-
-    syncSidebarForViewport();
-    desktopQuery.addEventListener("change", syncSidebarForViewport);
-
-    return () => {
-      desktopQuery.removeEventListener("change", syncSidebarForViewport);
-    };
-  }, []);
-
   if (isLoadingProfile || shouldRedirectToLogin) {
     return <Loading />;
   }
@@ -227,10 +220,7 @@ export default function MainLayoutClient({ children }: { children: ReactNode }) 
       />
       <div className={CONTENT_CLASSES}>
         {isAuthenticated && isSidebarExpanded && (
-          <div
-            className={MOBILE_BACKDROP_CLASSES}
-            onClick={closeSidebar}
-          />
+          <div className={MOBILE_BACKDROP_CLASSES} onClick={closeSidebar} />
         )}
 
         {isAuthenticated && (
