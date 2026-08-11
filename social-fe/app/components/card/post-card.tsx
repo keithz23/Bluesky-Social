@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Pin, Share } from "lucide-react";
+import { Pin } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import {
   Tooltip,
@@ -20,7 +20,6 @@ import PostDropDown from "../dropdown/post-dropdown";
 import PostCommentsDialog from "../dialog/post-comments-dialog";
 import { DropdownItem } from "@/app/interfaces/dropdown/dropdown.interface";
 import { PostContent } from "../post-content";
-import { toast } from "sonner";
 import { useAuth } from "@/app/hooks/use-auth";
 import { checkCanReply } from "@/app/utils/check.util";
 import { formatCompactDate, formatFullDate } from "@/app/utils/format.util";
@@ -28,6 +27,7 @@ import {
   getMediaGridClass,
   getMediaItemClass,
 } from "@/app/interfaces/card/card.interface";
+import ShareButton from "../button/share-button";
 
 interface PostCardProps {
   post: Feed;
@@ -42,22 +42,6 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
   const handleProfileClick = useCallback(() => {
     router.push(`/profile/${post.user.username}`);
   }, [router, post.user.username]);
-
-  const handleShare = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const url = `${window.location.origin}/profile/${post.user.username}/post/${post.id}`;
-
-      if (navigator.share) {
-        await navigator.share({ text: post.content, url });
-        return;
-      }
-
-      await navigator.clipboard.writeText(url);
-      toast.success("Post link copied");
-    },
-    [post.content, post.id, post.user.username],
-  );
 
   const formattedDate = formatCompactDate(post.createdAt);
   const fullDate = formatFullDate(post.createdAt);
@@ -165,13 +149,7 @@ function PostCardComponent({ post, dropdownItems }: PostCardProps) {
                 isBookmarked={post.isBookmarked}
                 bookmarkCount={post.bookmarkCount}
               />
-              <button
-                type="button"
-                onClick={handleShare}
-                className="cursor-pointer rounded-full p-1.5 transition-colors hover:bg-gray-100 sm:p-2"
-              >
-                <Share size={18} strokeWidth={2.2} />
-              </button>
+              <ShareButton post={post} />
               <div className="cursor-pointer rounded-full p-1.5 transition-colors hover:bg-gray-100 sm:p-2">
                 <PostDropDown post={post} items={dropdownItems} />
               </div>
