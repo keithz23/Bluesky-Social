@@ -5,7 +5,7 @@ import axios, {
   AxiosRequestConfig,
   InternalAxiosRequestConfig,
 } from "axios";
-import { AuthResponse } from "@/app/interfaces/user.interface";
+import { AuthSessionResponse } from "@/app/interfaces/auth-response.interface";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -16,7 +16,7 @@ type QueueItem = {
   reject: (error: unknown) => void;
 };
 
-export type RefreshResponse = AuthResponse;
+export type RefreshResponse = AuthSessionResponse;
 
 export type PaginationMeta = {
   page: number;
@@ -120,9 +120,7 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
     return session;
   } catch (refreshError) {
     processQueue(refreshError, null);
-    if (
-      useAuthStore.getState().accessToken === accessTokenBeforeRefresh
-    ) {
+    if (useAuthStore.getState().accessToken === accessTokenBeforeRefresh) {
       useAuthStore.getState().clearAuth();
     }
     throw refreshError;

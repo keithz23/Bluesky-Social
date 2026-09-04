@@ -10,7 +10,7 @@ import {
   AccountEmailCodeData,
   AccountEmailCodePayload,
   AccountEmailCodePurpose,
-} from 'src/common/interfaces/auth.interface';
+} from 'src/modules/auth/interfaces/auth.interface';
 import { generateResetCode } from 'src/common/utils/generate-reset-code.util';
 import { HashUtil } from 'src/common/utils/hash.util';
 import { MailService } from 'src/mail/mail.service';

@@ -8,7 +8,7 @@ import {
   ResetPasswordData,
   UpdateProfileData,
 } from "../interfaces/auth.interface";
-import type { AuthResponse } from "../interfaces/user.interface";
+import type { AuthSessionResponse } from "../interfaces/auth-response.interface";
 import { AxiosError } from "axios";
 import { useState } from "react";
 import { useAuthStore } from "../store/use-auth.store";
@@ -20,8 +20,8 @@ import {
   setAuthLogoutLock,
 } from "../utils/auth-cache.util";
 
-type AuthSessionData = Omit<AuthResponse, "roles"> & {
-  roles?: AuthResponse["roles"];
+type AuthSessionData = Omit<AuthSessionResponse, "roles"> & {
+  roles?: AuthSessionResponse["roles"];
 };
 
 export function useAuth() {
@@ -57,7 +57,8 @@ export function useAuth() {
           return null;
         }
 
-        return await AuthService.me();
+        const session = await AuthService.me();
+        return session.user;
       } catch (e: unknown) {
         if (e instanceof AxiosError && e?.response?.status === 401) {
           clearAuth();

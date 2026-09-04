@@ -1,31 +1,12 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { UnauthorizedException } from '@nestjs/common';
-import { Prisma, User, UserStatus } from '@prisma/client';
+import { User, UserStatus } from '@prisma/client';
 import { Queue } from 'bullmq';
 import {
   CleanupJobData,
   JOB_NAMES,
   QUEUE_NAMES,
 } from 'src/common/constants/queue.constant';
-import { AuthUserResponse } from '../interfaces/auth.interface';
-
-type UserWithRoles = Prisma.UserGetPayload<{
-  include: {
-    userRoles: {
-      include: {
-        role: {
-          include: {
-            rolePermissions: {
-              include: {
-                permission: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
 
 export class OtherUtils {
   constructor(
@@ -36,41 +17,6 @@ export class OtherUtils {
     if (user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not active');
     }
-  }
-
-  public transformUser(user: User): AuthUserResponse {
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      displayName: user.displayName,
-      bio: user.bio,
-      avatarUrl: user.avatarUrl,
-      coverUrl: user.coverUrl,
-      googleId: user.googleId,
-      verified: user.verified,
-      isPrivate: user.isPrivate,
-      followersCount: user.followersCount,
-      followingCount: user.followingCount,
-      postsCount: user.postsCount,
-      createdAt: user.createdAt,
-      dateOfBirth: user.dateOfBirth,
-      hasPassword: Boolean(user.passwordHash),
-      twoFactorEnabled: user.twoFactorEnabled,
-      twoFactorMethod: user.twoFactorMethod,
-      twoFactorEnabledAt: user.twoFactorEnabledAt,
-    };
-  }
-
-  public transformRoles(user: UserWithRoles) {
-    return user.userRoles.map(({ role }) => ({
-      id: role.id,
-      name: role.name,
-      level: role.level,
-      permissions: role.rolePermissions.map(
-        ({ permission }) => permission.name,
-      ),
-    }));
   }
 
   public async scheduleCleanup(

@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { AuditContext } from '../interfaces/auth.interface';
+import { AuditRequestContext } from '../audit/audit-context.service';
 
 export const createAuditLogData = ({
   userId,
@@ -8,7 +8,7 @@ export const createAuditLogData = ({
   userAgent,
   ipAddress,
   metadata,
-}: AuditContext & {
+}: AuditRequestContext & {
   userId?: string;
   action: string;
   metadata?: Prisma.InputJsonObject;

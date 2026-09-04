@@ -18,12 +18,20 @@ import {
   Disable2FAData,
   Setup2FAData,
 } from "../interfaces/auth.interface";
-import { AuthResponse, LoginResponse } from "../interfaces/user.interface";
-import type { User } from "../interfaces/user.interface";
+import type {
+  AuthSessionResponse,
+  CurrentSessionResponse,
+  CurrentUserResponse,
+  LoginResponse,
+  RegisterResponse,
+} from "../interfaces/auth-response.interface";
 
 export const AuthService = {
   register: (registerData: RegisterData) => {
-    return apiClient.post<User>(API_ENDPOINT.AUTH.REGISTER, registerData);
+    return apiClient.post<RegisterResponse>(
+      API_ENDPOINT.AUTH.REGISTER,
+      registerData,
+    );
   },
 
   login: async (crendentials: LoginCredentials): Promise<LoginResponse> => {
@@ -34,12 +42,12 @@ export const AuthService = {
     return apiClient.post<unknown>(API_ENDPOINT.AUTH.LOGOUT, {});
   },
 
-  refresh: async (): Promise<AuthResponse> => {
+  refresh: async (): Promise<AuthSessionResponse> => {
     return refreshAuthSession();
   },
 
-  me: async (): Promise<User> => {
-    return apiClient.get<User>(API_ENDPOINT.AUTH.ME);
+  me: async (): Promise<CurrentSessionResponse> => {
+    return apiClient.get<CurrentSessionResponse>(API_ENDPOINT.AUTH.ME);
   },
 
   updateProfile: async (
@@ -59,15 +67,17 @@ export const AuthService = {
     if (updateProfileData.coverFile) {
       formData.append("cover", updateProfileData.coverFile);
     }
-    return apiClient.patch<User>(
+    return apiClient.patch<CurrentUserResponse>(
       API_ENDPOINT.AUTH.UPDATE_PROFILE,
       formData,
       { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress },
     );
   },
 
-  updateAccountPrivacy: (updateAccountPrivacyData: UpdateAccountPrivacyData) => {
-    return apiClient.patch<User>(
+  updateAccountPrivacy: (
+    updateAccountPrivacyData: UpdateAccountPrivacyData,
+  ) => {
+    return apiClient.patch<CurrentUserResponse>(
       API_ENDPOINT.AUTH.ACCOUNT_PRIVACY,
       updateAccountPrivacyData,
     );
@@ -127,7 +137,9 @@ export const AuthService = {
   },
 
   requestDeactivateAccount: () => {
-    return apiClient.post<unknown>(API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT);
+    return apiClient.post<unknown>(
+      API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT,
+    );
   },
 
   deactivateAccount: (deactivateAccountData: DeactivateAccountData) => {
@@ -176,8 +188,8 @@ export const AuthService = {
   verifyLogin2FA: async (payload: {
     challengeId: string;
     otp: string;
-  }): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>(
+  }): Promise<AuthSessionResponse> => {
+    return apiClient.post<AuthSessionResponse>(
       API_ENDPOINT.AUTH.VERIFY_LOGIN_2FA,
       payload,
     );

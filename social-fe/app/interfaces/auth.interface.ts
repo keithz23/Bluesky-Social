@@ -1,4 +1,5 @@
 export interface RegisterData {
+  username: string;
   email: string;
   password: string;
   dateOfBirth: string;
@@ -63,7 +64,7 @@ export interface Enable2FAData {
 }
 
 export interface Disable2FAData {
-  password?: string;
+  password: string;
   otp: string;
 }
 

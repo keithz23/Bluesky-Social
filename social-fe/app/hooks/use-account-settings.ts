@@ -7,6 +7,7 @@ import { extractErrMsg } from "../utils/error.util";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/use-auth.store";
 import { clearAuthSessionCache } from "../utils/auth-cache.util";
+import type { Disable2FAData } from "../interfaces/auth.interface";
 
 type useAccountSettingsOptions = {
   onSuccess?: () => void;
@@ -153,7 +154,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
   });
 
   const deleteAccountMutation = useMutation({
-    mutationFn: (payload: { otp: string }) => AuthService.deleteAccount(payload),
+    mutationFn: (payload: { otp: string }) =>
+      AuthService.deleteAccount(payload),
     onSuccess: async () => {
       await resetAuth();
       options?.onSuccess?.();
@@ -199,8 +201,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
   });
 
   const disable2FAMutation = useMutation({
-    mutationFn: (payload: { password?: string; otp: string }) =>
-      AuthService.disable2FA(payload),
+    mutationFn: (payload: Disable2FAData) => AuthService.disable2FA(payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Two-factor authentication disabled.");

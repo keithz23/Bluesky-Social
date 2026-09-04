@@ -1,56 +1,45 @@
-import { TwoFactorMethod } from '@prisma/client';
+import { User } from '@prisma/client';
+export type AccountEmailCodePurpose =
+  | 'password-reset'
+  | 'email-update'
+  | 'password-update'
+  | 'deactivate-account'
+  | 'delete-account'
+  | 'enable-2fa'
+  | 'disable-2fa';
 
-export interface SignupData {
-  username: string;
-  email: string;
-  password: string;
-  displayName?: string;
+export interface AccountEmailCodePayload {
+  user: Pick<User, 'id' | 'email' | 'username'>;
+  purpose: AccountEmailCodePurpose;
+  metadata?: Record<string, unknown>;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
-export interface SigninData {
-  emailOrUsername: string;
-  password: string;
+export interface AccountEmailCodeData {
+  otpHash?: string;
+  otp?: string;
 }
 
-export interface TokenPayload {
+export interface Login2FAChallengeData {
   userId: string;
-  username: string;
-  email: string;
+  attempts: number;
+  createdIp?: string;
+  createdUa?: string;
 }
 
-export interface AuthUserResponse {
-  id: string;
-  username: string;
-  email: string;
-  displayName: string;
-  bio: string | null;
-  avatarUrl: string | null;
-  coverUrl: string | null;
-  googleId: string | null;
-  verified: boolean;
-  isPrivate: boolean;
-  followersCount: number;
-  followingCount: number;
-  postsCount: number;
-  createdAt: Date;
-  dateOfBirth: Date | null;
-  hasPassword: boolean;
-  twoFactorEnabled: boolean;
-  twoFactorMethod: TwoFactorMethod | null;
-  twoFactorEnabledAt: Date | null;
+export interface TotpSetupData {
+  secret: string;
+  createdIp?: string;
+  createdUa?: string;
 }
 
-export interface AuthResponse {
-  user: AuthUserResponse;
+/** Normalized user shape produced by GoogleStrategy for the auth domain. */
+export interface GoogleAuthUser {
+  googleId: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  picture: string | null;
   accessToken: string;
-  refreshToken: string;
-}
-
-export interface RegisterUserResponse {
-  id: string;
-  username: string;
-  email: string;
-  displayName: string;
-  verified: boolean;
-  createdAt: Date;
 }

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
 import { AuthController } from './auth.controller';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshJwtStrategy } from './strategies/jwt-refresh.strategy';
@@ -15,6 +15,11 @@ import { MailUtils } from './utils/mail.util';
 import { TwoFactorUtils } from './utils/two-factor.util';
 import { OtherUtils } from './utils/other.util';
 import { SettingsModule } from '../admin/settings/settings.module';
+import { AuthAccountService } from './services/auth-account.service';
+import { AuthPasswordService } from './services/auth-password.service';
+import { AuthProfileService } from './services/auth-profile.service';
+import { AuthSessionService } from './services/auth-session.service';
+import { AuthTwoFactorService } from './services/auth-two-factor.service';
 
 @Module({
   imports: [
@@ -24,13 +29,15 @@ import { SettingsModule } from '../admin/settings/settings.module';
     UploadModule,
     SettingsModule,
     JwtModule.registerAsync({
-      useFactory: async (configService: ConfigService) => {
-        const secret = configService.get('config.jwt.secret');
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('config.jwt.secret');
+        const expiresIn =
+          configService.get<JwtSignOptions['expiresIn']>(
+            'config.jwt.expiresIn',
+          ) ?? '1h';
         return {
           secret,
-          signOptions: {
-            expiresIn: configService.get('config.jwt.expiresIn') || '1h',
-          },
+          signOptions: { expiresIn },
         };
       },
       inject: [ConfigService],
@@ -39,12 +46,16 @@ import { SettingsModule } from '../admin/settings/settings.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthAccountService,
+    AuthPasswordService,
+    AuthProfileService,
+    AuthSessionService,
+    AuthTwoFactorService,
     JwtStrategy,
     RefreshJwtStrategy,
     GoogleStrategy,
     JwtUtils,
     MailUtils,
-    JwtUtils,
     TwoFactorUtils,
     OtherUtils,
   ],

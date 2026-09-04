@@ -18,7 +18,6 @@ import {
   UseInterceptors,
   ConflictException,
   UploadedFiles,
-  Logger,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
@@ -26,65 +25,87 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthService } from './services/auth.service';
+import {
+  ChangeDateOfBirthDto,
+  ChangePasswordDto,
+  ChangeUsernameDto,
+  DeactivateAccountDto,
+  DeleteAccountDto,
+  Disable2FADto,
+  Enable2FADto,
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  RequestUpdateEmailDto,
+  ResetPasswordDto,
+  Setup2FADto,
+  UpdateAccountPrivacyDto,
+  UpdateEmailDto,
+  UpdateProfileDto,
+  VerifyLogin2FADto,
+} from './dto/requests';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Request, Response } from 'express';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
 import { ConfigService } from '@nestjs/config';
-import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
-import { UpdateEmailDto } from './dto/update-email.dto';
-import { RequestUpdateEmail } from './dto/request-update-email.dto';
-import { ChangeUsernameDto } from './dto/change-username.dto';
-import { ChangeDateOfBirthDto } from './dto/change-dob.dto';
-import { DeactivateAccountDto } from './dto/deactivate-account-dto';
 import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
-import { Enable2FADto } from './dto/enable-2fa.dto';
-import { VerifyLogin2FADto } from './dto/verify-login-2fa.dto';
-import { Disable2FADto } from './dto/disable-2fa.dto';
-import { Setup2FADto } from './dto/setup-2fa.dto';
 import {
   accessTokenCookieOptions,
   cookieOptions,
   refreshTokenCookieOptions,
 } from 'src/common/utils/cookie-option.util';
-import { DeleteAccountDto } from './dto/delete-account.dto';
-import { UpdateAccountPrivacyDto } from './dto/update-account-privacy.dto';
-import { RegisterUserResponse } from './interfaces/auth.interface';
+import {
+  AuthSessionResponseDto,
+  CurrentSessionResponseDto,
+  CurrentUserResponseDto,
+  Login2FAChallengeResponseDto,
+  LoginResponse,
+  SuccessResponseDto,
+  RegisterResponseDto,
+  GetActiveSessionsResponseDto,
+} from './dto/responses';
+import {
+  ApiEnvelopeOneOfResponse,
+  ApiEnvelopeResponse,
+} from 'src/common/decorators/api-envelope-response.decorator';
+import { AuthPasswordService } from './services/auth-password.service';
+import { AuthSessionService } from './services/auth-session.service';
+import { AuthTwoFactorService } from './services/auth-two-factor.service';
+import { AuthAccountService } from './services/auth-account.service';
+import { AuthProfileService } from './services/auth-profile.service';
+import { GoogleAuthUser } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
-
   constructor(
     private jwtService: JwtService,
     private readonly authService: AuthService,
+    private readonly authPasswordService: AuthPasswordService,
+    private readonly authSessionService: AuthSessionService,
+    private readonly authTwoFactorService: AuthTwoFactorService,
+    private readonly authAccountService: AuthAccountService,
+    private readonly authProfileService: AuthProfileService,
     private readonly configService: ConfigService,
   ) {}
 
   // ============= PUBLIC ROUTES =============
-
   @Public()
   @Post('register')
   @Throttle({ default: { ttl: 3600, limit: 3 } })
   @ApiOperation({ summary: 'Register a new user account' })
+  @ApiEnvelopeResponse(RegisterResponseDto, {
+    status: 201,
+    description: 'User registered successfully',
+  })
   @ApiResponse({ status: 409, description: 'Username or email already exists' })
-  async signup(
-    @Body() registerDto: RegisterDto,
-  ): Promise<RegisterUserResponse> {
+  async signup(@Body() registerDto: RegisterDto): Promise<RegisterResponseDto> {
     return this.authService.register(registerDto);
   }
 
@@ -93,18 +114,19 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 900, limit: 5 } })
   @ApiOperation({ summary: 'Login with username/email and password' })
-  @ApiResponse({
-    status: 200,
-    description: 'Login successful',
-    type: AuthResponseDto,
-  })
+  @ApiEnvelopeOneOfResponse(
+    [AuthSessionResponseDto, Login2FAChallengeResponseDto],
+    {
+      description: 'Login successful',
+    },
+  )
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async signin(
     @Body() loginDto: LoginDto,
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<LoginResponse> {
     const result = await this.authService.login(loginDto, ipAddress, userAgent);
 
     if ('requires2FA' in result) {
@@ -120,24 +142,22 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
-  @ApiResponse({
-    status: 200,
+  @ApiEnvelopeResponse(AuthSessionResponseDto, {
     description: 'Token refreshed successfully',
-    type: AuthResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ) {
-    const refreshToken = request.cookies?.refreshToken;
+  ): Promise<AuthSessionResponseDto> {
+    const refreshToken = this.getRefreshToken(request);
     if (!refreshToken) {
       this.clearAuthCookies(response);
       throw new UnauthorizedException('Refresh token not found');
     }
 
     try {
-      const result = await this.authService.refreshTokens(refreshToken);
+      const result = await this.authSessionService.refreshTokens(refreshToken);
 
       this.setAuthCookies(response, result);
 
@@ -148,62 +168,24 @@ export class AuthController {
     }
   }
 
-  @Public()
-  @Get('check-username')
-  @ApiOperation({ summary: 'Check if username is available' })
-  @ApiQuery({ name: 'username', example: 'johndoe' })
-  @ApiResponse({
-    status: 200,
-    description: 'Username availability status',
-    schema: {
-      type: 'object',
-      properties: {
-        available: { type: 'boolean', example: true },
-      },
-    },
-  })
-  async checkUsername(
-    @Query('username') username: string,
-  ): Promise<{ available: boolean }> {
-    return this.authService.checkUsername(username);
-  }
-
-  @Public()
-  @Get('check-email')
-  @ApiOperation({ summary: 'Check if email is available' })
-  @ApiQuery({ name: 'email', example: 'john@example.com' })
-  @ApiResponse({
-    status: 200,
-    description: 'Email availability status',
-    schema: {
-      type: 'object',
-      properties: {
-        available: { type: 'boolean', example: true },
-      },
-    },
-  })
-  async checkEmail(
-    @Query('email') email: string,
-  ): Promise<{ available: boolean }> {
-    return this.authService.checkEmail(email);
-  }
-
   // ============= SESSION ROUTES =============
-
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from current session' })
-  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  @ApiEnvelopeResponse(SuccessResponseDto, {
+    status: 200,
+    description: 'Logged out successfully',
+  })
   async signout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    const refreshToken = request.cookies?.refreshToken;
-    const userId = request.user?.['id'];
+    const refreshToken = this.getRefreshToken(request);
+    const userId = this.getRequestUserId(request);
 
     if (refreshToken) {
-      await this.authService.logout(userId, refreshToken);
+      await this.authSessionService.logout(userId, refreshToken);
     }
 
     this.clearAuthCookies(response);
@@ -215,12 +197,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from all devices/sessions' })
-  @ApiResponse({ status: 200, description: 'Logged out from all devices' })
+  @ApiEnvelopeResponse(SuccessResponseDto, {
+    status: 200,
+    description: 'Logged out from all devices',
+  })
   async signoutAll(
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    await this.authService.logoutAll(userId);
+    await this.authSessionService.logoutAll(userId);
 
     this.clearAuthCookies(response);
 
@@ -230,17 +215,16 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user profile' })
-  @ApiResponse({ status: 200, description: 'User profile retrieved' })
+  @ApiEnvelopeResponse(CurrentSessionResponseDto, {
+    description: 'User profile retrieved',
+  })
   async getProfile(
     @CurrentUser('id') userId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.authService.getProfile(userId, ipAddress, userAgent);
+  ): Promise<CurrentSessionResponseDto> {
+    return this.authProfileService.getProfile(userId);
   }
 
   // ============= PROFILE ROUTES =============
-
   @Patch('update-profile')
   @ApiBearerAuth()
   @UseInterceptors(
@@ -250,12 +234,12 @@ export class AuthController {
     ]),
   )
   @ApiOperation({ summary: 'Update current user profile' })
-  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiEnvelopeResponse(CurrentUserResponseDto, {
+    description: 'Profile updated successfully',
+  })
   async updateProfile(
     @CurrentUser('id') userId: string,
     @Body() updateDto: UpdateProfileDto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
     @UploadedFiles(
       new ImageValidationPipe(
         IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
@@ -266,12 +250,10 @@ export class AuthController {
       avatar?: Express.Multer.File[];
       cover?: Express.Multer.File[];
     },
-  ) {
-    return this.authService.updateProfile(
+  ): Promise<CurrentUserResponseDto> {
+    return this.authProfileService.updateProfile(
       userId,
       updateDto,
-      ipAddress,
-      userAgent,
       files?.avatar,
       files?.cover,
     );
@@ -287,19 +269,14 @@ export class AuthController {
   async updateAccountPrivacy(
     @CurrentUser('id') userId: string,
     @Body() updateAccountPrivacyDto: UpdateAccountPrivacyDto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.updateAccountPrivacy(
+    return this.authAccountService.updateAccountPrivacy(
       userId,
       updateAccountPrivacyDto,
-      userAgent,
-      ipAddress,
     );
   }
 
   // ============= ACCOUNT SECURITY ROUTES =============
-
   @Post('request-update-password')
   @ApiBearerAuth()
   @HttpCode(200)
@@ -308,7 +285,11 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authService.requestUpdatePassword(userId, userAgent, ipAddress);
+    await this.authPasswordService.requestUpdatePassword(
+      userId,
+      userAgent,
+      ipAddress,
+    );
 
     return { message: 'Verification code has been sent to your email.' };
   }
@@ -319,15 +300,8 @@ export class AuthController {
   async changeUsername(
     @Body() changeUsernameDto: ChangeUsernameDto,
     @CurrentUser('id') userId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.changeUsername(
-      userId,
-      changeUsernameDto,
-      userAgent,
-      ipAddress,
-    );
+    return this.authProfileService.changeUsername(userId, changeUsernameDto);
   }
 
   @Patch('change-birthday')
@@ -335,14 +309,10 @@ export class AuthController {
   async changeBirthDay(
     @CurrentUser('id') userId: string,
     @Body() changeDateOfBirthDto: ChangeDateOfBirthDto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.changeBirthday(
+    return this.authProfileService.changeDateOfBirth(
       userId,
       changeDateOfBirthDto,
-      userAgent,
-      ipAddress,
     );
   }
 
@@ -357,15 +327,11 @@ export class AuthController {
   async changePassword(
     @CurrentUser('id') userId: string,
     @Body() changePasswordDto: ChangePasswordDto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    const result = await this.authService.changePassword(
+    const result = await this.authPasswordService.changePassword(
       userId,
       changePasswordDto,
-      userAgent,
-      ipAddress,
     );
 
     this.clearAuthCookies(response);
@@ -374,7 +340,6 @@ export class AuthController {
   }
 
   // ============= PASSWORD RECOVERY ROUTES =============
-
   @Public()
   @Post('forgot-password')
   @HttpCode(200)
@@ -383,7 +348,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.requestPasswordReset(
+    return this.authPasswordService.requestPasswordReset(
       body.email,
       userAgent,
       ipAddress,
@@ -393,31 +358,22 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(200)
-  async reset(
-    @Body() resetPasswordDto: ResetPasswordDto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    await this.authService.resetPassword(
-      resetPasswordDto,
-      userAgent,
-      ipAddress,
-    );
+  async reset(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.authPasswordService.resetPassword(resetPasswordDto);
     return { message: 'Password has been updated successfully.' };
   }
 
   // ============= ACCOUNT EMAIL ROUTES =============
-
   @Post('request-update-email')
   @ApiBearerAuth()
   @HttpCode(200)
   async requestUpdateEmail(
-    @Body() requestUpdateEmail: RequestUpdateEmail,
+    @Body() requestUpdateEmail: RequestUpdateEmailDto,
     @CurrentUser('id') userId: string,
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authService.requestUpdateEmail(
+    await this.authAccountService.requestUpdateEmail(
       userId,
       requestUpdateEmail.newEmail,
       userAgent,
@@ -433,15 +389,11 @@ export class AuthController {
   async updateEmail(
     @Body() updateEmailDto: UpdateEmailDto,
     @CurrentUser('id') userId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.updateEmail(
+    const result = await this.authAccountService.updateEmail(
       updateEmailDto,
       userId,
-      userAgent,
-      ipAddress,
     );
 
     this.clearAuthCookies(response);
@@ -450,29 +402,15 @@ export class AuthController {
   }
 
   // ============= SESSION MANAGEMENT ROUTES =============
-
   @Get('sessions')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all active sessions for current user' })
-  @ApiResponse({
+  @ApiEnvelopeOneOfResponse([GetActiveSessionsResponseDto], {
     status: 200,
     description: 'List of active sessions',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          userAgent: { type: 'string' },
-          ipAddress: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' },
-          expiresAt: { type: 'string', format: 'date-time' },
-        },
-      },
-    },
   })
   async getActiveSessions(@CurrentUser('id') userId: string) {
-    return this.authService.getActiveSessions(userId);
+    return this.authSessionService.getActiveSessions(userId);
   }
 
   @Get('socket-token')
@@ -490,16 +428,18 @@ export class AuthController {
   @Delete('sessions/:sessionId')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke a specific session' })
-  @ApiResponse({ status: 200, description: 'Session revoked successfully' })
+  @ApiEnvelopeResponse(SuccessResponseDto, {
+    status: 200,
+    description: 'Session revoked successfully',
+  })
   async revokeSession(
     @CurrentUser('id') userId: string,
     @Param('sessionId') sessionId: string,
   ): Promise<{ message: string }> {
-    return this.authService.revokeSession(userId, sessionId);
+    return this.authSessionService.revokeSession(userId, sessionId);
   }
 
   // ============= EMAIL VERIFICATION & OAUTH ROUTES =============
-
   @Public()
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string, @Res() res: Response) {
@@ -512,7 +452,7 @@ export class AuthController {
     }
 
     try {
-      await this.authService.verifyEmail(token);
+      await this.authAccountService.verifyEmail(token);
 
       return res.redirect(
         `${frontendUrl}/login?status=success&message=Email_verified`,
@@ -525,7 +465,7 @@ export class AuthController {
       } else if (typeof error === 'string') {
         errorMessage = error;
       } else if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = String((error as any).message);
+        errorMessage = String(error.message);
       }
 
       return res.redirect(
@@ -552,7 +492,7 @@ export class AuthController {
     @Headers('user-agent') userAgent: string,
     @Res() response: Response,
   ) {
-    const googleUser = req.user;
+    const googleUser = req.user as GoogleAuthUser;
     const frontendUrl =
       this.configService.get<string>('config.client.url') ||
       'http://localhost:3000';
@@ -606,7 +546,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.requestEnable2FA(
+    return this.authTwoFactorService.requestEnable2FA(
       userId,
       setup2FADto,
       userAgent,
@@ -620,27 +560,23 @@ export class AuthController {
   async enable2FA(
     @CurrentUser('id') userId: string,
     @Body() enable2FADto: Enable2FADto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.enable2FA(
-      userId,
-      enable2FADto,
-      userAgent,
-      ipAddress,
-    );
+    return this.authTwoFactorService.enable2FA(userId, enable2FADto);
   }
 
   @Public()
   @Post('verify-login-2fa')
   @HttpCode(200)
+  @ApiEnvelopeResponse(AuthSessionResponseDto, {
+    description: 'Two-factor login verified successfully',
+  })
   async verifyLogin2FA(
     @Body() dto: VerifyLogin2FADto,
     @Headers('user-agent') userAgent: string,
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.verifyLogin2FA(
+    const result = await this.authTwoFactorService.verifyLogin2FA(
       dto,
       userAgent,
       ipAddress,
@@ -654,12 +590,8 @@ export class AuthController {
   @Post('request-disable-2fa')
   @ApiBearerAuth()
   @HttpCode(200)
-  async requestDisable2FA(
-    @CurrentUser('id') userId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.authService.requestDisable2FA(userId, userAgent, ipAddress);
+  async requestDisable2FA(@CurrentUser('id') userId: string) {
+    return this.authTwoFactorService.requestDisable2FA(userId);
   }
 
   @Post('disable-2fa')
@@ -668,15 +600,8 @@ export class AuthController {
   async disable2FA(
     @CurrentUser('id') userId: string,
     @Body() disable2FADto: Disable2FADto,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.disable2FA(
-      userId,
-      disable2FADto,
-      userAgent,
-      ipAddress,
-    );
+    return this.authTwoFactorService.disable2FA(userId, disable2FADto);
   }
 
   // ============= ACCOUNT DEACTIVATION ROUTES =============
@@ -689,7 +614,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authService.requestDeactivateAccount(
+    await this.authAccountService.requestDeactivateAccount(
       userId,
       userAgent,
       ipAddress,
@@ -706,7 +631,11 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authService.requestDeleteAccount(userId, userAgent, ipAddress);
+    await this.authAccountService.requestDeleteAccount(
+      userId,
+      userAgent,
+      ipAddress,
+    );
 
     return { message: 'Verification code has been sent to your email.' };
   }
@@ -717,15 +646,11 @@ export class AuthController {
   async deleteAccount(
     @CurrentUser('id') userId: string,
     @Body() deleteAccountDto: DeleteAccountDto,
-    @Headers('user-agent') userAgent: string,
-    @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.deleteAccount(
+    const result = await this.authAccountService.deleteAccount(
       userId,
       deleteAccountDto,
-      userAgent,
-      ipAddress,
     );
 
     this.clearAuthCookies(response);
@@ -739,15 +664,11 @@ export class AuthController {
   async deactivateAccount(
     @CurrentUser('id') userId: string,
     @Body() deactivateAccountDto: DeactivateAccountDto,
-    @Headers('user-agent') userAgent: string,
-    @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.deactivateAccount(
+    const result = await this.authAccountService.deactivateAccount(
       userId,
       deactivateAccountDto,
-      userAgent,
-      ipAddress,
     );
 
     this.clearAuthCookies(response);
@@ -757,7 +678,7 @@ export class AuthController {
 
   private setAuthCookies(
     response: Response,
-    tokens: Pick<AuthResponseDto, 'accessToken' | 'refreshToken'>,
+    tokens: Pick<AuthSessionResponseDto, 'accessToken' | 'refreshToken'>,
   ) {
     response.cookie(
       'accessToken',
@@ -767,6 +688,22 @@ export class AuthController {
     response.cookie('refreshToken', tokens.refreshToken, {
       ...refreshTokenCookieOptions,
     });
+  }
+
+  private getRefreshToken(request: Request): string | undefined {
+    const cookies = request.cookies as unknown;
+    if (!cookies || typeof cookies !== 'object') return undefined;
+
+    const refreshToken = (cookies as Record<string, unknown>).refreshToken;
+    return typeof refreshToken === 'string' ? refreshToken : undefined;
+  }
+
+  private getRequestUserId(request: Request): string | undefined {
+    const user = request.user as unknown;
+    if (!user || typeof user !== 'object') return undefined;
+
+    const userId = (user as Record<string, unknown>).id;
+    return typeof userId === 'string' ? userId : undefined;
   }
 
   private clearAuthCookies(response: Response) {
