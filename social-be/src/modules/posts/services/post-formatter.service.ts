@@ -55,7 +55,7 @@ export class PostFormatterService {
             },
             select: { followerId: true },
           })
-        : [],
+        : Promise.resolve([] as { followerId: string }[]),
     ]);
 
     const likedSet = new Set(likedPosts.map((like) => like.postId));

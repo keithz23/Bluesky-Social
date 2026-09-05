@@ -1,6 +1,4 @@
-export * from './change-date-of-birth.dto';
 export * from './change-password.dto';
-export * from './change-username.dto';
 export * from './deactivate-account.dto';
 export * from './delete-account.dto';
 export * from './disable-2fa.dto';
@@ -11,7 +9,5 @@ export * from './register.dto';
 export * from './request-update-email.dto';
 export * from './reset-password.dto';
 export * from './setup-2fa.dto';
-export * from './update-account-privacy.dto';
 export * from './update-email.dto';
 export * from './verify-login-2fa.dto';
-export * from './update-profile.dto';

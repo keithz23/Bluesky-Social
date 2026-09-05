@@ -1,10 +1,6 @@
 import { Prisma, User } from '@prisma/client';
-import {
-  CurrentUserResponseDto,
-  PublicUserResponseDto,
-  RegisterResponseDto,
-  RoleResponseDto,
-} from '../dto/responses';
+import { RegisterResponseDto, RoleResponseDto } from '../dto/responses';
+export { toCurrentUserResponse } from 'src/modules/users/mappers/user-response.mapper';
 
 export type UserWithRoles = Prisma.UserGetPayload<{
   include: {
@@ -21,35 +17,6 @@ export type UserWithRoles = Prisma.UserGetPayload<{
     };
   };
 }>;
-
-export function toPublicUserResponse(user: User): PublicUserResponseDto {
-  return {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    bio: user.bio,
-    avatarUrl: user.avatarUrl,
-    coverUrl: user.coverUrl,
-    verified: user.verified,
-    isPrivate: user.isPrivate,
-    followersCount: user.followersCount,
-    followingCount: user.followingCount,
-    postsCount: user.postsCount,
-    createdAt: user.createdAt.toISOString(),
-  };
-}
-
-export function toCurrentUserResponse(user: User): CurrentUserResponseDto {
-  return {
-    ...toPublicUserResponse(user),
-    email: user.email,
-    dateOfBirth: user.dateOfBirth?.toISOString() ?? null,
-    hasPassword: Boolean(user.passwordHash),
-    twoFactorEnabled: user.twoFactorEnabled,
-    twoFactorMethod: user.twoFactorMethod,
-    twoFactorEnabledAt: user.twoFactorEnabledAt?.toISOString() ?? null,
-  };
-}
 
 export function toRoleResponses(user: UserWithRoles): RoleResponseDto[] {
   return user.userRoles.map(({ role }) => ({

@@ -7,12 +7,8 @@ export const API_ENDPOINT = {
     ME: "/auth/me",
     FORGOT: "/auth/forgot-password",
     RESET: "/auth/reset-password",
-    UPDATE_PROFILE: "/auth/update-profile",
-    ACCOUNT_PRIVACY: "/auth/account-privacy",
     REQUEST_UPDATE_PASSWORD: "/auth/request-update-password",
     CHANGE_PASSWORD: "/auth/change-password",
-    CHANGE_USERNAME: "/auth/change-username",
-    CHANGE_BIRTHDAY: "/auth/change-birthday",
     REQUEST_UPDATE_EMAIL: "/auth/request-update-email",
     UPDATE_EMAIL: "/auth/update-email",
     REQUEST_DEACTIVATE_ACCOUNT: "/auth/request-deactivate-account",
@@ -66,7 +62,10 @@ export const API_ENDPOINT = {
     CATALOG: "/feed/catalog",
     PINNED: "/feed/pinned",
     PIN: (slug: string) => `/feed/${slug}/pin`,
-    POSTS: (slug: string, params?: { cursor?: string; limit?: number; seed?: string }) => {
+    POSTS: (
+      slug: string,
+      params?: { cursor?: string; limit?: number; seed?: string },
+    ) => {
       const query = new URLSearchParams();
       if (params?.cursor) query.set("cursor", params.cursor);
       if (params?.limit) query.set("limit", String(params.limit));
@@ -161,6 +160,10 @@ export const API_ENDPOINT = {
 
   USERS: {
     GET_PROFILE: (username: string) => `/users/${username}`,
+    UPDATE_PROFILE: "/users/me",
+    CHANGE_USERNAME: "/users/me/username",
+    CHANGE_DATE_OF_BIRTH: "/users/me/date-of-birth",
+    UPDATE_PRIVACY: "/users/me/privacy",
     SEARCH: (q: string, limit: number, listId?: string) => {
       const params = new URLSearchParams();
       params.set("q", q);

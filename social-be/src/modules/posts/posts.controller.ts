@@ -9,22 +9,22 @@ import {
   UploadedFiles,
   UseInterceptors,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
-import { CreatePostDto } from './dto/create-post.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
 import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { PostQueryDto } from './dto/post-query.dto';
-import { CreateReplyDto } from './dto/create-reply.dto';
-import { SearchPostsDto } from './dto/search-posts.dto';
-import { PinPostQueryDto } from './dto/pin-post-query.dto';
-import { ReplyQueryDto } from './dto/reply-query.dto';
+import {
+  CreatePostDto,
+  CreateReplyDto,
+  PinPostQueryDto,
+  PostQueryDto,
+  ReplyQueryDto,
+  SearchPostsDto,
+  UpdatePostDto,
+} from './dto/requests';
 import 'multer';
-import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
 
 @Controller('posts')
@@ -134,7 +134,12 @@ export class PostsController {
     @Param('postId') postId: string,
     @Query() query: ReplyQueryDto,
   ) {
-    return this.postsService.getReplies(userId, postId, query.cursor, query.limit);
+    return this.postsService.getReplies(
+      userId,
+      postId,
+      query.cursor,
+      query.limit,
+    );
   }
 
   @Get('/users/pin-post/:username')

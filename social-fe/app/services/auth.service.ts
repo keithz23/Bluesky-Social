@@ -1,5 +1,4 @@
 import { apiClient, refreshAuthSession } from "@/lib/axios";
-import type { AxiosProgressEvent } from "axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
   ChangePasswordData,
@@ -8,10 +7,6 @@ import {
   RegisterData,
   ResetPasswordData,
   UpdateEmailData,
-  UpdateProfileData,
-  UpdateAccountPrivacyData,
-  ChangeUsernameData,
-  ChangeBirthDayData,
   DeactivateAccountData,
   DeleteAccountData,
   Enable2FAData,
@@ -21,7 +16,6 @@ import {
 import type {
   AuthSessionResponse,
   CurrentSessionResponse,
-  CurrentUserResponse,
   LoginResponse,
   RegisterResponse,
 } from "../interfaces/auth-response.interface";
@@ -48,39 +42,6 @@ export const AuthService = {
 
   me: async (): Promise<CurrentSessionResponse> => {
     return apiClient.get<CurrentSessionResponse>(API_ENDPOINT.AUTH.ME);
-  },
-
-  updateProfile: async (
-    updateProfileData: UpdateProfileData,
-    onUploadProgress?: (event: AxiosProgressEvent) => void,
-  ) => {
-    const formData = new FormData();
-    if (updateProfileData.displayName) {
-      formData.append("displayName", updateProfileData.displayName);
-    }
-    if (updateProfileData.bio !== undefined) {
-      formData.append("bio", updateProfileData.bio);
-    }
-    if (updateProfileData.avatarFile) {
-      formData.append("avatar", updateProfileData.avatarFile);
-    }
-    if (updateProfileData.coverFile) {
-      formData.append("cover", updateProfileData.coverFile);
-    }
-    return apiClient.patch<CurrentUserResponse>(
-      API_ENDPOINT.AUTH.UPDATE_PROFILE,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress },
-    );
-  },
-
-  updateAccountPrivacy: (
-    updateAccountPrivacyData: UpdateAccountPrivacyData,
-  ) => {
-    return apiClient.patch<CurrentUserResponse>(
-      API_ENDPOINT.AUTH.ACCOUNT_PRIVACY,
-      updateAccountPrivacyData,
-    );
   },
 
   forgot: (email: string) => {
@@ -119,20 +80,6 @@ export const AuthService = {
     return apiClient.patch<unknown>(
       API_ENDPOINT.AUTH.CHANGE_PASSWORD,
       changePasswordData,
-    );
-  },
-
-  changeUsername: (changeUsernameData: ChangeUsernameData) => {
-    return apiClient.patch<unknown>(
-      API_ENDPOINT.AUTH.CHANGE_USERNAME,
-      changeUsernameData,
-    );
-  },
-
-  changeBirthDay: (changeBirthDayData: ChangeBirthDayData) => {
-    return apiClient.patch<unknown>(
-      API_ENDPOINT.AUTH.CHANGE_BIRTHDAY,
-      changeBirthDayData,
     );
   },
 

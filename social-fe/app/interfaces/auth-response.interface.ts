@@ -1,23 +1,6 @@
-export interface CurrentUserResponse {
-  id: string;
-  username: string;
-  email: string;
-  displayName: string;
-  bio: string | null;
-  avatarUrl: string | null;
-  coverUrl: string | null;
-  verified: boolean;
-  isPrivate: boolean;
-  followersCount: number;
-  followingCount: number;
-  postsCount: number;
-  createdAt: string;
-  dateOfBirth: string | null;
-  hasPassword: boolean;
-  twoFactorEnabled: boolean;
-  twoFactorMethod: "EMAIL" | "TOTP" | null;
-  twoFactorEnabledAt: string | null;
-}
+import type { CurrentUserResponse } from "./user-response.interface";
+
+export type { CurrentUserResponse } from "./user-response.interface";
 
 export interface RoleResponse {
   id: string;

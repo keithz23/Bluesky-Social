@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AuthService } from "../services/auth.service";
+import { UserService } from "../services/user.service";
 import { extractErrMsg } from "../utils/error.util";
 import {
   LoginCredentials,
   RegisterData,
   ResetPasswordData,
-  UpdateProfileData,
 } from "../interfaces/auth.interface";
+import type { UpdateProfileData } from "../interfaces/user.interface";
 import type { AuthSessionResponse } from "../interfaces/auth-response.interface";
 import { AxiosError } from "axios";
 import { useState } from "react";
@@ -191,7 +192,7 @@ export function useAuth() {
         updateProfileData.avatarFile || updateProfileData.coverFile,
       );
       setProfileUploadProgress(hasUpload ? 0 : null);
-      const res = await AuthService.updateProfile(
+      const res = await UserService.updateProfile(
         updateProfileData,
         (event) => {
           if (!event.total) return;

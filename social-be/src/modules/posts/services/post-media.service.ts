@@ -117,6 +117,26 @@ export class PostMediaService {
     }
   }
 
+  getModerationData(upload: ModeratedUploadResult) {
+    return {
+      moderationStatus: upload.moderation.status,
+      moderationLabels:
+        upload.moderation.labels.length > 0
+          ? upload.moderation.labels
+          : undefined,
+      moderationCheckedAt: upload.moderation.checkedAt,
+      moderationProvider: upload.moderation.provider,
+      moderationBlockReason: upload.moderation.blockReason,
+    };
+  }
+
+  collectModeratedUploads(
+    uploadResults: ModeratedUploadResult[],
+    gifUploadResult: ModeratedUploadResult | null,
+  ): ModeratedUploadResult[] {
+    return [...uploadResults, ...(gifUploadResult ? [gifUploadResult] : [])];
+  }
+
   private async moderateUploads(uploadResults: UploadResult[]) {
     const moderationResults = await Promise.all(
       uploadResults.map((upload) => this.imageModeration.scanUpload(upload)),

@@ -1,63 +1,26 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './services/auth.service';
+import { AuthAccountModule } from './account/auth-account.module';
 import { AuthController } from './auth.controller';
-import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RefreshJwtStrategy } from './strategies/jwt-refresh.strategy';
-import { MailModule } from 'src/mail/mail.module';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { AuthService } from './auth.service';
+import { AuthIdentityModule } from './identity/auth-identity.module';
+import { AuthPasswordModule } from './password/auth-password.module';
+import { AuthSessionModule } from './session/auth-session.module';
+import { AuthSharedModule } from './shared/auth-shared.module';
 import { GoogleStrategy } from './strategies/google.strategy';
-import { CacheModule } from '../cache/cache.module';
-import { UploadModule } from 'src/uploads/upload.module';
-import { JwtUtils } from './utils/jwt.util';
-import { MailUtils } from './utils/mail.util';
-import { TwoFactorUtils } from './utils/two-factor.util';
-import { OtherUtils } from './utils/other.util';
-import { SettingsModule } from '../admin/settings/settings.module';
-import { AuthAccountService } from './services/auth-account.service';
-import { AuthPasswordService } from './services/auth-password.service';
-import { AuthProfileService } from './services/auth-profile.service';
-import { AuthSessionService } from './services/auth-session.service';
-import { AuthTwoFactorService } from './services/auth-two-factor.service';
+import { RefreshJwtStrategy } from './strategies/jwt-refresh.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { AuthTwoFactorModule } from './two-factor/auth-two-factor.module';
 
 @Module({
   imports: [
-    MailModule,
-    PrismaModule,
-    CacheModule,
-    UploadModule,
-    SettingsModule,
-    JwtModule.registerAsync({
-      useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('config.jwt.secret');
-        const expiresIn =
-          configService.get<JwtSignOptions['expiresIn']>(
-            'config.jwt.expiresIn',
-          ) ?? '1h';
-        return {
-          secret,
-          signOptions: { expiresIn },
-        };
-      },
-      inject: [ConfigService],
-    }),
+    AuthSharedModule,
+    AuthIdentityModule,
+    AuthSessionModule,
+    AuthPasswordModule,
+    AuthTwoFactorModule,
+    AuthAccountModule,
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    AuthAccountService,
-    AuthPasswordService,
-    AuthProfileService,
-    AuthSessionService,
-    AuthTwoFactorService,
-    JwtStrategy,
-    RefreshJwtStrategy,
-    GoogleStrategy,
-    JwtUtils,
-    MailUtils,
-    TwoFactorUtils,
-    OtherUtils,
-  ],
+  providers: [AuthService, JwtStrategy, RefreshJwtStrategy, GoogleStrategy],
 })
 export class AuthModule {}

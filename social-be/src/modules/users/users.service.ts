@@ -1,93 +1,67 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { SearchUserDto } from './dto/search-user.dto';
-import { Prisma, User } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import {
+  ChangeDateOfBirthDto,
+  ChangeUsernameDto,
+  SearchUsersQueryDto,
+  UpdateAccountPrivacyDto,
+  UpdateProfileDto,
+} from './dto/requests';
+import {
+  CurrentUserResponseDto,
+  ProfileResponseDto,
+  UserSearchItemResponseDto,
+} from './dto/responses';
+import { UserProfileService } from './services/user-profile.service';
+import { UserSearchService } from './services/user-search.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly profileService: UserProfileService,
+    private readonly searchService: UserSearchService,
+  ) {}
 
-  async getProfile(username: string, currentUserId: string) {
-    const user = await this.prisma.user.findFirst({
-      where: { username },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatarUrl: true,
-        coverUrl: true,
-        bio: true,
-        verified: true,
-        isPrivate: true,
-        createdAt: true,
-        followersCount: true,
-        followingCount: true,
-        postsCount: true,
-      },
-    });
-
-    if (!user) throw new NotFoundException('User not found');
-
-    if (user.id === currentUserId) {
-      return { ...user, followStatus: null, isOwner: true };
-    }
-
-    const [follow, request] = await Promise.all([
-      this.prisma.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: currentUserId,
-            followingId: user.id,
-          },
-        },
-      }),
-      this.prisma.followRequest.findUnique({
-        where: {
-          senderId_receiverId: {
-            senderId: currentUserId,
-            receiverId: user.id,
-          },
-        },
-      }),
-    ]);
-
-    const followStatus = follow ? 'following' : request ? 'requested' : 'none';
-
-    return { ...user, followStatus, isOwner: false };
+  search(
+    userId: string,
+    query: SearchUsersQueryDto,
+  ): Promise<UserSearchItemResponseDto[]> {
+    return this.searchService.search(userId, query);
   }
 
-  async searchUser(userId: string, searchUserDto: SearchUserDto) {
-    const { q, limit = 10, listId } = searchUserDto;
+  getPublicProfile(
+    username: string,
+    currentUserId: string,
+  ): Promise<ProfileResponseDto> {
+    return this.profileService.getPublicProfile(username, currentUserId);
+  }
 
-    const isAddedSelect = listId
-      ? Prisma.sql`, EXISTS(SELECT 1 FROM list_members lm WHERE lm.member_id = users.id AND lm.list_id = ${listId}) AS "isAdded"`
-      : Prisma.sql`, false AS "isAdded"`;
+  updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+    avatar?: Express.Multer.File[],
+    cover?: Express.Multer.File[],
+  ): Promise<CurrentUserResponseDto> {
+    return this.profileService.updateProfile(userId, dto, avatar, cover);
+  }
 
-    const users = await this.prisma.$queryRaw<any[]>`
-    SELECT 
-      id, username, bio, verified,
-      avatar_url AS "avatarUrl",
-      cover_url AS "coverUrl",
-      display_name AS "displayName"
-      ${isAddedSelect} 
-    FROM users
-    WHERE (
-      username ILIKE ${`%${q}%`}
-      OR display_name ILIKE ${`%${q}%`}
-    )
-    AND id != ${userId}
-    ORDER BY
-      CASE 
-        WHEN username ILIKE ${`${q}%`} THEN 0      -- exact prefix match username
-        WHEN display_name ILIKE ${`${q}%`} THEN 1  -- exact prefix match display_name
-        ELSE 2
-      END
-    LIMIT ${Prisma.sql`${limit}::int`}
-  `;
+  changeUsername(
+    userId: string,
+    dto: ChangeUsernameDto,
+  ): Promise<CurrentUserResponseDto> {
+    return this.profileService.changeUsername(userId, dto);
+  }
 
-    return users.map((user) => ({
-      ...user,
-      isAdded: Boolean(user.isAdded),
-    }));
+  changeDateOfBirth(
+    userId: string,
+    dto: ChangeDateOfBirthDto,
+  ): Promise<CurrentUserResponseDto> {
+    return this.profileService.changeDateOfBirth(userId, dto);
+  }
+
+  updatePrivacy(
+    userId: string,
+    dto: UpdateAccountPrivacyDto,
+  ): Promise<CurrentUserResponseDto> {
+    return this.profileService.updatePrivacy(userId, dto);
   }
 }

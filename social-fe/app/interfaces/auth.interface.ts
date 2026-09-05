@@ -19,17 +19,6 @@ export interface ResetPasswordData {
   newPassword: string;
 }
 
-export interface UpdateProfileData {
-  displayName?: string;
-  bio?: string;
-  avatarFile?: File;
-  coverFile?: File;
-}
-
-export interface UpdateAccountPrivacyData {
-  isPrivate: boolean;
-}
-
 export interface RequestUpdateEmailData {
   newEmail: string;
 }
@@ -41,14 +30,6 @@ export interface UpdateEmailData {
 export interface ChangePasswordData {
   otp: string;
   newPassword: string;
-}
-
-export interface ChangeUsernameData {
-  username: string;
-}
-
-export interface ChangeBirthDayData {
-  dateOfBirth: string;
 }
 
 export interface DeactivateAccountData {

@@ -11,15 +11,18 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
-  DATE_ONLY_MESSAGE,
-  DATE_ONLY_PATTERN,
   STRONG_PASSWORD_MESSAGE,
   STRONG_PASSWORD_PATTERN,
+} from '../shared';
+import {
+  DATE_ONLY_MESSAGE,
+  DATE_ONLY_PATTERN,
+  EMAIL_MAX_LENGTH,
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
   USERNAME_PATTERN,
   USERNAME_PATTERN_MESSAGE,
-} from '../shared';
+} from 'src/common/constants/user-validation.constant';
 
 export class RegisterDto {
   @ApiProperty({
@@ -41,6 +44,7 @@ export class RegisterDto {
   })
   @IsEmail()
   @IsNotEmpty()
+  @MaxLength(EMAIL_MAX_LENGTH)
   email!: string;
 
   @ApiProperty({

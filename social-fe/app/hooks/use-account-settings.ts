@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AuthService } from "../services/auth.service";
+import { UserService } from "../services/user.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
 import { useRouter } from "next/navigation";
@@ -78,7 +79,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
 
   const changeUsernameMutation = useMutation({
     mutationFn: (payload: { username: string }) =>
-      AuthService.changeUsername(payload),
+      UserService.changeUsername(payload),
     onSuccess: async () => {
       qc.setQueryData(["me"], null);
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -93,7 +94,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
 
   const changeBirthDayMutation = useMutation({
     mutationFn: (payload: { dateOfBirth: string }) =>
-      AuthService.changeBirthDay(payload),
+      UserService.changeDateOfBirth(payload),
     onSuccess: async () => {
       qc.setQueryData(["me"], null);
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -107,7 +108,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
 
   const updateAccountPrivacyMutation = useMutation({
     mutationFn: (payload: { isPrivate: boolean }) =>
-      AuthService.updateAccountPrivacy(payload),
+      UserService.updatePrivacy(payload),
     onSuccess: async (user) => {
       qc.setQueryData(["me"], user);
       await qc.invalidateQueries({ queryKey: ["profile"] });

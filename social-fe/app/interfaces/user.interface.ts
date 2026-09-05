@@ -11,13 +11,32 @@ export interface User {
   createdAt?: string;
   dateOfBirth?: string | null;
   isOwner?: boolean;
-  followersCount: number;
-  followingCount: number;
+  followersCount?: number;
+  followingCount?: number;
   postsCount?: number;
-  followStatus?: string;
+  followStatus?: string | null;
   isFollowedByAuthor?: boolean;
   hasPassword?: boolean;
   twoFactorEnabled?: boolean;
   twoFactorMethod?: "EMAIL" | "TOTP" | null;
   twoFactorEnabledAt?: string | null;
+}
+
+export interface UpdateProfileData {
+  displayName?: string;
+  bio?: string;
+  avatarFile?: File;
+  coverFile?: File;
+}
+
+export interface UpdateAccountPrivacyData {
+  isPrivate: boolean;
+}
+
+export interface ChangeUsernameData {
+  username: string;
+}
+
+export interface ChangeDateOfBirthData {
+  dateOfBirth: string;
 }

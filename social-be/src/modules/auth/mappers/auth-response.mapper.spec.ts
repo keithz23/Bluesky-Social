@@ -1,6 +1,5 @@
 import { TwoFactorMethod, User, UserStatus } from '@prisma/client';
 import {
-  toCurrentUserResponse,
   toRegisterResponse,
   toRoleResponses,
   UserWithRoles,
@@ -30,22 +29,6 @@ const user = {
 } as User;
 
 describe('auth response mapper', () => {
-  it('maps a current user without exposing persistence-only fields', () => {
-    const response = toCurrentUserResponse(user);
-
-    expect(response).toEqual(
-      expect.objectContaining({
-        id: 'user-1',
-        createdAt: '2026-09-04T03:22:07.085Z',
-        dateOfBirth: '2000-01-01T00:00:00.000Z',
-        hasPassword: true,
-        twoFactorMethod: TwoFactorMethod.TOTP,
-      }),
-    );
-    expect(response).not.toHaveProperty('passwordHash');
-    expect(response).not.toHaveProperty('googleId');
-  });
-
   it('maps the minimal register response', () => {
     expect(toRegisterResponse(user)).toEqual({
       id: 'user-1',

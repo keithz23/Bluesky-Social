@@ -31,6 +31,23 @@ export const ApiEnvelopeResponse = <TModel extends Type<unknown>>(
     }),
   );
 
+/** Documents an enveloped response whose data is an array of one model. */
+export const ApiEnvelopeArrayResponse = <TModel extends Type<unknown>>(
+  model: TModel,
+  options: EnvelopeResponseOptions = {},
+) =>
+  applyDecorators(
+    ApiExtraModels(model),
+    ApiResponse({
+      status: options.status ?? 200,
+      description: options.description,
+      schema: envelopeSchema({
+        type: 'array',
+        items: { $ref: getSchemaPath(model) },
+      }),
+    }),
+  );
+
 /** Documents an enveloped response whose data has multiple valid shapes. */
 export const ApiEnvelopeOneOfResponse = (
   models: Type<unknown>[],

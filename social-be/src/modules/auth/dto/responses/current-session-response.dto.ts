@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CurrentUserResponseDto } from './current-user-response.dto';
+import { CurrentUserResponseDto } from 'src/modules/users/dto/responses';
 import { RoleResponseDto } from './role-response.dto';
 
 /** Current account and authorization context without issuing new tokens. */

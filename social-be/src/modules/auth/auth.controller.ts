@@ -15,11 +15,8 @@ import {
   Req,
   UnauthorizedException,
   UseGuards,
-  UseInterceptors,
   ConflictException,
-  UploadedFiles,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -27,11 +24,9 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './services/auth.service';
+import { AuthService } from './auth.service';
 import {
-  ChangeDateOfBirthDto,
   ChangePasswordDto,
-  ChangeUsernameDto,
   DeactivateAccountDto,
   DeleteAccountDto,
   Disable2FADto,
@@ -42,19 +37,13 @@ import {
   RequestUpdateEmailDto,
   ResetPasswordDto,
   Setup2FADto,
-  UpdateAccountPrivacyDto,
   UpdateEmailDto,
-  UpdateProfileDto,
   VerifyLogin2FADto,
 } from './dto/requests';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Request, Response } from 'express';
 import { GoogleOAuthGuard } from 'src/common/guards/google-oauth.guard';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { ImageValidationPipe } from 'src/common/pipes/file-validation.pipe';
-import { IMAGE_UPLOAD } from 'src/common/constants/upload.constant';
 import {
   accessTokenCookieOptions,
   cookieOptions,
@@ -63,7 +52,6 @@ import {
 import {
   AuthSessionResponseDto,
   CurrentSessionResponseDto,
-  CurrentUserResponseDto,
   Login2FAChallengeResponseDto,
   LoginResponse,
   SuccessResponseDto,
@@ -74,26 +62,12 @@ import {
   ApiEnvelopeOneOfResponse,
   ApiEnvelopeResponse,
 } from 'src/common/decorators/api-envelope-response.decorator';
-import { AuthPasswordService } from './services/auth-password.service';
-import { AuthSessionService } from './services/auth-session.service';
-import { AuthTwoFactorService } from './services/auth-two-factor.service';
-import { AuthAccountService } from './services/auth-account.service';
-import { AuthProfileService } from './services/auth-profile.service';
 import { GoogleAuthUser } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private jwtService: JwtService,
-    private readonly authService: AuthService,
-    private readonly authPasswordService: AuthPasswordService,
-    private readonly authSessionService: AuthSessionService,
-    private readonly authTwoFactorService: AuthTwoFactorService,
-    private readonly authAccountService: AuthAccountService,
-    private readonly authProfileService: AuthProfileService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   // ============= PUBLIC ROUTES =============
   @Public()
@@ -157,7 +131,7 @@ export class AuthController {
     }
 
     try {
-      const result = await this.authSessionService.refreshTokens(refreshToken);
+      const result = await this.authService.refreshTokens(refreshToken);
 
       this.setAuthCookies(response, result);
 
@@ -185,7 +159,7 @@ export class AuthController {
     const userId = this.getRequestUserId(request);
 
     if (refreshToken) {
-      await this.authSessionService.logout(userId, refreshToken);
+      await this.authService.logout(userId, refreshToken);
     }
 
     this.clearAuthCookies(response);
@@ -205,7 +179,7 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    await this.authSessionService.logoutAll(userId);
+    await this.authService.logoutAll(userId);
 
     this.clearAuthCookies(response);
 
@@ -221,59 +195,7 @@ export class AuthController {
   async getProfile(
     @CurrentUser('id') userId: string,
   ): Promise<CurrentSessionResponseDto> {
-    return this.authProfileService.getProfile(userId);
-  }
-
-  // ============= PROFILE ROUTES =============
-  @Patch('update-profile')
-  @ApiBearerAuth()
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'avatar', maxCount: 1 },
-      { name: 'cover', maxCount: 1 },
-    ]),
-  )
-  @ApiOperation({ summary: 'Update current user profile' })
-  @ApiEnvelopeResponse(CurrentUserResponseDto, {
-    description: 'Profile updated successfully',
-  })
-  async updateProfile(
-    @CurrentUser('id') userId: string,
-    @Body() updateDto: UpdateProfileDto,
-    @UploadedFiles(
-      new ImageValidationPipe(
-        IMAGE_UPLOAD.MAX_FILE_SIZE_BYTES,
-        IMAGE_UPLOAD.MAX_PROFILE_IMAGES,
-      ),
-    )
-    files: {
-      avatar?: Express.Multer.File[];
-      cover?: Express.Multer.File[];
-    },
-  ): Promise<CurrentUserResponseDto> {
-    return this.authProfileService.updateProfile(
-      userId,
-      updateDto,
-      files?.avatar,
-      files?.cover,
-    );
-  }
-
-  @Patch('account-privacy')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update current user account privacy' })
-  @ApiResponse({
-    status: 200,
-    description: 'Account privacy updated successfully',
-  })
-  async updateAccountPrivacy(
-    @CurrentUser('id') userId: string,
-    @Body() updateAccountPrivacyDto: UpdateAccountPrivacyDto,
-  ) {
-    return this.authAccountService.updateAccountPrivacy(
-      userId,
-      updateAccountPrivacyDto,
-    );
+    return this.authService.getCurrentSession(userId);
   }
 
   // ============= ACCOUNT SECURITY ROUTES =============
@@ -285,35 +207,9 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authPasswordService.requestUpdatePassword(
-      userId,
-      userAgent,
-      ipAddress,
-    );
+    await this.authService.requestUpdatePassword(userId, userAgent, ipAddress);
 
     return { message: 'Verification code has been sent to your email.' };
-  }
-
-  @Patch('change-username')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Change username/display name' })
-  async changeUsername(
-    @Body() changeUsernameDto: ChangeUsernameDto,
-    @CurrentUser('id') userId: string,
-  ) {
-    return this.authProfileService.changeUsername(userId, changeUsernameDto);
-  }
-
-  @Patch('change-birthday')
-  @ApiBearerAuth()
-  async changeBirthDay(
-    @CurrentUser('id') userId: string,
-    @Body() changeDateOfBirthDto: ChangeDateOfBirthDto,
-  ) {
-    return this.authProfileService.changeDateOfBirth(
-      userId,
-      changeDateOfBirthDto,
-    );
   }
 
   @Patch('change-password')
@@ -329,7 +225,7 @@ export class AuthController {
     @Body() changePasswordDto: ChangePasswordDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ message: string }> {
-    const result = await this.authPasswordService.changePassword(
+    const result = await this.authService.changePassword(
       userId,
       changePasswordDto,
     );
@@ -348,7 +244,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.authPasswordService.requestPasswordReset(
+    return this.authService.requestPasswordReset(
       body.email,
       userAgent,
       ipAddress,
@@ -359,7 +255,7 @@ export class AuthController {
   @Post('reset-password')
   @HttpCode(200)
   async reset(@Body() resetPasswordDto: ResetPasswordDto) {
-    await this.authPasswordService.resetPassword(resetPasswordDto);
+    await this.authService.resetPassword(resetPasswordDto);
     return { message: 'Password has been updated successfully.' };
   }
 
@@ -373,7 +269,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authAccountService.requestUpdateEmail(
+    await this.authService.requestUpdateEmail(
       userId,
       requestUpdateEmail.newEmail,
       userAgent,
@@ -391,10 +287,7 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authAccountService.updateEmail(
-      updateEmailDto,
-      userId,
-    );
+    const result = await this.authService.updateEmail(updateEmailDto, userId);
 
     this.clearAuthCookies(response);
 
@@ -410,19 +303,12 @@ export class AuthController {
     description: 'List of active sessions',
   })
   async getActiveSessions(@CurrentUser('id') userId: string) {
-    return this.authSessionService.getActiveSessions(userId);
+    return this.authService.getActiveSessions(userId);
   }
 
   @Get('socket-token')
   getSocketToken(@CurrentUser('id') userId: string) {
-    const token = this.jwtService.sign(
-      { sub: userId },
-      {
-        secret: this.configService.get('config.jwt.secret'),
-        expiresIn: '1h',
-      },
-    );
-    return { token };
+    return this.authService.createSocketToken(userId);
   }
 
   @Delete('sessions/:sessionId')
@@ -436,14 +322,14 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Param('sessionId') sessionId: string,
   ): Promise<{ message: string }> {
-    return this.authSessionService.revokeSession(userId, sessionId);
+    return this.authService.revokeSession(userId, sessionId);
   }
 
   // ============= EMAIL VERIFICATION & OAUTH ROUTES =============
   @Public()
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string, @Res() res: Response) {
-    const frontendUrl = this.configService.get<string>('config.client.url');
+    const frontendUrl = this.authService.getClientUrl();
 
     if (!token) {
       return res.redirect(
@@ -452,7 +338,7 @@ export class AuthController {
     }
 
     try {
-      await this.authAccountService.verifyEmail(token);
+      await this.authService.verifyEmail(token);
 
       return res.redirect(
         `${frontendUrl}/login?status=success&message=Email_verified`,
@@ -493,9 +379,7 @@ export class AuthController {
     @Res() response: Response,
   ) {
     const googleUser = req.user as GoogleAuthUser;
-    const frontendUrl =
-      this.configService.get<string>('config.client.url') ||
-      'http://localhost:3000';
+    const frontendUrl = this.authService.getClientUrl();
 
     try {
       const result = await this.authService.googleLogin(
@@ -546,7 +430,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.authTwoFactorService.requestEnable2FA(
+    return this.authService.requestEnable2FA(
       userId,
       setup2FADto,
       userAgent,
@@ -561,7 +445,7 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Body() enable2FADto: Enable2FADto,
   ) {
-    return this.authTwoFactorService.enable2FA(userId, enable2FADto);
+    return this.authService.enable2FA(userId, enable2FADto);
   }
 
   @Public()
@@ -576,7 +460,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authTwoFactorService.verifyLogin2FA(
+    const result = await this.authService.verifyLogin2FA(
       dto,
       userAgent,
       ipAddress,
@@ -591,7 +475,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(200)
   async requestDisable2FA(@CurrentUser('id') userId: string) {
-    return this.authTwoFactorService.requestDisable2FA(userId);
+    return this.authService.requestDisable2FA(userId);
   }
 
   @Post('disable-2fa')
@@ -601,7 +485,7 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Body() disable2FADto: Disable2FADto,
   ) {
-    return this.authTwoFactorService.disable2FA(userId, disable2FADto);
+    return this.authService.disable2FA(userId, disable2FADto);
   }
 
   // ============= ACCOUNT DEACTIVATION ROUTES =============
@@ -614,7 +498,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authAccountService.requestDeactivateAccount(
+    await this.authService.requestDeactivateAccount(
       userId,
       userAgent,
       ipAddress,
@@ -631,11 +515,7 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    await this.authAccountService.requestDeleteAccount(
-      userId,
-      userAgent,
-      ipAddress,
-    );
+    await this.authService.requestDeleteAccount(userId, userAgent, ipAddress);
 
     return { message: 'Verification code has been sent to your email.' };
   }
@@ -648,7 +528,7 @@ export class AuthController {
     @Body() deleteAccountDto: DeleteAccountDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authAccountService.deleteAccount(
+    const result = await this.authService.deleteAccount(
       userId,
       deleteAccountDto,
     );
@@ -666,7 +546,7 @@ export class AuthController {
     @Body() deactivateAccountDto: DeactivateAccountDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authAccountService.deactivateAccount(
+    const result = await this.authService.deactivateAccount(
       userId,
       deactivateAccountDto,
     );
