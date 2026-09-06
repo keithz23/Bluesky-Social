@@ -9,8 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PermissionsService } from './permissions.service';
-import { CreatePermissionDto } from './dto/create-permission.dto';
-import { UpdatePermissionDto } from './dto/update-permission.dto';
+import { CreatePermissionDto } from './dto/requests/create-permission.dto';
+import { UpdatePermissionDto } from './dto/requests/update-permission.dto';
 import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
 

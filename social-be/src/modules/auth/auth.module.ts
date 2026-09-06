@@ -1,52 +1,26 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthAccountModule } from './account/auth-account.module';
 import { AuthController } from './auth.controller';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RefreshJwtStrategy } from './strategies/jwt-refresh.strategy';
-import { MailModule } from 'src/mail/mail.module';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { AuthService } from './auth.service';
+import { AuthIdentityModule } from './identity/auth-identity.module';
+import { AuthPasswordModule } from './password/auth-password.module';
+import { AuthSessionModule } from './session/auth-session.module';
+import { AuthSharedModule } from './shared/auth-shared.module';
 import { GoogleStrategy } from './strategies/google.strategy';
-import { CacheModule } from '../cache/cache.module';
-import { UploadModule } from 'src/uploads/upload.module';
-import { JwtUtils } from './utils/jwt.util';
-import { MailUtils } from './utils/mail.util';
-import { TwoFactorUtils } from './utils/two-factor.util';
-import { OtherUtils } from './utils/other.util';
-import { SettingsModule } from '../admin/settings/settings.module';
+import { RefreshJwtStrategy } from './strategies/jwt-refresh.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { AuthTwoFactorModule } from './two-factor/auth-two-factor.module';
 
 @Module({
   imports: [
-    MailModule,
-    PrismaModule,
-    CacheModule,
-    UploadModule,
-    SettingsModule,
-    JwtModule.registerAsync({
-      useFactory: async (configService: ConfigService) => {
-        const secret = configService.get('config.jwt.secret');
-        return {
-          secret,
-          signOptions: {
-            expiresIn: configService.get('config.jwt.expiresIn') || '1h',
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
+    AuthSharedModule,
+    AuthIdentityModule,
+    AuthSessionModule,
+    AuthPasswordModule,
+    AuthTwoFactorModule,
+    AuthAccountModule,
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    RefreshJwtStrategy,
-    GoogleStrategy,
-    JwtUtils,
-    MailUtils,
-    JwtUtils,
-    TwoFactorUtils,
-    OtherUtils,
-  ],
+  providers: [AuthService, JwtStrategy, RefreshJwtStrategy, GoogleStrategy],
 })
 export class AuthModule {}

@@ -7,6 +7,9 @@ import { SocketModule } from '../socket/socket.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { BullModule } from '@nestjs/bullmq';
 import { VisibilityModule } from 'src/common/services/visibility.module';
+import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
+import { ListsCommandService } from './services/lists-command.service';
+import { ListsQueryService } from './services/lists-query.service';
 
 @Module({
   imports: [
@@ -16,10 +19,10 @@ import { VisibilityModule } from 'src/common/services/visibility.module';
     NotificationsModule,
     VisibilityModule,
     BullModule.registerQueue({
-      name: 'posts',
+      name: QUEUE_NAMES.CLEANUP,
     }),
   ],
   controllers: [ListsController],
-  providers: [ListsService],
+  providers: [ListsService, ListsCommandService, ListsQueryService],
 })
 export class ListsModule {}

@@ -16,10 +16,8 @@ import {
 import { HashUtil } from 'src/common/utils/hash.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import {
-  Login2FAChallengeData,
-  Login2FAChallengeResponse,
-} from 'src/common/interfaces/auth.interface';
+import { Login2FAChallengeData } from 'src/modules/auth/interfaces/auth.interface';
+import { Login2FAChallengeResponseDto } from '../dto/responses';
 import { CacheService } from 'src/modules/cache/cache.service';
 
 @Injectable()
@@ -270,7 +268,7 @@ export class TwoFactorUtils {
     user: Pick<User, 'id' | 'email' | 'username'>,
     userAgent?: string,
     ipAddress?: string,
-  ): Promise<Login2FAChallengeResponse> {
+  ): Promise<Login2FAChallengeResponseDto> {
     const challengeId = crypto.randomUUID();
 
     await this.redisService.set(

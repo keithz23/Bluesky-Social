@@ -1,42 +1,11 @@
-export type RuleSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+import type { ApiEnvelope, PaginationMeta, RuleResponse } from "@social/api-contracts";
 
-export interface Rule {
-  id: string;
-  title: string;
-  description: string;
-  severity: RuleSeverity;
-  isActive: boolean;
-  displayOrder: number;
-  createdAt: string;
-  updatedAt: string;
+export type {
+  CreateRuleRequest as CreateRulePayload,
+  RuleResponse as Rule,
+  RuleSeverity,
+  UpdateRuleRequest as UpdateRulePayload,
+} from "@social/api-contracts";
 
-  _count?: {
-    reports: number;
-    keywords: number;
-  };
-}
-
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface RuleListResponse {
-  message: string;
-  data: Rule[];
-  meta: PaginationMeta;
-  timestamp?: string;
-}
-
-export interface CreateRulePayload {
-  title: string;
-  description: string;
-  severity: RuleSeverity;
-  isActive: boolean;
-  displayOrder: number;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface UpdateRulePayload extends Partial<CreateRulePayload> {}
+export type { PaginationMeta };
+export type RuleListResponse = ApiEnvelope<RuleResponse[]>;

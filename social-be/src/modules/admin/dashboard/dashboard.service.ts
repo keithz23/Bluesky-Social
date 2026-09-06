@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CacheService } from 'src/modules/cache/cache.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import {
-  DashboardQueryDto,
-  DashboardRange,
-} from './dto/dashboard-query.dto';
+import { DashboardQueryDto, DashboardRange } from './dto/requests/dashboard-query.dto';
 
 type ActivityRow = { day: Date; count: number | bigint };
 
@@ -14,7 +11,7 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
-  ) {}
+  ) { }
 
   async getOverview(query: DashboardQueryDto) {
     const range = query.range ?? '7d';
@@ -72,7 +69,12 @@ export class DashboardService {
           actorType: true,
           createdAt: true,
           user: {
-            select: { id: true, username: true, displayName: true, avatarUrl: true },
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
           },
         },
       }),

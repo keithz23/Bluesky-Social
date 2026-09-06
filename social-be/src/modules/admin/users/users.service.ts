@@ -5,14 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/requests/create-user.dto';
+import { UpdateUserDto } from './dto/requests/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { HashUtil } from 'src/common/utils/hash.util';
 import { Prisma } from '@prisma/client';
-import { UserQueryDto } from './dto/user-query.dto';
+import { UserQueryDto } from './dto/requests/user-query.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
-import { DeleteUserDto } from './dto/delete-usr.dto';
+import { DeleteUserDto } from './dto/requests/delete-usr.dto';
 
 @Injectable()
 export class UsersService {

@@ -8,3 +8,4 @@ export const TOTP_SETUP_TTL_SECONDS = 10 * 60;
 export const TOTP_ISSUER = 'Konekt';
 export const RECOVERY_CODE_COUNT = 10;
 export const RECOVERY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const MIN_ACCOUNT_AGE = 13;

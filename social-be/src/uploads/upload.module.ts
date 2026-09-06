@@ -5,6 +5,7 @@ import { S3Service } from './s3.service';
 import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { ImageProcessingProcessor } from './processors/image-processing.processor';
 import { CleanupProcessor } from './processors/cleanup.processor';
+import { UploadCleanupService } from './upload-cleanup.service';
 
 @Global()
 @Module({
@@ -30,7 +31,12 @@ import { CleanupProcessor } from './processors/cleanup.processor';
       },
     ),
   ],
-  providers: [S3Service, ImageProcessingProcessor, CleanupProcessor],
-  exports: [S3Service, BullModule],
+  providers: [
+    S3Service,
+    UploadCleanupService,
+    ImageProcessingProcessor,
+    CleanupProcessor,
+  ],
+  exports: [S3Service, UploadCleanupService, BullModule],
 })
 export class UploadModule {}

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
+import { GoogleAuthUser } from '../interfaces/auth.interface';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
@@ -15,17 +16,23 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
-  async validate(
+  validate(
     accessToken: string,
-    refreshToken: string,
-    profile: any,
+    _refreshToken: string,
+    profile: Profile,
     done: VerifyCallback,
-  ): Promise<any> {
+  ): void {
     const { id, name, emails, photos } = profile;
+    const email = emails?.[0]?.value;
 
-    const user = {
+    if (!email) {
+      done(new Error('Google account did not provide an email address'));
+      return;
+    }
+
+    const user: GoogleAuthUser = {
       googleId: id,
-      email: emails?.[0]?.value,
+      email,
       firstName: name?.givenName,
       lastName: name?.familyName,
       picture: photos?.[0]?.value ?? null,

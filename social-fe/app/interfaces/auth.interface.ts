@@ -1,72 +1,14 @@
-export interface RegisterData {
-  email: string;
-  password: string;
-  dateOfBirth: string;
-}
-
-export interface LoginCredentials {
-  account: string;
-  password: string;
-}
-
-export interface ForgotPasswordData {
-  email: string;
-}
-
-export interface ResetPasswordData {
-  code: string;
-  newPassword: string;
-}
-
-export interface UpdateProfileData {
-  displayName?: string;
-  bio?: string;
-  avatarFile?: File;
-  coverFile?: File;
-}
-
-export interface UpdateAccountPrivacyData {
-  isPrivate: boolean;
-}
-
-export interface RequestUpdateEmailData {
-  newEmail: string;
-}
-
-export interface UpdateEmailData {
-  otp: string;
-}
-
-export interface ChangePasswordData {
-  otp: string;
-  newPassword: string;
-}
-
-export interface ChangeUsernameData {
-  username: string;
-}
-
-export interface ChangeBirthDayData {
-  dateOfBirth: string;
-}
-
-export interface DeactivateAccountData {
-  otp: string;
-}
-
-export interface DeleteAccountData {
-  otp: string;
-}
-
-export interface Enable2FAData {
-  otp: string;
-}
-
-export interface Disable2FAData {
-  password?: string;
-  otp: string;
-}
-
-export interface Setup2FAData {
-  password: string;
-}
+export type {
+  ChangePasswordRequest as ChangePasswordData,
+  DeactivateAccountRequest as DeactivateAccountData,
+  DeleteAccountRequest as DeleteAccountData,
+  Disable2FARequest as Disable2FAData,
+  Enable2FARequest as Enable2FAData,
+  ForgotPasswordRequest as ForgotPasswordData,
+  LoginRequest as LoginCredentials,
+  RegisterRequest as RegisterData,
+  RequestUpdateEmailRequest as RequestUpdateEmailData,
+  ResetPasswordRequest as ResetPasswordData,
+  Setup2FARequest as Setup2FAData,
+  UpdateEmailRequest as UpdateEmailData,
+} from "@social/api-contracts";

@@ -1,0 +1,5 @@
+export const USER_SEARCH_QUERY_MAX_LENGTH = 50;
+export const USER_SEARCH_LIMIT_MIN = 1;
+export const USER_SEARCH_LIMIT_MAX = 20;
+export const USER_SEARCH_LIMIT_DEFAULT = 10;
+export const USER_LIST_ID_MAX_LENGTH = 50;

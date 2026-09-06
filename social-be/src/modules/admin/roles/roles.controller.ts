@@ -11,13 +11,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RolesService } from './roles.service';
-import { CreateRoleDto } from './dto/create-role.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
-import { DeleteRoleDto } from './dto/delete-role.dto';
-import { SyncPermissionsDto } from './dto/sync-permissions.dto';
+import { CreateRoleDto } from './dto/requests/create-role.dto';
+import { UpdateRoleDto } from './dto/requests/update-role.dto';
+import { DeleteRoleDto } from './dto/requests/delete-role.dto';
+import { SyncPermissionsDto } from './dto/requests/sync-permissions.dto';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
-import { RoleQueryDto } from './dto/role-query.dto';
-import { assignPermissionsDto } from './dto/assign-permissions.dto';
+import { RoleQueryDto } from './dto/requests/role-query.dto';
+import { assignPermissionsDto } from './dto/requests/assign-permissions.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 

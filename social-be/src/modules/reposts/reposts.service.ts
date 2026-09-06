@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateRepostDto } from './dto/create-repost.dto';
-import { UpdateRepostDto } from './dto/update-repost.dto';
+import { CreateRepostDto } from './dto/requests/create-repost.dto';
+import { UpdateRepostDto } from './dto/requests/update-repost.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()

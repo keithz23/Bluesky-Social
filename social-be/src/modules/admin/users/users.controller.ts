@@ -10,12 +10,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/requests/create-user.dto';
+import { UpdateUserDto } from './dto/requests/update-user.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
-import { UserQueryDto } from './dto/user-query.dto';
-import { DeleteUserDto } from './dto/delete-usr.dto';
+import { UserQueryDto } from './dto/requests/user-query.dto';
+import { DeleteUserDto } from './dto/requests/delete-usr.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { RateLimit } from 'src/rate-limit/token.decorator';
 

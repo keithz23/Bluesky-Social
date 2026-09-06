@@ -10,9 +10,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuditLogsService } from './audit-logs.service';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
-import { UpdateAuditLogDto } from './dto/update-audit-log.dto';
-import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { CreateAuditLogDto } from './dto/requests/create-audit-log.dto';
+import { UpdateAuditLogDto } from './dto/requests/update-audit-log.dto';
+import { AuditLogQueryDto } from './dto/requests/audit-log-query.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 

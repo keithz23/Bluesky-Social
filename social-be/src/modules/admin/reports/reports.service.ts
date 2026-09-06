@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ReportStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { AdminReportQueryDto } from './dto/admin-report-query.dto';
-import { UpdateReportDto } from './dto/update-report.dto';
+import { AdminReportQueryDto } from './dto/requests/admin-report-query.dto';
+import { UpdateReportDto } from './dto/requests/update-report.dto';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private readonly reportInclude = {
     rule: { select: { id: true, title: true, severity: true } },
