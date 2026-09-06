@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Eye, RotateCcw, ScrollText, Search } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,25 +22,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { formatCompactNumber, formatFullDate } from "@/app/utils/format.util";
+
 import DataTable from "../../components/table-data";
 import { useAuditLogs } from "../../hooks/use-audit-logs";
 import { AuditLog } from "../../interfaces/audit-log.interface";
 import { ColumnDef } from "../../interfaces/column.interface";
 
+// Helpers
 const toDateTimeParam = (date: string, isEndOfDay = false) => {
   if (!date) return undefined;
+
   return new Date(
     `${date}T${isEndOfDay ? "23:59:59.999" : "00:00:00"}`,
   ).toISOString();
 };
 
 const actionBadgeClass = (action: string) => {
-  if (action.includes("DELETE")) return "border-red-200 bg-red-50 text-red-700";
-  if (action.includes("UPDATE"))
+  if (action.includes("DELETE")) {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (action.includes("UPDATE")) {
     return "border-amber-200 bg-amber-50 text-amber-700";
-  if (action.includes("CREATE"))
+  }
+
+  if (action.includes("CREATE")) {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
   return "border-slate-200 bg-slate-50 text-slate-700";
 };
 
@@ -61,83 +73,140 @@ const ActorAvatar = ({ actor }: { actor: AuditLog["actor"] }) => {
   );
 };
 
+// Page
 export default function AuditLogsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
+  const actionDebounceRef = useRef<number | null>(null);
+
+  // Query params
   const page = Number(searchParams.get("page")) || 1;
   const limit = Number(searchParams.get("limit")) || 20;
+
   const action = searchParams.get("action") || "";
   const actorType = searchParams.get("actorType") || "all";
+
   const from = searchParams.get("from") || "";
   const to = searchParams.get("to") || "";
-  const [actionInput, setActionInput] = useState(action);
+
+  // Update query params
+  const updateParams = useCallback(
+    (key: string, value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (value && value !== "all") {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+
+      if (key !== "page") {
+        params.set("page", "1");
+      }
+
+      const query = params.toString();
+
+      router.push(query ? `${pathname}?${query}` : pathname);
+    },
+    [searchParams, router, pathname],
+  );
+
+  // Action filter debounce
+  const handleActionChange = useCallback(
+    (value: string) => {
+      if (actionDebounceRef.current !== null) {
+        window.clearTimeout(actionDebounceRef.current);
+      }
+
+      actionDebounceRef.current = window.setTimeout(() => {
+        updateParams("action", value);
+      }, 350);
+    },
+    [updateParams],
+  );
 
   useEffect(() => {
-    setActionInput(action);
-  }, [action]);
+    return () => {
+      if (actionDebounceRef.current !== null) {
+        window.clearTimeout(actionDebounceRef.current);
+      }
+    };
+  }, []);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      if (actionInput !== action) updateParams("action", actionInput);
-    }, 350);
-
-    return () => window.clearTimeout(timeout);
-    // updateParams intentionally reads the latest URL search params.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionInput, action]);
-
+  // Filters
   const filters = useMemo(
     () => ({
       page,
       limit,
+
       action: action || undefined,
+
       actorType: actorType === "all" ? undefined : actorType,
+
       from: toDateTimeParam(from),
       to: toDateTimeParam(to, true),
     }),
     [page, limit, action, actorType, from, to],
   );
-  const { data: response, isLoading, isError, refetch } = useAuditLogs(filters);
-  const auditLogs = response?.data ?? [];
-  const meta = response?.meta ?? { total: 0, totalPages: 1 };
-  const startItem = meta.total === 0 ? 0 : (page - 1) * limit + 1;
-  const endItem = Math.min(page * limit, meta.total);
-  const hasActiveFilters = Boolean(action || from || to || actorType !== "all");
 
-  const updateParams = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value && value !== "all") params.set(key, value);
-    else params.delete(key);
-    if (key !== "page") params.set("page", "1");
-    router.push(`${pathname}?${params.toString()}`);
+  // Data
+  const { data: response, isLoading, isError, refetch } = useAuditLogs(filters);
+
+  const auditLogs = response?.data ?? [];
+
+  const meta = response?.meta ?? {
+    total: 0,
+    totalPages: 1,
   };
 
-  const scrollToTop = () =>
-    document
-      .querySelector(".table-scroll-container")
-      ?.scrollTo({ top: 0, behavior: "smooth" });
+  const startItem = meta.total === 0 ? 0 : (page - 1) * limit + 1;
+
+  const endItem = Math.min(page * limit, meta.total);
+
+  const hasActiveFilters = Boolean(action || from || to || actorType !== "all");
+
+  // Handlers
+  const scrollToTop = () => {
+    document.querySelector(".table-scroll-container")?.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   const clearFilters = () => {
+    if (actionDebounceRef.current !== null) {
+      window.clearTimeout(actionDebounceRef.current);
+      actionDebounceRef.current = null;
+    }
+
     router.push(pathname);
-    setActionInput("");
+
     scrollToTop();
   };
 
-  const columns: ColumnDef<any>[] = [
+  // ======================================================
+  // Columns
+  // ======================================================
+
+  const columns: ColumnDef<AuditLog>[] = [
     {
       header: "Action",
       className: "whitespace-nowrap",
+
       cell: (log) => (
         <Badge variant="outline" className={actionBadgeClass(log.action)}>
           {log.action}
         </Badge>
       ),
     },
+
     {
       header: "Actor",
+
       cell: (log) => {
         if (!log.actor) {
           return (
@@ -145,6 +214,7 @@ export default function AuditLogsPage() {
               <p className="font-medium text-slate-900">
                 {log.userId ? "Deleted user" : "System"}
               </p>
+
               <p className="mt-1 text-xs text-slate-500">{log.actorType}</p>
             </div>
           );
@@ -153,10 +223,12 @@ export default function AuditLogsPage() {
         return (
           <div className="flex min-w-52 items-center gap-3">
             <ActorAvatar actor={log.actor} />
+
             <div className="min-w-0">
               <p className="truncate font-medium text-slate-900">
                 {log.actor.displayName}
               </p>
+
               <p className="truncate text-xs text-slate-500">
                 @{log.actor.username} · {log.actor.email}
               </p>
@@ -165,31 +237,38 @@ export default function AuditLogsPage() {
         );
       },
     },
+
     {
       header: "Source",
+
       cell: (log) => (
         <div className="max-w-64">
           <p className="truncate text-sm text-slate-700">
             {log.ipAddress || "—"}
           </p>
+
           <p className="mt-1 truncate text-xs text-slate-500">
             {log.userAgent || "No user agent"}
           </p>
         </div>
       ),
     },
+
     {
       header: "Time",
       className: "whitespace-nowrap",
+
       cell: (log) => (
         <time className="text-sm text-slate-600" dateTime={log.createdAt}>
           {formatFullDate(log.createdAt)}
         </time>
       ),
     },
+
     {
       header: "Details",
       className: "text-right whitespace-nowrap",
+
       cell: (log) => (
         <Button
           variant="outline"
@@ -197,24 +276,30 @@ export default function AuditLogsPage() {
           className="border-slate-200 text-slate-700"
           onClick={() => setSelectedLog(log)}
         >
-          <Eye /> View
+          <Eye />
+          View
         </Button>
       ),
     },
   ];
 
+  // Render
   return (
     <>
       <div className="flex h-[85vh] w-full flex-col overflow-hidden bg-gray-50/50">
+        {/* Header */}
         <div className="mb-5 flex shrink-0 flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-              <ScrollText className="size-6 text-blue-600" /> Audit logs
+              <ScrollText className="size-6 text-blue-600" />
+              Audit logs
             </h1>
+
             <p className="mt-1 text-sm text-gray-500">
               Review system activity and administrative changes.
             </p>
           </div>
+
           <Button
             variant="outline"
             onClick={() => refetch()}
@@ -226,17 +311,23 @@ export default function AuditLogsPage() {
 
         <Separator />
 
+        {/* Filters */}
         <div className="my-5 flex shrink-0 flex-col justify-between gap-4 xl:flex-row xl:items-center">
           <div className="flex flex-wrap items-center gap-3">
+            {/* Action */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+
               <Input
-                value={actionInput}
-                onChange={(event) => setActionInput(event.target.value)}
+                key={action}
+                defaultValue={action}
+                onChange={(event) => handleActionChange(event.target.value)}
                 placeholder="Filter action, e.g. POST.CREATE"
                 className="bg-white pl-9"
               />
             </div>
+
+            {/* Actor */}
             <Select
               value={actorType}
               onValueChange={(value) => updateParams("actorType", value)}
@@ -244,12 +335,17 @@ export default function AuditLogsPage() {
               <SelectTrigger className="w-full bg-white sm:w-40">
                 <SelectValue placeholder="Actor" />
               </SelectTrigger>
+
               <SelectContent>
                 <SelectItem value="all">All actors</SelectItem>
+
                 <SelectItem value="USER">Users</SelectItem>
+
                 <SelectItem value="SYSTEM">System</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* From */}
             <Input
               type="date"
               value={from}
@@ -257,6 +353,8 @@ export default function AuditLogsPage() {
               aria-label="Logs from date"
               className="w-full bg-white sm:w-40"
             />
+
+            {/* To */}
             <Input
               type="date"
               value={to}
@@ -264,16 +362,21 @@ export default function AuditLogsPage() {
               aria-label="Logs to date"
               className="w-full bg-white sm:w-40"
             />
+
+            {/* Clear */}
             {hasActiveFilters && (
               <Button
                 variant="ghost"
                 onClick={clearFilters}
                 className="text-slate-600"
               >
-                <RotateCcw /> Clear
+                <RotateCcw />
+                Clear
               </Button>
             )}
           </div>
+
+          {/* Total */}
           <p className="whitespace-nowrap text-sm text-muted-foreground">
             Showing{" "}
             <span className="font-medium">
@@ -287,6 +390,7 @@ export default function AuditLogsPage() {
           </p>
         </div>
 
+        {/* Table */}
         {isError ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Could not load audit logs. Check your permissions, then try again.
@@ -303,6 +407,7 @@ export default function AuditLogsPage() {
             totalPages={meta.totalPages}
             changePage={(nextPage) => {
               updateParams("page", String(nextPage));
+
               scrollToTop();
             }}
             changeLimit={(nextLimit) =>
@@ -312,32 +417,47 @@ export default function AuditLogsPage() {
         )}
       </div>
 
+      {/* Detail dialog */}
       <Dialog
         open={Boolean(selectedLog)}
-        onOpenChange={(open) => !open && setSelectedLog(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedLog(null);
+          }
+        }}
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Audit log details</DialogTitle>
+
             <DialogDescription>{selectedLog?.action}</DialogDescription>
           </DialogHeader>
+
           {selectedLog && (
             <dl className="grid gap-4 text-sm sm:grid-cols-2">
+              {/* ID */}
               <div>
                 <dt className="text-slate-500">Log ID</dt>
+
                 <dd className="mt-1 break-all font-mono text-xs text-slate-800">
                   {selectedLog.id}
                 </dd>
               </div>
+
+              {/* Actor */}
               <div>
                 <dt className="text-slate-500">Actor</dt>
+
                 <dd className="mt-1 flex items-center gap-2 text-slate-800">
                   {selectedLog.actor ? (
                     <>
                       <ActorAvatar actor={selectedLog.actor} />
+
                       <span>
                         {selectedLog.actor.displayName}
+
                         <br />
+
                         <span className="text-xs text-slate-500">
                           @{selectedLog.actor.username} ·{" "}
                           {selectedLog.actor.email}
@@ -352,26 +472,38 @@ export default function AuditLogsPage() {
                   )}
                 </dd>
               </div>
+
+              {/* IP */}
               <div>
                 <dt className="text-slate-500">IP address</dt>
+
                 <dd className="mt-1 text-slate-800">
                   {selectedLog.ipAddress || "—"}
                 </dd>
               </div>
+
+              {/* Created */}
               <div>
                 <dt className="text-slate-500">Created at</dt>
+
                 <dd className="mt-1 text-slate-800">
                   {formatFullDate(selectedLog.createdAt)}
                 </dd>
               </div>
+
+              {/* User agent */}
               <div className="sm:col-span-2">
                 <dt className="text-slate-500">User agent</dt>
+
                 <dd className="mt-1 wrap-break-words text-slate-800">
                   {selectedLog.userAgent || "—"}
                 </dd>
               </div>
+
+              {/* Metadata */}
               <div className="sm:col-span-2">
                 <dt className="text-slate-500">Metadata</dt>
+
                 <dd className="mt-1 overflow-x-auto rounded-md bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-100">
                   <pre>
                     {JSON.stringify(selectedLog.metadata, null, 2) || "—"}
