@@ -5,10 +5,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { CreateRuleDto } from './dto/create-rule.dto';
-import { UpdateRuleDto } from './dto/update-rule.dto';
-import { RuleQueryDto } from './dto/rule-query.dto';
-import { DeleteRuleDto } from './dto/delete-rule.dto';
+import { CreateRuleDto } from './dto/requests/create-rule.dto';
+import { UpdateRuleDto } from './dto/requests/update-rule.dto';
+import { RuleQueryDto } from './dto/requests/rule-query.dto';
+import { DeleteRuleDto } from './dto/requests/delete-rule.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { RulesResponse, ActiveRuleResponse } from './rules.interface';
 import { PaginatedResult } from 'src/common/interfaces/pagination.interface';

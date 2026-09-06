@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "social-be",
+    "social-fe"
+  ],
+  "scripts": {
+    "build:contracts": "npm --workspace @social/api-contracts run build"
+  }
+}

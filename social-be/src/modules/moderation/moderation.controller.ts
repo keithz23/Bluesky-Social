@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Param, Post } from '@nestjs/common';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { ReportPostDto } from './dto/report-post.dto';
+import { ReportPostDto } from './dto/requests/report-post.dto';
 import { ModerationService } from './moderation.service';
 
 @Controller('moderation')

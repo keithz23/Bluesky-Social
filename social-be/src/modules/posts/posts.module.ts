@@ -16,10 +16,18 @@ import { PostMediaService } from './services/post-media.service';
 import { PostModerationService } from './services/post-moderation.service';
 import { VisibilityModule } from 'src/common/services/visibility.module';
 import { PostCommandService } from './services/post-command.service';
+import { PostDeleteService } from './services/post-delete.service';
+import { PostDetailService } from './services/post-detail.service';
+import { PostMutationService } from './services/post-mutation.service';
 import { PostNotificationService } from './services/post-notification.service';
 import { PostPinService } from './services/post-pin.service';
 import { PostQueryService } from './services/post-query.service';
+import { PostReplyPolicyService } from './services/post-reply-policy.service';
+import { PostReplyQueryService } from './services/post-reply-query.service';
 import { PostReplyService } from './services/post-reply.service';
+import { PostSearchService } from './services/post-search.service';
+import { PostUpdateService } from './services/post-update.service';
+import { PostUserQueryService } from './services/post-user-query.service';
 
 @Module({
   imports: [
@@ -38,8 +46,16 @@ import { PostReplyService } from './services/post-reply.service';
   providers: [
     PostsService,
     PostCommandService,
+    PostDeleteService,
+    PostDetailService,
+    PostMutationService,
     PostQueryService,
+    PostReplyPolicyService,
+    PostReplyQueryService,
     PostReplyService,
+    PostSearchService,
+    PostUpdateService,
+    PostUserQueryService,
     PostPinService,
     PostNotificationService,
     ImageModerationService,

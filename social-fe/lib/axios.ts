@@ -6,6 +6,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import { AuthSessionResponse } from "@/app/interfaces/auth-response.interface";
+import type { ApiEnvelope, PaginationMeta } from "@social/api-contracts";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -18,20 +19,7 @@ type QueueItem = {
 
 export type RefreshResponse = AuthSessionResponse;
 
-export type PaginationMeta = {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-};
-
-type ApiEnvelope<T> = {
-  statusCode: number;
-  message: string;
-  data: T;
-  meta?: PaginationMeta;
-  timestamp: string;
-};
+export type { PaginationMeta };
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
 

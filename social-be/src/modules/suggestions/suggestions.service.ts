@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CreateSuggestionDto } from './dto/create-suggestion.dto';
-import { UpdateSuggestionDto } from './dto/update-suggestion.dto';
+import { CreateSuggestionDto } from './dto/requests/create-suggestion.dto';
+import { UpdateSuggestionDto } from './dto/requests/update-suggestion.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()

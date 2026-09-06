@@ -1,128 +1,150 @@
-# Bluesky Social
+# Konekt
 
-A production-minded social networking platform built with Next.js and NestJS. It supports social interactions, real-time conversations, moderation workflows, and account-security features in a Docker-ready architecture.
-
-## Highlights
-
-- **Social graph and content:** profiles, posts, replies, likes, reposts, bookmarks, follows, private accounts, lists, search, and personalized feeds.
-- **Real-time experience:** chat, presence, typing indicators, and notifications through Socket.IO.
-- **Security:** HTTP-only access and refresh cookies, JWT authentication, Google OAuth, email OTP flows, 2FA, RBAC, Redis-backed token-bucket rate limiting, and audit logs.
-- **Administration:** dashboard analytics, user/content/report management, role and permission management, moderation rules, and system settings.
-- **Operations:** Prisma migrations, Redis cache and BullMQ queues, Docker Compose, Nginx, CI/CD workflows, and AWS infrastructure definitions.
+Konekt is a full-stack social networking app built with Next.js and NestJS. It includes posts, replies, likes, reposts, bookmarks, follows, lists, search, personalized feeds, real-time chat, notifications, moderation, admin tooling, and account-security flows.
 
 ## Architecture
 
 ```text
 Browser
-  │
-  ├── Next.js frontend (social-fe :3000)
-  │       │ HTTP + Socket.IO
-  │       ▼
-  └── NestJS API (social-be :8000)
-          ├── PostgreSQL / Prisma  - persistent application data
-          ├── Redis / BullMQ       - cache, OTPs, queues, rate limiting
-          ├── Socket.IO            - chat and notifications
-          └── S3-compatible store  - media uploads
+  |
+  |-- Next.js frontend (social-fe :3000)
+  |       | HTTP + Socket.IO
+  |       | shared TypeScript contracts
+  |       v
+  |-- @social/api-contracts (packages/api-contracts)
+  |       ^
+  |       | shared TypeScript contracts
+  |       |
+  `-- NestJS API (social-be :8000)
+          |-- PostgreSQL / Prisma  - application data
+          |-- Redis / BullMQ       - cache, OTPs, queues, rate limiting
+          |-- Socket.IO            - chat and notifications
+          `-- S3-compatible store  - media uploads
 ```
 
 ## Tech Stack
 
 | Area | Technologies |
 | --- | --- |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query, Zustand |
-| Backend | NestJS 11, TypeScript, Prisma, Socket.IO, BullMQ |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query, Zustand, Socket.IO client |
+| Backend | NestJS 11, TypeScript, Prisma, Socket.IO, BullMQ, Swagger |
+| Shared | Workspace package `@social/api-contracts` for FE/BE API request and response types |
 | Data | PostgreSQL 15, Redis |
-| Infrastructure | Docker Compose, Nginx, AWS ECS/Fargate, ALB, RDS, ElastiCache, S3 |
+| Infrastructure | Docker Compose, Nginx, GitHub Actions, Terraform, AWS ECS/Fargate, ALB, RDS, ElastiCache, S3 |
 
 ## Repository Structure
 
 ```text
 .
-├── social-fe/             # Next.js web application
-├── social-be/             # NestJS API, Prisma schema, workers, gateways
-├── infra/                 # Terraform for staging and production environments
-├── docker-compose.yml     # Production-style stack using published images
-└── nginx.conf             # Reverse proxy configuration
+|-- package.json              # Workspace root and shared scripts
+|-- packages/
+|   `-- api-contracts/        # Shared FE/BE API contracts
+|-- social-fe/                # Next.js web app
+|-- social-be/                # NestJS API, Prisma schema, queues, gateways
+|-- infra/                    # Terraform environments
+|-- assets/                   # Documentation assets
+|-- docker-compose.yml        # Production-style stack using published images
+`-- nginx.conf                # Reverse proxy configuration
 ```
 
-## Prerequisites
+## API Contract Boundary
 
-- Node.js 20+ and npm
-- Docker Engine with Docker Compose (recommended)
+Shared API types live in `packages/api-contracts/src` and are imported as `@social/api-contracts`.
+
+Backend modules keep DTOs behind explicit boundaries:
+
+```text
+social-be/src/modules/<module>/dto/
+|-- requests/   # class-validator request DTOs used by controllers
+|-- responses/  # response DTOs or type re-exports from @social/api-contracts
+`-- shared/     # module-local DTO pieces, only when needed
+```
+
+Frontend API-facing interfaces should re-export or compose types from `@social/api-contracts`. UI-only types can remain local to the frontend.
+
+After changing contracts, run:
+
+```bash
+npm run build:contracts
+cd social-be && npm run build
+cd ../social-fe && ./node_modules/.bin/tsc -p tsconfig.json --noEmit
+```
 
 ## Local Development
 
-### 1. Configure the backend
+### 1. Install dependencies
 
-Create a local environment file from the tracked template:
+Install backend and frontend dependencies from their own lockfiles:
+
+```bash
+cd social-be && npm ci
+cd ../social-fe && npm ci
+```
+
+The shared contract package uses the backend TypeScript compiler, so install `social-be` dependencies before running `npm run build:contracts` from the repository root.
+
+### 2. Configure the backend
 
 ```bash
 cp social-be/.env.example social-be/.env
 ```
 
-Update the secrets and optional mail, OAuth, and object-storage values before using those integrations. Do not commit `.env` files.
+Update local secrets and optional mail, OAuth, Redis, and object-storage values. Do not commit `.env` files.
 
-### 2. Start PostgreSQL and Redis
+### 3. Start PostgreSQL and Redis
 
 ```bash
 cd social-be
 docker compose up -d db redis
 ```
 
-PostgreSQL is available at `localhost:5432`; Redis is available at `localhost:6380`.
+PostgreSQL is exposed on `localhost:5432`; Redis is exposed on `localhost:6380`.
 
-### 3. Install dependencies and migrate the database
+### 4. Run migrations
 
 ```bash
 cd social-be
-npm ci
 npx prisma migrate deploy
-
-cd ../social-fe
-npm ci
 ```
 
-For local schema changes, use `npx prisma migrate dev`; use `npx prisma studio` to inspect data.
+For local schema development, use `npx prisma migrate dev`. To inspect data, use `npx prisma studio`.
 
-### 4. Configure and run the frontend
+### 5. Run the apps
 
-Create `social-fe/.env.development` if it does not exist:
+Create `social-fe/.env.development` if needed:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_SERVER_URL=http://localhost:8000
 ```
 
-Start each application in a separate terminal:
+Start each app in a separate terminal:
 
 ```bash
-# Terminal 1
 cd social-be && npm run start:dev
-
-# Terminal 2
 cd social-fe && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The API is at `http://localhost:8000/api/v1` and Swagger is at `http://localhost:8000/api/docs`.
+Open `http://localhost:3000`. The API is available at `http://localhost:8000/api/v1`; Swagger is available at `http://localhost:8000/api/docs` outside production.
 
-## Run the API with Docker
+## Docker
 
-The backend Compose stack runs the API, PostgreSQL, and Redis together:
+Run the backend development stack:
 
 ```bash
 cd social-be
 docker compose up --build
 ```
 
-On startup, the API waits for healthy database/cache services, runs Prisma migrations, and starts on port `8000`.
+Run the root production-style stack with published images:
 
-### Database authentication and persisted volumes
+```bash
+docker compose up -d
+```
 
-PostgreSQL uses `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` **only when its named volume is created for the first time**. Changing these values after `postgres-data` already exists does not update the database user/password and causes Prisma error `P1000`.
+The root stack expects a root `.env` with deployment variables such as `GITHUB_SHA`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_PASSWORD`, JWT secrets, and `NEXT_PUBLIC_*` URLs.
 
-The Compose services now derive `DATABASE_URL` inside the API container from those same `POSTGRES_*` values and URL-encode the password. This prevents authentication failures when a password contains URL-reserved characters such as `@`, `:`, `/`, or `#`.
-
-If you intentionally changed the local database credentials and do not need the existing local data, recreate only the local Compose volumes:
+PostgreSQL credentials are applied only when the named Docker volume is created. If local credentials changed and local data can be discarded, recreate the volumes:
 
 ```bash
 cd social-be
@@ -130,50 +152,37 @@ docker compose down -v
 docker compose up --build
 ```
 
-> `docker compose down -v` deletes the local PostgreSQL and Redis data for this stack. Back up any data you need first. If you need to preserve data, restore the original credentials instead.
-
-## Production-Style Stack
-
-The root Compose file uses published frontend/backend images and includes Nginx:
-
-```bash
-docker compose up -d
-```
-
-Create a root `.env` with the deployment-specific variables, including `GITHUB_SHA`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_PASSWORD`, JWT secrets, and the `NEXT_PUBLIC_*` URLs. The API derives its database URL at runtime; it should not rely on a manually assembled `DATABASE_URL`.
-
 ## Useful Commands
 
-| Component | Command |
+| Scope | Command |
 | --- | --- |
+| Shared contracts build | `npm run build:contracts` |
+| Backend dev | `cd social-be && npm run start:dev` |
 | Backend build | `cd social-be && npm run build` |
 | Backend tests | `cd social-be && npm test` |
 | Backend E2E tests | `cd social-be && npm run test:e2e` |
 | Backend lint | `cd social-be && npm run lint` |
+| Frontend dev | `cd social-fe && npm run dev` |
 | Frontend build | `cd social-fe && npm run build` |
 | Frontend lint | `cd social-fe && npm run lint` |
+| Frontend typecheck | `cd social-fe && ./node_modules/.bin/tsc -p tsconfig.json --noEmit` |
 | Prisma Studio | `cd social-be && npx prisma studio` |
 
 ## Deployment
 
-### AWS Production Flow
-
 ![AWS ECS production deployment flow](assets/flowchart.png)
 
-> The AWS deployment is a production baseline for validating the release flow and supporting small-scale usage. Before serving high traffic, add the appropriate capacity planning, observability, backup/restore drills, and multi-AZ/high-availability measures.
-
-The repository includes GitHub Actions workflows and Terraform environments under `infra/envs`:
+Terraform environments live under `infra/envs`:
 
 - `infra/envs/staging` provisions a Docker-based staging environment.
-- `infra/envs/production` provisions AWS resources for the ECS/Fargate deployment path.
+- `infra/envs/production` provisions the AWS ECS/Fargate deployment path.
 
 See the environment-specific README files for Terraform inputs and deployment details.
 
-## Verification
-
-Before opening a pull request, run:
+## Verification Before PR
 
 ```bash
+npm run build:contracts
 cd social-be && npm run build && npm test
 cd ../social-fe && npm run lint && npm run build
 ```

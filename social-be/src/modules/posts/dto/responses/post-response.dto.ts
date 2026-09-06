@@ -11,7 +11,7 @@ export class PostResponseDto {
   content!: string;
 
   @Expose()
-  createdAt!: Date;
+  createdAt!: Date | string;
 
   @Expose()
   likeCount!: number;
@@ -26,8 +26,7 @@ export class PostResponseDto {
   bookmarkCount!: number;
 
   @Expose()
-  @Type(() => PostThemeResponseDto)
-  postTheme!: PostThemeResponseDto | null;
+  postTheme?: unknown;
 
   @Expose()
   @Type(() => PostAuthorDto)
@@ -38,8 +37,20 @@ export class PostResponseDto {
   media!: PostMediaDto[];
 
   @Expose()
-  autoFlagged!: boolean;
+  isLiked!: boolean;
 
   @Expose()
-  isDeleted!: boolean;
+  isBookmarked!: boolean;
+
+  @Expose()
+  isReposted!: boolean;
+
+  @Expose()
+  isPinned?: boolean;
+
+  @Expose()
+  autoFlagged?: boolean;
+
+  @Expose()
+  isDeleted?: boolean;
 }

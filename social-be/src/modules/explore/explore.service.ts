@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { VisibilityService } from 'src/common/services/visibility.service';
 import { SYSTEM_FEEDS } from '../feed/feed-catalog';
-import { ExploreQueryDto } from './dto/explore-query.dto';
+import { ExploreQueryDto } from './dto/requests/explore-query.dto';
 
 @Injectable()
 export class ExploreService {

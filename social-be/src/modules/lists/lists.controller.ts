@@ -11,11 +11,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { ListsService } from './lists.service';
-import { CreateListDto } from './dto/create-list.dto';
+import { CreateListDto } from './dto/requests/create-list.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { FeedQueryDto } from '../feed/dto/feed-query.dto';
+import { FeedQueryDto } from '../feed/dto/requests/feed-query.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UpdateListDto } from './dto/update-list.dto';
+import { UpdateListDto } from './dto/requests/update-list.dto';
 
 @Controller('lists')
 export class ListsController {

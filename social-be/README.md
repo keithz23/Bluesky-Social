@@ -1,98 +1,102 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Konekt Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS API for Konekt. It owns authentication, users, posts, feeds, chat, notifications, moderation, admin workflows, Prisma persistence, Socket.IO gateways, and BullMQ workers.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Runtime
 
-## Description
+- NestJS 11
+- TypeScript
+- Prisma and PostgreSQL
+- Redis and BullMQ
+- Socket.IO
+- Swagger in non-production environments
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Module Conventions
 
-## Project setup
+API modules keep request and response boundaries explicit:
 
-```bash
-$ npm install
+```text
+src/modules/<module>/
+|-- <module>.controller.ts
+|-- <module>.service.ts          # facade when the module has multiple workflows
+|-- services/                    # command/query/use-case services
+`-- dto/
+    |-- requests/                # validation DTO classes
+    |-- responses/               # response DTOs or shared contract type exports
+    `-- shared/                  # local shared DTO pieces
 ```
 
-## Compile and run the project
+Large services should be split by responsibility, matching the current `auth`, `posts`, `chat`, `feed`, `lists`, and `follows` modules.
+
+Shared FE/BE API shapes come from `@social/api-contracts` through the root workspace package at `../packages/api-contracts`.
+
+## Setup
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm ci
+cp .env.example .env
+docker compose up -d db redis
+npx prisma migrate deploy
 ```
 
-## Run tests
+For schema work, use:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma migrate dev
+npx prisma studio
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Development
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The API runs on `http://localhost:8000` by default. The versioned API prefix is `http://localhost:8000/api/v1`, and Swagger is available at `http://localhost:8000/api/docs` when `NODE_ENV` is not `production`.
 
-## Resources
+## Scripts
 
-Check out a few resources that may come in handy when working with NestJS:
+| Command | Purpose |
+| --- | --- |
+| `npm run start:dev` | Run Nest in watch mode |
+| `npm run build` | Compile the API |
+| `npm run start:prod` | Run compiled output |
+| `npm test` | Run unit tests |
+| `npm run test:e2e` | Run E2E tests |
+| `npm run test:cov` | Run tests with coverage |
+| `npm run lint` | Run ESLint with fixes |
+| `npm run format` | Format backend source and tests |
+| `npm run seed` | Run migrations and seed base data |
+| `npm run seed:rbac` | Seed RBAC data |
+| `npm run seed:realistic` | Seed realistic demo data |
+| `npm run seed:perf` | Seed performance test data |
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Docker
 
-## Support
+```bash
+docker compose up --build
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+The backend Compose stack starts the API, PostgreSQL, and Redis. The API derives `DATABASE_URL` from `POSTGRES_*` values inside the container so passwords with URL-reserved characters are encoded correctly.
 
-## Stay in touch
+If local database credentials change and the existing local data is disposable:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+docker compose down -v
+docker compose up --build
+```
 
-## License
+## Contract Checks
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+From the repository root:
+
+```bash
+npm run build:contracts
+```
+
+From this directory:
+
+```bash
+npm run build
+npm test
+```

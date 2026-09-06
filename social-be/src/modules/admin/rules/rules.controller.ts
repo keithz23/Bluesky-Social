@@ -11,10 +11,10 @@ import {
 } from '@nestjs/common';
 import { Public } from 'src/common/decorators/public.decorator';
 import { RulesService } from './rules.service';
-import { CreateRuleDto } from './dto/create-rule.dto';
-import { UpdateRuleDto } from './dto/update-rule.dto';
-import { RuleQueryDto } from './dto/rule-query.dto';
-import { DeleteRuleDto } from './dto/delete-rule.dto';
+import { CreateRuleDto } from './dto/requests/create-rule.dto';
+import { UpdateRuleDto } from './dto/requests/update-rule.dto';
+import { RuleQueryDto } from './dto/requests/rule-query.dto';
+import { DeleteRuleDto } from './dto/requests/delete-rule.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 import { ActiveRuleResponse, RulesResponse } from './rules.interface';

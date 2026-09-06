@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
-import { AdminReportQueryDto } from './dto/admin-report-query.dto';
-import { UpdateReportDto } from './dto/update-report.dto';
+import { AdminReportQueryDto } from './dto/requests/admin-report-query.dto';
+import { UpdateReportDto } from './dto/requests/update-report.dto';
 import { ReportsService } from './reports.service';
 
 @UseGuards(PermissionsGuard)

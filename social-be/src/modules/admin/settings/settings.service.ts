@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CacheService } from 'src/modules/cache/cache.service';
 import { CACHE_CHANNELS } from 'src/common/constants/cache-keys';
-import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
+import { UpdateSystemSettingsDto } from './dto/requests/update-system-settings.dto';
 
 const SETTING_DEFINITIONS = {
   'account.registration_enabled': {

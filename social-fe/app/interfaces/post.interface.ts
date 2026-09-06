@@ -1,42 +1,9 @@
-export interface PostTheme {
-  type: string;
-  background: string;
-}
-export type ReplyType = "anyone" | "nobody" | "custom";
-
-export interface ReplyPrivacyState {
-  type: ReplyType;
-  allowQuote: boolean;
-  custom?: {
-    followers: boolean;
-    following: boolean;
-    mentioned: boolean;
-    lists?: string[];
-  };
-}
-
-export interface CreatePostPayload {
-  content?: string;
-  replyPrivacy: ReplyPrivacyState;
-  images?: File[];
-  gifUrl?: string;
-  postTheme?: PostTheme;
-}
-
-export interface CreateReplyDto {
-  content?: string;
-  images?: File[];
-  gifUrl?: string;
-}
-
-export interface UpdatePostPayload extends Partial<CreatePostPayload> {
-  id: string;
-  keepMediaIds?: string[];
-}
-
-export interface PostMedia {
-  id: string;
-  mediaUrl: string;
-  mediaType: string;
-  altText: string;
-}
+export type {
+  CreatePostFormData as CreatePostPayload,
+  CreateReplyFormData as CreateReplyDto,
+  PostMediaResponse as PostMedia,
+  PostThemeResponse as PostTheme,
+  ReplyPrivacyState,
+  ReplyType,
+  UpdatePostFormData as UpdatePostPayload,
+} from "@social/api-contracts";

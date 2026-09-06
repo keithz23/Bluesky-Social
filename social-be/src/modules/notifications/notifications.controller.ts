@@ -9,9 +9,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { CreateNotificationDto } from './dto/requests/create-notification.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { NotificationQueryDto } from './dto/notification-query.dto';
+import { NotificationQueryDto } from './dto/requests/notification-query.dto';
 import { RateLimitGuard } from 'src/rate-limit/rate-limit.guard';
 import { RateLimit } from 'src/rate-limit/token.decorator';
 

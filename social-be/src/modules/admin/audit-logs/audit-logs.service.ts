@@ -2,9 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuditLog, Prisma, User } from '@prisma/client';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
-import { UpdateAuditLogDto } from './dto/update-audit-log.dto';
-import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { CreateAuditLogDto } from './dto/requests/create-audit-log.dto';
+import { UpdateAuditLogDto } from './dto/requests/update-audit-log.dto';
+import { AuditLogQueryDto } from './dto/requests/audit-log-query.dto';
 import {
   AuditLogResponse,
   CreateAuditLogResponse,

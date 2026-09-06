@@ -4,20 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MediaType, NotificationType, ReplyPolicy } from '@prisma/client';
+import { MediaType, NotificationType } from '@prisma/client';
 import {
   extractHashtags,
   extractMentions,
 } from 'src/common/utils/extract.util';
-import { VisibilityService } from 'src/common/services/visibility.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateReplyDto } from '../dto/requests';
 import { SocketGateway } from '../../socket/socket.gateway';
-import { PostFormatterService } from './post-formatter.service';
 import { PostHashtagService } from './post-hashtag.service';
 import { ModeratedUploadResult, PostMediaService } from './post-media.service';
 import { PostModerationService } from './post-moderation.service';
 import { PostNotificationService } from './post-notification.service';
+import { PostReplyPolicyService } from './post-reply-policy.service';
+import { PostReplyQueryService } from './post-reply-query.service';
 
 @Injectable()
 export class PostReplyService {
@@ -25,11 +25,11 @@ export class PostReplyService {
     private readonly prisma: PrismaService,
     private readonly socketGateway: SocketGateway,
     private readonly postNotifications: PostNotificationService,
-    private readonly postFormatter: PostFormatterService,
     private readonly postHashtags: PostHashtagService,
     private readonly postMedia: PostMediaService,
     private readonly postModeration: PostModerationService,
-    private readonly visibility: VisibilityService,
+    private readonly replyPolicies: PostReplyPolicyService,
+    private readonly replyQueries: PostReplyQueryService,
   ) {}
 
   async createReply(
@@ -64,7 +64,10 @@ export class PostReplyService {
       throw new BadRequestException('Reply cannot be empty');
     }
 
-    const canReply = await this.canReplyToPost(userId, parentPost);
+    const canReply = await this.replyPolicies.canReplyToPost(
+      userId,
+      parentPost,
+    );
     if (!canReply) {
       throw new ForbiddenException('You cannot reply to this post');
     }
@@ -294,157 +297,6 @@ export class PostReplyService {
     cursor?: string,
     limit: number = 20,
   ) {
-    const pageSize = Number(limit) || 20;
-
-    const parentPost = await this.prisma.post.findUnique({
-      where: { id: postId, isDeleted: false },
-      select: {
-        user: {
-          select: {
-            id: true,
-            isPrivate: true,
-          },
-        },
-      },
-    });
-
-    if (!parentPost) throw new NotFoundException('Post not found');
-
-    if (!(await this.visibility.canViewUserContent(userId, parentPost.user))) {
-      return { replies: [], nextCursor: null, hasMore: false };
-    }
-
-    const replies = await this.prisma.post.findMany({
-      where: {
-        parentPostId: postId,
-        isDeleted: false,
-      },
-      take: pageSize + 1,
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      ...(cursor && {
-        cursor: { id: cursor },
-        skip: 1,
-      }),
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        likeCount: true,
-        replyCount: true,
-        repostCount: true,
-        bookmarkCount: true,
-        parentPostId: true,
-        rootPostId: true,
-        replyPolicy: true,
-        replyFollowers: true,
-        replyFollowing: true,
-        replyMentioned: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-            verified: true,
-            followersCount: true,
-            followingCount: true,
-          },
-        },
-        media: {
-          orderBy: { orderIndex: 'asc' },
-          select: {
-            id: true,
-            mediaUrl: true,
-            mediaType: true,
-            width: true,
-            height: true,
-            altText: true,
-          },
-        },
-      },
-    });
-
-    const hasMore = replies.length > pageSize;
-    if (hasMore) replies.pop();
-
-    const nextCursor = hasMore ? replies[replies.length - 1].id : null;
-
-    return {
-      replies: await this.postFormatter.enrichPosts(userId, replies, {
-        includeAuthorFollowsMe: true,
-      }),
-      nextCursor,
-      hasMore,
-    };
-  }
-
-  private async canReplyToPost(
-    userId: string,
-    post: {
-      userId: string;
-      content: string;
-      replyPolicy: ReplyPolicy;
-      replyFollowers: boolean;
-      replyFollowing: boolean;
-      replyMentioned: boolean;
-    },
-  ) {
-    if (post.userId === userId) return true;
-    if (post.replyPolicy === ReplyPolicy.ANYONE) return true;
-    if (post.replyPolicy === ReplyPolicy.NOBODY) return false;
-
-    const checks: Promise<unknown>[] = [];
-
-    if (post.replyFollowers) {
-      checks.push(
-        this.prisma.follow.findUnique({
-          where: {
-            followerId_followingId: {
-              followerId: userId,
-              followingId: post.userId,
-            },
-          },
-        }),
-      );
-    }
-
-    if (post.replyFollowing) {
-      checks.push(
-        this.prisma.follow.findUnique({
-          where: {
-            followerId_followingId: {
-              followerId: post.userId,
-              followingId: userId,
-            },
-          },
-        }),
-      );
-    }
-
-    if (post.replyMentioned) {
-      checks.push(
-        this.prisma.user
-          .findUnique({
-            where: { id: userId },
-            select: { username: true },
-          })
-          .then((user) => {
-            if (!user?.username) return null;
-            const mentionRegex = new RegExp(
-              `@${this.escapeRegExp(user.username)}\\b`,
-              'i',
-            );
-            return mentionRegex.test(post.content) ? user : null;
-          }),
-      );
-    }
-
-    if (checks.length === 0) return false;
-    const results = await Promise.all(checks);
-    return results.some(Boolean);
-  }
-
-  private escapeRegExp(value: string) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.replyQueries.getReplies(userId, postId, cursor, limit);
   }
 }

@@ -8,8 +8,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { AdminPostQueryDto } from './dto/admin-post-query.dto';
-import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
+import { AdminPostQueryDto } from './dto/requests/admin-post-query.dto';
+import { UpdatePostVisibilityDto } from './dto/requests/update-post-visibility.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 

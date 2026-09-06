@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import { FollowsService } from './follows.service';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { FollowQueryDto } from './dto/follow-query.dto';
-import { FollowRequestQueryDto } from './dto/follow-request-query.dto';
+import { FollowQueryDto } from './dto/requests/follow-query.dto';
+import { FollowRequestQueryDto } from './dto/requests/follow-request-query.dto';
 
 @Controller('follows')
 export class FollowsController {
