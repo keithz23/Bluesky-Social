@@ -6,8 +6,20 @@ import {
   DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
-import sharp = require('sharp');
 import { UploadResult } from 'src/common/interfaces/file-upload.interface';
+
+type SharpFactory = typeof import('sharp');
+
+let sharpFactory: SharpFactory | null = null;
+
+async function getSharp(): Promise<SharpFactory> {
+  if (!sharpFactory) {
+    const sharpModule = await import('sharp');
+    sharpFactory = sharpModule.default;
+  }
+
+  return sharpFactory;
+}
 
 @Injectable()
 export class S3Service {
@@ -59,6 +71,7 @@ export class S3Service {
       );
 
       if (options?.resize && isStaticImage) {
+        const sharp = await getSharp();
         const sharpInstance = sharp(file.buffer).resize(1920, 1080, {
           fit: 'inside',
           withoutEnlargement: true,
@@ -77,7 +90,8 @@ export class S3Service {
         }
       }
 
-      const metadata = isStaticImage ? await sharp(buffer).metadata() : null;
+      const sharp = isStaticImage ? await getSharp() : null;
+      const metadata = sharp ? await sharp(buffer).metadata() : null;
       const key = this.generateKey(folder, ext);
 
       const command = new PutObjectCommand({
@@ -184,6 +198,7 @@ export class S3Service {
     file: Express.Multer.File,
     folder: string,
   ): Promise<UploadResult> {
+    const sharp = await getSharp();
     const buffer = await sharp(file.buffer)
       .resize(300, 300, { fit: 'cover' })
       .jpeg({ quality: 80 })
