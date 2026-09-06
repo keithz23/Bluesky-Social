@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
-import { ModerationDecisionDto } from './dto/moderation-decision.dto';
-import { ModerationQueryDto } from './dto/moderation-query.dto';
+import { ModerationDecisionDto } from './dto/requests/moderation-decision.dto';
+import { ModerationQueryDto } from './dto/requests/moderation-query.dto';
 import { ModerationService } from './moderation.service';
 
 @UseGuards(PermissionsGuard)

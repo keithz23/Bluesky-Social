@@ -9,8 +9,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { SuggestionsService } from './suggestions.service';
-import { CreateSuggestionDto } from './dto/create-suggestion.dto';
-import { UpdateSuggestionDto } from './dto/update-suggestion.dto';
+import { CreateSuggestionDto } from './dto/requests/create-suggestion.dto';
+import { UpdateSuggestionDto } from './dto/requests/update-suggestion.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @Controller('suggestions')

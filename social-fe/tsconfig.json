@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@social/api-contracts": ["../packages/api-contracts/src"]
     }
   },
   "include": [

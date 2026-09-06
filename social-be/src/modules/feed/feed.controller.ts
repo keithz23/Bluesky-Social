@@ -1,7 +1,7 @@
 import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FeedService } from './feed.service';
-import { FeedQueryDto } from './dto/feed-query.dto';
+import { FeedQueryDto } from './dto/requests/feed-query.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
 import { OptionalJwtAuthGuard } from 'src/common/guards/optional-jwt-auth.guard';

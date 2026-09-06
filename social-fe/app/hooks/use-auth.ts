@@ -1,14 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AuthService } from "../services/auth.service";
+import { UserService } from "../services/user.service";
 import { extractErrMsg } from "../utils/error.util";
 import {
   LoginCredentials,
   RegisterData,
   ResetPasswordData,
-  UpdateProfileData,
 } from "../interfaces/auth.interface";
-import type { AuthResponse } from "../interfaces/user.interface";
+import type { UpdateProfileData } from "../interfaces/user.interface";
+import type { AuthSessionResponse } from "../interfaces/auth-response.interface";
 import { AxiosError } from "axios";
 import { useState } from "react";
 import { useAuthStore } from "../store/use-auth.store";
@@ -20,8 +21,8 @@ import {
   setAuthLogoutLock,
 } from "../utils/auth-cache.util";
 
-type AuthSessionData = Omit<AuthResponse, "roles"> & {
-  roles?: AuthResponse["roles"];
+type AuthSessionData = Omit<AuthSessionResponse, "roles"> & {
+  roles?: AuthSessionResponse["roles"];
 };
 
 export function useAuth() {
@@ -57,7 +58,8 @@ export function useAuth() {
           return null;
         }
 
-        return await AuthService.me();
+        const session = await AuthService.me();
+        return session.user;
       } catch (e: unknown) {
         if (e instanceof AxiosError && e?.response?.status === 401) {
           clearAuth();
@@ -190,7 +192,7 @@ export function useAuth() {
         updateProfileData.avatarFile || updateProfileData.coverFile,
       );
       setProfileUploadProgress(hasUpload ? 0 : null);
-      const res = await AuthService.updateProfile(
+      const res = await UserService.updateProfile(
         updateProfileData,
         (event) => {
           if (!event.total) return;

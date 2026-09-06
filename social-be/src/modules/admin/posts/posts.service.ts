@@ -2,8 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
-import { AdminPostQueryDto } from './dto/admin-post-query.dto';
-import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
+import { AdminPostQueryDto } from './dto/requests/admin-post-query.dto';
+import { UpdatePostVisibilityDto } from './dto/requests/update-post-visibility.dto';
 
 @Injectable()
 export class PostsService {

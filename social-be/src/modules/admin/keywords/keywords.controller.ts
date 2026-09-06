@@ -10,10 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { KeywordsService } from './keywords.service';
-import { CreateKeywordDto } from './dto/create-keyword.dto';
-import { UpdateKeywordDto } from './dto/update-keyword.dto';
-import { KeywordQueryDto } from './dto/keyword-query.dto';
-import { DeleteKeywordDto } from './dto/delete-keyword.dto';
+import { CreateKeywordDto } from './dto/requests/create-keyword.dto';
+import { UpdateKeywordDto } from './dto/requests/update-keyword.dto';
+import { KeywordQueryDto } from './dto/requests/keyword-query.dto';
+import { DeleteKeywordDto } from './dto/requests/delete-keyword.dto';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
 

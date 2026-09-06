@@ -9,7 +9,7 @@ import {
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { PermissionsGuard } from 'src/common/guards/permission.guard';
 import { Permissions } from 'src/modules/auth/decorators/permission.decorator';
-import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
+import { UpdateSystemSettingsDto } from './dto/requests/update-system-settings.dto';
 import { SettingsService } from './settings.service';
 
 @UseGuards(PermissionsGuard)

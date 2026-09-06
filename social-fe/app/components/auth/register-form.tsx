@@ -13,6 +13,24 @@ import { useAuth } from "@/app/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
 
+const MIN_ACCOUNT_AGE = 13;
+
+function isAtLeastAge(value: string, minimumAge: number): boolean {
+  const birthDate = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(birthDate.getTime())) return false;
+
+  const today = new Date();
+  const latestAllowedBirthDate = new Date(
+    Date.UTC(
+      today.getUTCFullYear() - minimumAge,
+      today.getUTCMonth(),
+      today.getUTCDate(),
+    ),
+  );
+
+  return birthDate <= latestAllowedBirthDate;
+}
+
 const step1Schema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email address"),
 
@@ -21,21 +39,28 @@ const step1Schema = z.object({
     .min(8, "Password must be at least 8 characters")
     .max(128, "Password cannot exceed 128 characters")
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
       "Password must contain uppercase, lowercase, number and special character",
     ),
 
-  dateOfBirth: z.string().refine((date) => {
-    const age = new Date().getFullYear() - new Date(date).getFullYear();
-    return age >= 13;
-  }, "You must be at least 13 years old"),
+  dateOfBirth: z
+    .string()
+    .min(1, "Date of birth is required")
+    .refine(
+      (date) => isAtLeastAge(date, MIN_ACCOUNT_AGE),
+      `You must be at least ${MIN_ACCOUNT_AGE} years old`,
+    ),
 });
 
 const step2Schema = z.object({
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
-    .regex(/^[a-zA-Z0-9]+$/, "Username can only contain letters and numbers"),
+    .max(30, "Username cannot exceed 30 characters")
+    .regex(
+      /^[a-zA-Z0-9_]+$/,
+      "Username can only contain letters, numbers and underscores",
+    ),
 });
 
 type Step1Values = z.infer<typeof step1Schema>;
@@ -194,7 +219,10 @@ function Step1Form({
       <div className="space-y-3 pt-2 text-sm">
         <p className="text-slate-700">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-blue-600 hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-blue-600 hover:underline"
+          >
             Log In
           </Link>
         </p>

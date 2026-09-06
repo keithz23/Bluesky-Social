@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ReportPostDto } from './dto/report-post.dto';
+import { ReportPostDto } from './dto/requests/report-post.dto';
 
 @Injectable()
 export class ModerationService {

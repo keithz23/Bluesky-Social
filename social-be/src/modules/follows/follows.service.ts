@@ -1,439 +1,48 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { JOB_NAMES, QUEUE_NAMES } from 'src/common/constants/queue.constant';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { FollowQueryDto } from './dto/follow-query.dto';
-import { FollowRequestStatus, NotificationType } from '@prisma/client';
-import { NotificationsService } from '../notifications/notifications.service';
-import { FollowRequestQueryDto } from './dto/follow-request-query.dto';
+import { Injectable } from '@nestjs/common';
+import { FollowQueryDto } from './dto/requests/follow-query.dto';
+import { FollowRequestQueryDto } from './dto/requests/follow-request-query.dto';
+import { FollowsCommandService } from './services/follows-command.service';
+import { FollowsQueryService } from './services/follows-query.service';
 
 @Injectable()
 export class FollowsService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly notificationService: NotificationsService,
-    @InjectQueue(QUEUE_NAMES.FEED_FANOUT)
-    private readonly feedFanoutQueue: Queue,
+    private readonly commands: FollowsCommandService,
+    private readonly queries: FollowsQueryService,
   ) {}
 
-  async follow(followerId: string, followingId: string) {
-    if (followerId == followingId) {
-      throw new BadRequestException('Cannot follow yourself');
-    }
-
-    const targetUser = await this.prisma.user.findUnique({
-      where: { id: followingId },
-      select: { id: true, isPrivate: true },
-    });
-
-    if (!targetUser) throw new NotFoundException('User not found');
-
-    const existing = await this.prisma.follow.findUnique({
-      where: {
-        followerId_followingId: { followerId, followingId },
-      },
-    });
-
-    if (existing) throw new BadRequestException('Already following');
-
-    if (targetUser.isPrivate) {
-      return this.createFollowRequest(followerId, followingId);
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.follow.create({
-        data: { followerId, followingId },
-      }),
-      // Increase the following count of the follower.
-      this.prisma.user.update({
-        where: { id: followerId },
-        data: { followingCount: { increment: 1 } },
-      }),
-      // Increase the followers count of the user being followed.
-      this.prisma.user.update({
-        where: { id: followingId },
-        data: { followersCount: { increment: 1 } },
-      }),
-    ]);
-
-    await this.feedFanoutQueue.add(JOB_NAMES.BACKFILL_USER_FEED, {
-      followerId,
-      followingId,
-    });
-
-    return { success: true, status: 'following' };
+  follow(followerId: string, followingId: string) {
+    return this.commands.follow(followerId, followingId);
   }
 
-  async unfollow(followerId: string, followingId: string) {
-    const existing = await this.prisma.follow.findUnique({
-      where: {
-        followerId_followingId: { followerId, followingId },
-      },
-    });
-
-    if (!existing) throw new BadRequestException('Not following');
-
-    await this.prisma.$transaction([
-      this.prisma.follow.delete({
-        where: {
-          followerId_followingId: { followerId, followingId },
-        },
-      }),
-      // Decrease the following count of the follower.
-      this.prisma.user.update({
-        where: { id: followerId },
-        data: { followingCount: { decrement: 1 } },
-      }),
-      // Decrease the followers count of the user being unfollowed.
-      this.prisma.user.update({
-        where: { id: followingId },
-        data: { followersCount: { decrement: 1 } },
-      }),
-    ]);
-
-    await this.feedFanoutQueue.add(JOB_NAMES.CLEANUP_AUTHOR_FEED, {
-      userId: followerId,
-      authorId: followingId,
-    });
-
-    return { success: true, status: 'unfollowed' };
+  unfollow(followerId: string, followingId: string) {
+    return this.commands.unfollow(followerId, followingId);
   }
 
-  // For private accounts
-  private async createFollowRequest(senderId: string, receiverId: string) {
-    const existingRequest = await this.prisma.followRequest.findUnique({
-      where: {
-        senderId_receiverId: { senderId, receiverId },
-      },
-    });
-
-    if (existingRequest) throw new BadRequestException('Request already sent');
-
-    await this.prisma.followRequest.create({
-      data: { senderId, receiverId },
-    });
-
-    await this.notificationService.sendNotification({
-      userId: receiverId,
-      actorId: senderId,
-      type: NotificationType.FOLLOW_REQUEST,
-    });
-
-    return { success: true, status: 'requested' };
+  acceptFollowRequest(currentUserId: string, senderId: string) {
+    return this.commands.acceptFollowRequest(currentUserId, senderId);
   }
 
-  // Accept follow request (for private accounts)
-  async acceptFollowRequest(currentUserId: string, senderId: string) {
-    const request = await this.prisma.followRequest.findUnique({
-      where: {
-        senderId_receiverId: { senderId, receiverId: currentUserId },
-      },
-    });
-
-    if (!request) throw new NotFoundException('Follow request not found');
-
-    await this.prisma.$transaction([
-      // Delete the follow request
-      this.prisma.followRequest.delete({
-        where: {
-          senderId_receiverId: { senderId, receiverId: currentUserId },
-        },
-      }),
-      // Create the actual follow relationship
-      this.prisma.follow.create({
-        data: { followerId: senderId, followingId: currentUserId },
-      }),
-      // Increase following count of the sender
-      this.prisma.user.update({
-        where: { id: senderId },
-        data: { followingCount: { increment: 1 } },
-      }),
-      // Increase followers count of the current user
-      this.prisma.user.update({
-        where: { id: currentUserId },
-        data: { followersCount: { increment: 1 } },
-      }),
-    ]);
-
-    await this.feedFanoutQueue.add(JOB_NAMES.BACKFILL_USER_FEED, {
-      followerId: senderId,
-      followingId: currentUserId,
-    });
-
-    await this.notificationService.sendNotification({
-      userId: senderId,
-      actorId: currentUserId,
-      type: NotificationType.FOLLOW_REQUEST,
-    });
-
-    await this.notificationService.deleteNotificationForActor({
-      userId: currentUserId,
-      actorId: senderId,
-      type: NotificationType.FOLLOW_REQUEST,
-    });
-
-    await this.notificationService.sendNotification({
-      userId: senderId,
-      actorId: currentUserId,
-      type: 'FOLLOW_REQUEST_ACCEPTED' as NotificationType,
-    });
-
-    return { success: true };
+  declineFollowRequest(currentUserId: string, senderId: string) {
+    return this.commands.declineFollowRequest(currentUserId, senderId);
   }
 
-  // Decline or cancel follow request
-  async declineFollowRequest(currentUserId: string, senderId: string) {
-    await this.prisma.followRequest.deleteMany({
-      where: { senderId, receiverId: currentUserId },
-    });
-
-    await this.notificationService.deleteNotificationForActor({
-      userId: currentUserId,
-      actorId: senderId,
-      type: NotificationType.FOLLOW_REQUEST,
-    });
-
-    return { success: true };
+  getFollowStatus(currentUserId: string, targetUserId: string) {
+    return this.queries.getFollowStatus(currentUserId, targetUserId);
   }
 
-  // Check follow status between two users
-  async getFollowStatus(currentUserId: string, targetUserId: string) {
-    const [follow, request] = await Promise.all([
-      this.prisma.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: currentUserId,
-            followingId: targetUserId,
-          },
-        },
-      }),
-      this.prisma.followRequest.findUnique({
-        where: {
-          senderId_receiverId: {
-            senderId: currentUserId,
-            receiverId: targetUserId,
-          },
-        },
-      }),
-    ]);
-
-    if (follow) return { status: 'following' };
-    if (request) return { status: 'requested' };
-    return { status: 'none' };
+  getFollowingLists(currentUserId: string, query: FollowQueryDto) {
+    return this.queries.getFollowingLists(currentUserId, query);
   }
 
-  async getFollowingLists(currentUserId: string, query: FollowQueryDto) {
-    const limit = query.limit ?? 20;
-    const username = query.username;
-    const listId = query.listId;
-
-    const user = await this.prisma.user.findFirst({
-      where: { username },
-      select: { id: true, isPrivate: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!(await this.canViewUserConnections(currentUserId, user))) {
-      return { following: [], nextCursor: null, hasMore: false };
-    }
-
-    const follows = await this.prisma.follow.findMany({
-      where: {
-        followerId: user.id,
-      },
-      take: limit + 1,
-      ...(query.cursor && {
-        cursor: { id: query.cursor },
-        skip: 1,
-      }),
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        following: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            bio: true,
-            avatarUrl: true,
-            coverUrl: true,
-            verified: true,
-            ...(listId && {
-              listMembers: {
-                where: { listId: listId },
-                select: { id: true },
-              },
-            }),
-          },
-        },
-      },
-    });
-
-    const hasMore = follows.length > limit;
-    if (hasMore) follows.pop();
-
-    const nextCursor = hasMore ? follows[follows.length - 1].id : null;
-
-    const formattedFollowing = follows.map((f) => {
-      const { listMembers, ...userData } = f.following as any;
-
-      return {
-        followId: f.id,
-        followedAt: f.createdAt,
-        ...userData,
-        isAdded: listId ? listMembers && listMembers.length > 0 : false,
-      };
-    });
-
-    return {
-      following: formattedFollowing,
-      nextCursor,
-      hasMore,
-    };
+  getFollowerLists(currentUserId: string, query: FollowQueryDto) {
+    return this.queries.getFollowerLists(currentUserId, query);
   }
 
-  async getFollowerLists(currentUserId: string, query: FollowQueryDto) {
-    const limit = query.limit ?? 20;
-    const username = query.username;
-    const user = await this.prisma.user.findFirst({
-      where: { username },
-      select: { id: true, isPrivate: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!(await this.canViewUserConnections(currentUserId, user))) {
-      return { follower: [], nextCursor: null, hasMore: false };
-    }
-
-    const follows = await this.prisma.follow.findMany({
-      where: {
-        followingId: user.id,
-      },
-      take: limit + 1,
-      ...(query.cursor && {
-        cursor: { id: query.cursor },
-        skip: 1,
-      }),
-      orderBy: { createdAt: 'desc' },
-      include: {
-        follower: {
-          select: {
-            id: true,
-            bio: true,
-            verified: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-            coverUrl: true,
-          },
-        },
-      },
-    });
-
-    const hasMore = follows.length > limit;
-    if (hasMore) follows.pop();
-
-    const nextCursor = hasMore ? follows[follows.length - 1].id : null;
-
-    const formattedFollowers = follows.map((f) => ({
-      followerId: f.id,
-      followerAt: f.createdAt,
-      ...f.follower,
-    }));
-
-    return {
-      follower: formattedFollowers,
-      nextCursor,
-      hasMore,
-    };
-  }
-
-  async getReceivedFollowRequests(
+  getReceivedFollowRequests(
     userId: string,
     query: FollowRequestQueryDto,
   ) {
-    const limit = query.limit ?? 20;
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) throw new NotFoundException('User not found');
-
-    const followRequests = await this.prisma.followRequest.findMany({
-      where: {
-        receiverId: userId,
-        status: FollowRequestStatus.PENDING,
-      },
-      take: limit + 1,
-      ...(query.cursor && {
-        cursor: { id: query.cursor },
-        skip: 1,
-      }),
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-            coverUrl: true,
-            bio: true,
-            verified: true,
-          },
-        },
-      },
-    });
-
-    const hasMore = followRequests.length > limit;
-    if (hasMore) followRequests.pop();
-    const nextCursor = hasMore
-      ? followRequests[followRequests.length - 1].id
-      : null;
-
-    return {
-      receivedFollow: followRequests.map((request) => ({
-        requestId: request.id,
-        requestedAt: request.createdAt,
-        ...request.sender,
-      })),
-      nextCursor,
-      hasMore,
-    };
-  }
-
-  private async canViewUserConnections(
-    currentUserId: string,
-    targetUser: { id: string; isPrivate: boolean },
-  ) {
-    if (targetUser.id === currentUserId) return true;
-    if (!targetUser.isPrivate) return true;
-
-    const follow = await this.prisma.follow.findUnique({
-      where: {
-        followerId_followingId: {
-          followerId: currentUserId,
-          followingId: targetUser.id,
-        },
-      },
-      select: { id: true },
-    });
-
-    return Boolean(follow);
+    return this.queries.getReceivedFollowRequests(userId, query);
   }
 }

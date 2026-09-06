@@ -2,11 +2,13 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AuthService } from "../services/auth.service";
+import { UserService } from "../services/user.service";
 import { toast } from "sonner";
 import { extractErrMsg } from "../utils/error.util";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/use-auth.store";
 import { clearAuthSessionCache } from "../utils/auth-cache.util";
+import type { Disable2FAData } from "../interfaces/auth.interface";
 
 type useAccountSettingsOptions = {
   onSuccess?: () => void;
@@ -77,7 +79,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
 
   const changeUsernameMutation = useMutation({
     mutationFn: (payload: { username: string }) =>
-      AuthService.changeUsername(payload),
+      UserService.changeUsername(payload),
     onSuccess: async () => {
       qc.setQueryData(["me"], null);
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -92,7 +94,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
 
   const changeBirthDayMutation = useMutation({
     mutationFn: (payload: { dateOfBirth: string }) =>
-      AuthService.changeBirthDay(payload),
+      UserService.changeDateOfBirth(payload),
     onSuccess: async () => {
       qc.setQueryData(["me"], null);
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -106,7 +108,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
 
   const updateAccountPrivacyMutation = useMutation({
     mutationFn: (payload: { isPrivate: boolean }) =>
-      AuthService.updateAccountPrivacy(payload),
+      UserService.updatePrivacy(payload),
     onSuccess: async (user) => {
       qc.setQueryData(["me"], user);
       await qc.invalidateQueries({ queryKey: ["profile"] });
@@ -153,7 +155,8 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
   });
 
   const deleteAccountMutation = useMutation({
-    mutationFn: (payload: { otp: string }) => AuthService.deleteAccount(payload),
+    mutationFn: (payload: { otp: string }) =>
+      AuthService.deleteAccount(payload),
     onSuccess: async () => {
       await resetAuth();
       options?.onSuccess?.();
@@ -199,8 +202,7 @@ export const useAccountSettings = (options?: useAccountSettingsOptions) => {
   });
 
   const disable2FAMutation = useMutation({
-    mutationFn: (payload: { password?: string; otp: string }) =>
-      AuthService.disable2FA(payload),
+    mutationFn: (payload: Disable2FAData) => AuthService.disable2FA(payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
       toast.success("Two-factor authentication disabled.");

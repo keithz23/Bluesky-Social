@@ -7,7 +7,6 @@ import { ReportsModule } from './reports/reports.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { KeywordsModule } from './keywords/keywords.module';
 import { RulesModule } from './rules/rules.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { PermissionsModule } from '../permissions/permissions.module';
@@ -22,7 +21,6 @@ import { RolesModule } from './roles/roles.module';
     ModerationModule,
     KeywordsModule,
     RulesModule,
-    AnalyticsModule,
     SettingsModule,
     AuditLogsModule,
     PermissionsModule,
@@ -37,7 +35,6 @@ import { RolesModule } from './roles/roles.module';
           ModerationModule,
           KeywordsModule,
           RulesModule,
-          AnalyticsModule,
           SettingsModule,
           AuditLogsModule,
           PermissionsModule,
@@ -48,4 +45,4 @@ import { RolesModule } from './roles/roles.module';
     RolesModule,
   ],
 })
-export class AdminModule {}
+export class AdminModule { }

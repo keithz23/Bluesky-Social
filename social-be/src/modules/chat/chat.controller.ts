@@ -14,9 +14,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { CreateConversationDto } from './dto/create-conversation.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
-import { ConversationQueryDto, MessageQueryDto } from './dto/message-query.dto';
+import { CreateConversationDto } from './dto/requests/create-conversation.dto';
+import { UpdateConversationDto } from './dto/requests/update-conversation.dto';
+import { ConversationQueryDto, MessageQueryDto } from './dto/requests/message-query.dto';
 import 'multer';
 import { Throttle } from '@nestjs/throttler';
 

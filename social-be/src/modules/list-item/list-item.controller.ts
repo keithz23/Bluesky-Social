@@ -8,8 +8,8 @@ import {
   Delete,
 } from '@nestjs/common';
 import { ListItemService } from './list-item.service';
-import { CreateListItemDto } from './dto/create-list-item.dto';
-import { UpdateListItemDto } from './dto/update-list-item.dto';
+import { CreateListItemDto } from './dto/requests/create-list-item.dto';
+import { UpdateListItemDto } from './dto/requests/update-list-item.dto';
 
 @Controller('list-item')
 export class ListItemController {

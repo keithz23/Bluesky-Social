@@ -5,7 +5,8 @@ import axios, {
   AxiosRequestConfig,
   InternalAxiosRequestConfig,
 } from "axios";
-import { AuthResponse } from "@/app/interfaces/user.interface";
+import { AuthSessionResponse } from "@/app/interfaces/auth-response.interface";
+import type { ApiEnvelope, PaginationMeta } from "@social/api-contracts";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -16,22 +17,9 @@ type QueueItem = {
   reject: (error: unknown) => void;
 };
 
-export type RefreshResponse = AuthResponse;
+export type RefreshResponse = AuthSessionResponse;
 
-export type PaginationMeta = {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-};
-
-type ApiEnvelope<T> = {
-  statusCode: number;
-  message: string;
-  data: T;
-  meta?: PaginationMeta;
-  timestamp: string;
-};
+export type { PaginationMeta };
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -120,9 +108,7 @@ export const refreshAuthSession = async (): Promise<RefreshResponse> => {
     return session;
   } catch (refreshError) {
     processQueue(refreshError, null);
-    if (
-      useAuthStore.getState().accessToken === accessTokenBeforeRefresh
-    ) {
+    if (useAuthStore.getState().accessToken === accessTokenBeforeRefresh) {
       useAuthStore.getState().clearAuth();
     }
     throw refreshError;

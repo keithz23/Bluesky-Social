@@ -1,5 +1,4 @@
 import { apiClient, refreshAuthSession } from "@/lib/axios";
-import type { AxiosProgressEvent } from "axios";
 import { API_ENDPOINT } from "../constants/endpoint.constant";
 import {
   ChangePasswordData,
@@ -8,22 +7,25 @@ import {
   RegisterData,
   ResetPasswordData,
   UpdateEmailData,
-  UpdateProfileData,
-  UpdateAccountPrivacyData,
-  ChangeUsernameData,
-  ChangeBirthDayData,
   DeactivateAccountData,
   DeleteAccountData,
   Enable2FAData,
   Disable2FAData,
   Setup2FAData,
 } from "../interfaces/auth.interface";
-import { AuthResponse, LoginResponse } from "../interfaces/user.interface";
-import type { User } from "../interfaces/user.interface";
+import type {
+  AuthSessionResponse,
+  CurrentSessionResponse,
+  LoginResponse,
+  RegisterResponse,
+} from "../interfaces/auth-response.interface";
 
 export const AuthService = {
   register: (registerData: RegisterData) => {
-    return apiClient.post<User>(API_ENDPOINT.AUTH.REGISTER, registerData);
+    return apiClient.post<RegisterResponse>(
+      API_ENDPOINT.AUTH.REGISTER,
+      registerData,
+    );
   },
 
   login: async (crendentials: LoginCredentials): Promise<LoginResponse> => {
@@ -34,43 +36,12 @@ export const AuthService = {
     return apiClient.post<unknown>(API_ENDPOINT.AUTH.LOGOUT, {});
   },
 
-  refresh: async (): Promise<AuthResponse> => {
+  refresh: async (): Promise<AuthSessionResponse> => {
     return refreshAuthSession();
   },
 
-  me: async (): Promise<User> => {
-    return apiClient.get<User>(API_ENDPOINT.AUTH.ME);
-  },
-
-  updateProfile: async (
-    updateProfileData: UpdateProfileData,
-    onUploadProgress?: (event: AxiosProgressEvent) => void,
-  ) => {
-    const formData = new FormData();
-    if (updateProfileData.displayName) {
-      formData.append("displayName", updateProfileData.displayName);
-    }
-    if (updateProfileData.bio !== undefined) {
-      formData.append("bio", updateProfileData.bio);
-    }
-    if (updateProfileData.avatarFile) {
-      formData.append("avatar", updateProfileData.avatarFile);
-    }
-    if (updateProfileData.coverFile) {
-      formData.append("cover", updateProfileData.coverFile);
-    }
-    return apiClient.patch<User>(
-      API_ENDPOINT.AUTH.UPDATE_PROFILE,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress },
-    );
-  },
-
-  updateAccountPrivacy: (updateAccountPrivacyData: UpdateAccountPrivacyData) => {
-    return apiClient.patch<User>(
-      API_ENDPOINT.AUTH.ACCOUNT_PRIVACY,
-      updateAccountPrivacyData,
-    );
+  me: async (): Promise<CurrentSessionResponse> => {
+    return apiClient.get<CurrentSessionResponse>(API_ENDPOINT.AUTH.ME);
   },
 
   forgot: (email: string) => {
@@ -112,22 +83,10 @@ export const AuthService = {
     );
   },
 
-  changeUsername: (changeUsernameData: ChangeUsernameData) => {
-    return apiClient.patch<unknown>(
-      API_ENDPOINT.AUTH.CHANGE_USERNAME,
-      changeUsernameData,
-    );
-  },
-
-  changeBirthDay: (changeBirthDayData: ChangeBirthDayData) => {
-    return apiClient.patch<unknown>(
-      API_ENDPOINT.AUTH.CHANGE_BIRTHDAY,
-      changeBirthDayData,
-    );
-  },
-
   requestDeactivateAccount: () => {
-    return apiClient.post<unknown>(API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT);
+    return apiClient.post<unknown>(
+      API_ENDPOINT.AUTH.REQUEST_DEACTIVATE_ACCOUNT,
+    );
   },
 
   deactivateAccount: (deactivateAccountData: DeactivateAccountData) => {
@@ -176,8 +135,8 @@ export const AuthService = {
   verifyLogin2FA: async (payload: {
     challengeId: string;
     otp: string;
-  }): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>(
+  }): Promise<AuthSessionResponse> => {
+    return apiClient.post<AuthSessionResponse>(
       API_ENDPOINT.AUTH.VERIFY_LOGIN_2FA,
       payload,
     );

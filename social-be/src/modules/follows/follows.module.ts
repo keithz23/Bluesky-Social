@@ -5,6 +5,8 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { BullModule } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from 'src/common/constants/queue.constant';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { FollowsCommandService } from './services/follows-command.service';
+import { FollowsQueryService } from './services/follows-query.service';
 
 @Module({
   imports: [
@@ -15,6 +17,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [FollowsController],
-  providers: [FollowsService],
+  providers: [FollowsService, FollowsCommandService, FollowsQueryService],
 })
 export class FollowsModule {}

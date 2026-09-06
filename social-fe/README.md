@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Konekt Frontend
 
-## Getting Started
+Next.js web application for Konekt. It contains the public social experience, authentication screens, profile and feed surfaces, chat, notifications, settings, and the admin dashboard.
 
-First, run the development server:
+## Runtime
+
+- Next.js 16 with the App Router
+- React 19
+- TypeScript
+- Tailwind CSS
+- TanStack Query
+- Zustand
+- Socket.IO client
+
+## Structure
+
+```text
+app/
+|-- (auth)/              # login, signup, password recovery
+|-- (main)/              # social app pages
+|-- admin/               # admin login, dashboard, services, hooks
+|-- components/          # app-specific UI
+|-- hooks/               # frontend hooks
+|-- interfaces/          # UI-local types and API type re-exports
+|-- services/            # API clients
+|-- store/               # Zustand stores
+`-- utils/               # frontend utilities
+
+components/ui/           # shared UI primitives
+lib/                     # axios, query helpers, utility setup
+providers/               # app-level providers
+public/                  # static assets
+```
+
+API-facing types should come from `@social/api-contracts`. Local interface files may re-export those contracts to keep existing imports stable. UI-only types can stay local under `app/interfaces`.
+
+## Setup
+
+```bash
+npm ci
+```
+
+Create `social-fe/.env.development` when running locally:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_SERVER_URL=http://localhost:8000
+```
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. Make sure the backend is running at `http://localhost:8000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Run the Next.js dev server with Turbopack |
+| `npm run build` | Create a production build |
+| `npm run start` | Start the production server |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format the frontend project |
+| `npm run format:check` | Check formatting |
+| `./node_modules/.bin/tsc -p tsconfig.json --noEmit` | Typecheck without building |
 
-## Learn More
+## Shared Contracts
 
-To learn more about Next.js, take a look at the following resources:
+The frontend resolves `@social/api-contracts` through `tsconfig.json` and transpiles it through `next.config.ts`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+After editing shared contracts, run from the repository root:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build:contracts
+```
 
-## Deploy on Vercel
+Then validate the frontend:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+./node_modules/.bin/tsc -p tsconfig.json --noEmit
+npm run build
+```

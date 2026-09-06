@@ -5,8 +5,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import {
   ModerationDecision,
   ModerationDecisionDto,
-} from './dto/moderation-decision.dto';
-import { ModerationQueryDto } from './dto/moderation-query.dto';
+} from './dto/requests/moderation-decision.dto';
+import { ModerationQueryDto } from './dto/requests/moderation-query.dto';
 
 @Injectable()
 export class ModerationService {

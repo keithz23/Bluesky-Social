@@ -1,9 +1,9 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
 import { OnEvent } from '@nestjs/event-emitter';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { CreateNotificationDto } from './dto/requests/create-notification.dto';
 import { NotificationGateway } from '../socket/notification.gateway';
-import { NotificationQueryDto } from './dto/notification-query.dto';
+import { NotificationQueryDto } from './dto/requests/notification-query.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()

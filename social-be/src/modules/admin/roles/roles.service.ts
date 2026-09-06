@@ -4,13 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateRoleDto } from './dto/create-role.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
+import { CreateRoleDto } from './dto/requests/create-role.dto';
+import { UpdateRoleDto } from './dto/requests/update-role.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { RoleQueryDto } from './dto/role-query.dto';
+import { RoleQueryDto } from './dto/requests/role-query.dto';
 import { PaginationUtil } from 'src/common/utils/pagination.util';
-import { DeleteRoleDto } from './dto/delete-role.dto';
+import { DeleteRoleDto } from './dto/requests/delete-role.dto';
 import { UsersService } from '../users/users.service';
 import { RolesReponse } from './roles.interface';
 import { PaginatedResult } from 'src/common/interfaces/pagination.interface';
